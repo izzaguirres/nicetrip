@@ -439,28 +439,38 @@ export function useDisponibilidade(id: string) {
   }
 }
 
-export function useCidadesSaida() {
+export function useCidadesSaida(transporte?: string) {
   const [cidades, setCidades] = useState<CidadeSaida[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCidades()
-  }, [])
+  }, [transporte])
 
   const fetchCidades = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('cidades_saida')
         .select('*')
         .order('cidade', { ascending: true })
 
+      if (transporte) {
+        query = query.eq('transporte', transporte)
+      }
+
+      const { data, error } = await query
+
       if (error && error.message.includes('Supabase não configurado')) {
         console.log('Supabase não configurado, usando cidades de fallback')
-        setCidades(FALLBACK_CIDADES)
+        let cidadesFiltradas = FALLBACK_CIDADES
+        if (transporte) {
+          cidadesFiltradas = FALLBACK_CIDADES.filter(cidade => cidade.transporte === transporte)
+        }
+        setCidades(cidadesFiltradas)
         return
       }
 
@@ -528,7 +538,7 @@ export function useDestinos() {
   return { destinos, loading, error }
 }
 
-export function useDatasDisponiveis(destino?: string) {
+export function useDatasDisponiveis(destino?: string, transporte?: string) {
   const [datas, setDatas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -545,17 +555,22 @@ export function useDatasDisponiveis(destino?: string) {
         if (destino) {
           query = query.eq('destino', destino)
         }
+        if (transporte) {
+          query = query.eq('transporte', transporte)
+        }
 
         const { data, error } = await query
 
         if (error && error.message.includes('Supabase não configurado')) {
           console.log('Supabase não configurado, usando datas de fallback')
-          let datasFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.data_saida)
+          let datasFiltradas = FALLBACK_DISPONIBILIDADES
           if (destino) {
-            datasFallback = FALLBACK_DISPONIBILIDADES
-              .filter((item: Disponibilidade) => item.destino === destino)
-              .map((item: Disponibilidade) => item.data_saida)
+            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
           }
+          if (transporte) {
+            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
+          }
+          const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
           const datasUnicas = [...new Set(datasFallback)]
           setDatas(datasUnicas)
           return
@@ -569,12 +584,14 @@ export function useDatasDisponiveis(destino?: string) {
         setDatas(datasUnicas)
       } catch (err) {
         console.error('Erro ao carregar datas, usando fallback:', err)
-        let datasFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.data_saida)
+        let datasFiltradas = FALLBACK_DISPONIBILIDADES
         if (destino) {
-          datasFallback = FALLBACK_DISPONIBILIDADES
-            .filter((item: Disponibilidade) => item.destino === destino)
-            .map((item: Disponibilidade) => item.data_saida)
+          datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
         }
+        if (transporte) {
+          datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
+        }
+        const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
         const datasUnicas = [...new Set(datasFallback)]
         setDatas(datasUnicas)
         setError(null)
@@ -584,7 +601,7 @@ export function useDatasDisponiveis(destino?: string) {
     }
 
     fetchDatas()
-  }, [destino])
+  }, [destino, transporte])
 
   return { datas, loading, error }
 }

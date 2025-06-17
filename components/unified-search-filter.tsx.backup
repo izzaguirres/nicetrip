@@ -79,6 +79,19 @@ export function UnifiedSearchFilter({
 }: UnifiedSearchFilterProps) {
   const router = useRouter()
   
+  // Hooks do Supabase com fallback
+  const { cidades: supabaseCidades, loading: loadingCidades, error: errorCidades } = useCidadesSaida()
+  const { destinos: supabaseDestinos, loading: loadingDestinos, error: errorDestinos } = useDestinos()
+  const { transportes: supabaseTransportes, loading: loadingTransportes, error: errorTransportes } = useTransportesDisponiveis()
+  
+  // Hook do Smart Filter
+  const { executeSmartFilter, loading: loadingSmartFilter, results: smartResults } = useSmartFilter()
+
+  // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
+  const cidades = errorCidades || supabaseCidades.length === 0 ? FALLBACK_CITIES : supabaseCidades.map(c => ({ ...c, transporte: "Bus" }))
+  const destinos = errorDestinos || supabaseDestinos.length === 0 ? FALLBACK_DESTINATIONS : supabaseDestinos
+  const transportes = errorTransportes || supabaseTransportes.length === 0 ? FALLBACK_TRANSPORTS : supabaseTransportes
+
   // ✅ NOVO: Função para definir data padrão baseada no destino
   const getDefaultDateForDestino = (destino: string): Date => {
     if (destino === "Bombinhas") {
@@ -98,19 +111,6 @@ export function UnifiedSearchFilter({
     rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }],
     transporte: initialFilters?.transporte || "Bus",
   })
-
-  // Hooks do Supabase com fallback
-  const { cidades: supabaseCidades, loading: loadingCidades, error: errorCidades } = useCidadesSaida(filters.transporte)
-  const { destinos: supabaseDestinos, loading: loadingDestinos, error: errorDestinos } = useDestinos()
-  const { transportes: supabaseTransportes, loading: loadingTransportes, error: errorTransportes } = useTransportesDisponiveis()
-  
-  // Hook do Smart Filter
-  const { executeSmartFilter, loading: loadingSmartFilter, results: smartResults } = useSmartFilter()
-
-  // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
-  const cidades = errorCidades || supabaseCidades.length === 0 ? FALLBACK_CITIES : supabaseCidades.map(c => ({ ...c, transporte: "Bus" }))
-  const destinos = errorDestinos || supabaseDestinos.length === 0 ? FALLBACK_DESTINATIONS : supabaseDestinos
-  const transportes = errorTransportes || supabaseTransportes.length === 0 ? FALLBACK_TRANSPORTS : supabaseTransportes
 
   // Atualizar filtros quando initialFilters mudar (importante para página de resultados)
   useEffect(() => {
@@ -371,45 +371,6 @@ export function UnifiedSearchFilter({
 
   return (
       <div className={containerClass}>
-        {/* Transporte - MOVIDO PARA PRIMEIRO */}
-        <div className="space-y-2">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
-            Transporte
-          </label>
-          <Select value={filters.transporte} onValueChange={(value) => setFilters(prev => ({ ...prev, transporte: value }))}>
-            <SelectTrigger className="w-full h-10 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
-              <div className="flex items-center">
-                {filters.transporte === "Bus" ? (
-                  <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-              ) : filters.transporte === "Aéreo" ? (
-                <Plane className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-                ) : (
-                <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-                )}
-              <SelectValue placeholder="Seleccionar transporte">
-                <span className="text-sm font-medium">
-                  {filters.transporte || "Seleccionar transporte"}
-                </span>
-              </SelectValue>
-              </div>
-            </SelectTrigger>
-            <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
-              {transportes.map((transporte) => (
-                <SelectItem key={transporte} value={transporte} className="rounded-lg hover:bg-[#EE7215]/5">
-                <div className="flex items-center gap-2">
-                  {transporte === "Bus" ? (
-                    <Bus className="w-4 h-4 text-[#EE7215]" />
-                  ) : (
-                    <Plane className="w-4 h-4 text-[#EE7215]" />
-                  )}
-                  <span className="font-medium">{transporte}</span>
-                </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Cidade de Saída */}
         <div className="space-y-2">
           <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
@@ -658,7 +619,44 @@ export function UnifiedSearchFilter({
           </Popover>
         </div>
 
-
+        {/* Transporte */}
+        <div className="space-y-2">
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+            Transporte
+          </label>
+          <Select value={filters.transporte} onValueChange={(value) => setFilters(prev => ({ ...prev, transporte: value }))}>
+            <SelectTrigger className="w-full h-10 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
+              <div className="flex items-center">
+                {filters.transporte === "Bus" ? (
+                  <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
+              ) : filters.transporte === "Aéreo" ? (
+                <Plane className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
+                ) : (
+                <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
+                )}
+              <SelectValue placeholder="Seleccionar transporte">
+                <span className="text-sm font-medium">
+                  {filters.transporte || "Seleccionar transporte"}
+                </span>
+              </SelectValue>
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
+              {transportes.map((transporte) => (
+                <SelectItem key={transporte} value={transporte} className="rounded-lg hover:bg-[#EE7215]/5">
+                <div className="flex items-center gap-2">
+                  {transporte === "Bus" ? (
+                    <Bus className="w-4 h-4 text-[#EE7215]" />
+                  ) : (
+                    <Plane className="w-4 h-4 text-[#EE7215]" />
+                  )}
+                  <span className="font-medium">{transporte}</span>
+                </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Botão de Busca Inteligente */}
         <div className="space-y-2 col-span-2 lg:col-span-1">
