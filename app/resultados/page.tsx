@@ -977,9 +977,9 @@ export default function ResultadosPage() {
   // Função para obter a imagem específica do hotel
   const getHotelImage = (hotelName: string) => {
     const hotelImages: { [key: string]: string } = {
-      "Residencial Terrazas": "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%202.jpg",
-      "Residencial Leonidas": "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
-      "Hotel Fenix": "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
+          "Residencial Terrazas": "/placeholder.jpg",
+    "Residencial Leonidas": "/placeholder.jpg",
+    "Hotel Fenix": "/placeholder.jpg",
     }
     
     return hotelImages[hotelName] || "/placeholder.svg"

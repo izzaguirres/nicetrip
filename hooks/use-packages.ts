@@ -19,7 +19,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 7,
     dias_viagem: 8,
     dias_totais: 8,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%202.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "canasvieiras-residencial-terrazas",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -38,7 +38,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 7,
     dias_viagem: 8,
     dias_totais: 8,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "canasvieiras-residencial-leonidas",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -57,7 +57,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 5,
     dias_viagem: 6,
     dias_totais: 6,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "canasvieiras-hotel-fenix",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -76,7 +76,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 7,
     dias_viagem: 8,
     dias_totais: 8,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%202.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "canasvieiras-resort-premium",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -95,7 +95,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 7,
     dias_viagem: 8,
     dias_totais: 8,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "canasvieiras-hotel-costa-verde",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -114,7 +114,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 5,
     dias_viagem: 6,
     dias_totais: 6,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%202.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "florianopolis-pousada-sol-e-mar",
     created_at: "2025-01-01T00:00:00Z"
   },
@@ -133,7 +133,7 @@ const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
     noites_hotel: 7,
     dias_viagem: 8,
     dias_totais: 8,
-    link_imagem: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/hotel%201.jpg",
+    link_imagem: "/placeholder.jpg",
     slug: "bombinhas-palace-hotel",
     created_at: "2025-01-01T00:00:00Z"
   }

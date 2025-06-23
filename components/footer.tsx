@@ -14,7 +14,7 @@ export function Footer() {
           <div className="space-y-4">
             <Link href="/" className="inline-block">
               <Image
-                src="https://github.com/izzaguirres/nicetrip/blob/main/logo3.png?raw=true"
+                src="/images/nice-trip-logo-new.png"
                 alt="Nice Trip"
                 width={140}
                 height={35}

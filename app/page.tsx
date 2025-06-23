@@ -59,7 +59,7 @@ export default function HomePage() {
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0">
               <Image
-                src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/logo3.png"
+                src="/images/nice-trip-logo-new.png"
                 alt="Nice Trip"
                 width={120}
                 height={30}
@@ -164,7 +164,7 @@ export default function HomePage() {
         <section className="relative w-full overflow-hidden bg-gray-900">
           <div className="absolute inset-0 z-0">
             <Image
-              src="https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/background%20header%20(1).png"
+              src="/images/header-bg.png"
               alt="Fundo de praia tropical"
               fill
               className="object-cover object-center"
@@ -216,7 +216,7 @@ export default function HomePage() {
 
               <div className="hidden lg:block relative w-full h-[400px] lg:h-full lg:col-span-7 lg:self-end lg:justify-self-end -mb-12 lg:mb-0">
                 <Image
-                  src="https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/Image_fx%20(14)AGORA%20VAI%20(1).png"
+                  src="/placeholder.jpg"
                   alt="Família aproveitando as férias"
                   fill
                   className="object-contain object-bottom"

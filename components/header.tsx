@@ -26,7 +26,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
-              src="https://github.com/izzaguirres/nicetrip/blob/main/logo3.png?raw=true"
+              src="/images/nice-trip-logo-new.png"
               alt="Nice Trip"
               width={120}
               height={30}

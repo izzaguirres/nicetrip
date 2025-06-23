@@ -6,22 +6,22 @@ export function PromotionBanners() {
   const banners = [
     {
       id: 1,
-      image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/bajamos.png",
+      image: "/placeholder.jpg",
       alt: "Promoção Pacote Praia",
     },
     {
       id: 2,
-      image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/bajamos.png",
+      image: "/placeholder.jpg",
       alt: "Promoção Viagem em Família",
     },
     {
       id: 3,
-      image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/bajamos.png",
+      image: "/placeholder.jpg",
       alt: "Promoção Passeios Aventura",
     },
     {
       id: 4,
-      image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/refs/heads/main/bajamos.png",
+      image: "/placeholder.jpg",
       alt: "Promoção Escapada Romântica",
     },
   ]
