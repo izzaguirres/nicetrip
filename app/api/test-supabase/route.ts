@@ -33,7 +33,7 @@ export async function GET() {
     // Buscar todos os hotéis únicos
     const { data: hoteisData, error: hoteisError } = await supabase
       .from('disponibilidades')
-      .select('hotel, quarto_tipo, preco_adulto, preco_crianca_0_3, preco_crianca_4_5, preco_crianca_6_mais')
+      .select('hotel, destino, transporte, quarto_tipo, preco_adulto, preco_crianca_0_3, preco_crianca_4_5, preco_crianca_6_mais')
       .order('hotel')
 
     return NextResponse.json({
@@ -51,6 +51,61 @@ export async function GET() {
       success: false,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       message: 'Falha na conexão com Supabase'
+    })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const { filters } = body
+
+    console.log('🔍 POST: Testando com filtros:', filters)
+
+    let query = supabase
+      .from('disponibilidades')
+      .select('*')
+      .order('data_saida')
+
+    // Aplicar filtros se fornecidos
+    if (filters?.transporte) {
+      query = query.eq('transporte', filters.transporte)
+    }
+    if (filters?.destino) {
+      query = query.eq('destino', filters.destino)
+    }
+    if (filters?.data_saida) {
+      query = query.eq('data_saida', filters.data_saida)
+    }
+
+    // Limitar resultados
+    query = query.limit(100)
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('❌ Erro na query:', error)
+      return NextResponse.json({
+        success: false,
+        error: error.message,
+        message: 'Erro ao buscar dados'
+      })
+    }
+
+    console.log(`✅ Dados encontrados: ${data?.length || 0}`)
+
+    return NextResponse.json({
+      success: true,
+      data: data || [],
+      count: data?.length || 0,
+      filters: filters
+    })
+
+  } catch (error) {
+    console.error('💥 Erro no POST:', error)
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     })
   }
 } 

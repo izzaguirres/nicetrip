@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase, Disponibilidade, CidadeSaida, DisponibilidadeFilter, PrecoPessoas, calcularPrecoTotal } from '@/lib/supabase'
+import { fetchRealData, SearchFilters } from '@/lib/supabase-service'
 
 // Dados de fallback para quando o Supabase não estiver configurado
 const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
@@ -206,8 +207,8 @@ export function useDisponibilidades(filters?: DisponibilidadeFilter) {
       console.log(`✅ Supabase retornou ${allData?.length || 0} registros totais`)
       
       if (!allData || allData.length === 0) {
-        console.log('⚠️ Supabase vazio - usando dados de fallback para demonstração')
-        // ✅ FORÇA USO DE DADOS DE FALLBACK para demonstração
+        console.log('⚠️ Supabase realmente vazio - usando dados de fallback apenas se necessário')
+        // ✅ SÓ USAR FALLBACK quando realmente não há dados
         let dadosFiltrados = FALLBACK_DISPONIBILIDADES
         
         // Aplicar filtros nos dados de fallback
@@ -547,22 +548,21 @@ export function useDatasDisponiveis(destino?: string, transporte?: string) {
     async function fetchDatas() {
       try {
         setLoading(true)
-        let query = supabase
-          .from('disponibilidades')
-          .select('data_saida')
-          .order('data_saida')
-
-        if (destino) {
-          query = query.eq('destino', destino)
-        }
-        if (transporte) {
-          query = query.eq('transporte', transporte)
-        }
-
-        const { data, error } = await query
-
-        if (error && error.message.includes('Supabase não configurado')) {
-          console.log('Supabase não configurado, usando datas de fallback')
+        setError(null)
+        
+        console.log('📅 BUSCANDO DATAS DISPONÍVEIS:', { destino, transporte })
+        
+        // ✅ USAR NOVO SERVIÇO LIMPO
+        const { fetchRealData } = await import('@/lib/supabase-service')
+        
+        const filters: any = {}
+        if (destino) filters.destino = destino
+        if (transporte) filters.transporte = transporte
+        
+        const data = await fetchRealData(filters)
+        
+        if (!data || data.length === 0) {
+          console.log('⚠️ SEM DADOS - Usando fallback para datas')
           let datasFiltradas = FALLBACK_DISPONIBILIDADES
           if (destino) {
             datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
@@ -575,15 +575,16 @@ export function useDatasDisponiveis(destino?: string, transporte?: string) {
           setDatas(datasUnicas)
           return
         }
-
-        if (error) throw error
         
-        // Extrair datas únicas
-        const datasSet = new Set((data || []).map((item: any) => item.data_saida as string))
-        const datasUnicas = Array.from(datasSet) as string[]
+        // ✅ EXTRAIR DATAS ÚNICAS DOS DADOS REAIS
+        const datasSet = new Set(data.map((item: any) => item.data_saida as string))
+        const datasUnicas = Array.from(datasSet).sort()
+        
+        console.log(`✅ DATAS ENCONTRADAS: ${datasUnicas.length}`, datasUnicas.slice(0, 5))
         setDatas(datasUnicas)
+        
       } catch (err) {
-        console.error('Erro ao carregar datas, usando fallback:', err)
+        console.error('❌ Erro ao carregar datas, usando fallback:', err)
         let datasFiltradas = FALLBACK_DISPONIBILIDADES
         if (destino) {
           datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)

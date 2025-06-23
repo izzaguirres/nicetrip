@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -34,18 +34,15 @@ const FALLBACK_CITIES = [
   { id: 3, cidade: "La Plata", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
   { id: 4, cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina", transporte: "Aéreo" },
   { id: 5, cidade: "Córdoba", provincia: "Córdoba", pais: "Argentina", transporte: "Aéreo" },
-  { id: 6, cidade: "Rosario", provincia: "Santa Fe", pais: "Argentina", transporte: "Aéreo" }
+  { id: 6, cidade: "Rosario", provincia: "Santa Fe", pais: "Argentina", transporte: "Aéreo" },
 ]
 
 const FALLBACK_DESTINATIONS = [
-  { id: 1, destino: "Canasvieiras" },
-  { id: 2, destino: "Bombinhas" }
+  "Canasvieiras",
+  "Bombinhas"
 ]
 
-const FALLBACK_TRANSPORTS = [
-  { id: 1, transporte: "Bus" },
-  { id: 2, transporte: "Aéreo" }
-]
+const FALLBACK_TRANSPORTS = ["Bus", "Aéreo"]
 
 interface Room {
   id: string
@@ -82,19 +79,13 @@ export function UnifiedSearchFilter({
   const router = useRouter()
   
   // ✅ NOVO: Função para definir data padrão baseada no destino
-  const getDefaultDateForDestino = (destino: string, primeiraDataDisponivel?: string): Date => {
-    // Se temos a primeira data disponível real, usar ela
-    if (primeiraDataDisponivel) {
-      return new Date(primeiraDataDisponivel + 'T00:00:00')
-    }
-    
-    // Fallback para quando não temos dados ainda
+  const getDefaultDateForDestino = (destino: string): Date => {
     if (destino === "Bombinhas") {
       // Para Bombinhas: janeiro 2026 (quando tem disponibilidade)
-      return new Date(2026, 0, 4) // 04 de Janeiro 2026
+      return new Date(2026, 0, 1) // Janeiro é mês 0 (0-indexed)
     }
     // Para outros destinos: outubro 2025 (padrão atual)
-    return new Date(2025, 9, 19) // 19 de Outubro 2025
+    return new Date(2025, 9, 2) // Outubro é mês 9 (0-indexed)
   }
 
   const defaultDate = getDefaultDateForDestino(initialFilters?.destino || "Canasvieiras")
@@ -114,18 +105,11 @@ export function UnifiedSearchFilter({
   
   // Hook do Smart Filter
   const { executeSmartFilter, loading: loadingSmartFilter, results: smartResults } = useSmartFilter()
-  
-  // Hook para buscar datas disponíveis
-  const { datas: datasDisponiveis, loading: loadingDatas } = useDatasDisponiveis(filters.destino, filters.transporte)
 
   // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
   const cidades = errorCidades || supabaseCidades.length === 0 ? FALLBACK_CITIES : supabaseCidades
-  const destinos = errorDestinos || supabaseDestinos.length === 0 
-    ? FALLBACK_DESTINATIONS 
-    : supabaseDestinos.map((d: any) => typeof d === 'string' ? { id: Math.random(), destino: d } : { id: d.id || Math.random(), destino: d.destino || d })
-  const transportes = errorTransportes || supabaseTransportes.length === 0 
-    ? FALLBACK_TRANSPORTS 
-    : supabaseTransportes.map((t: any) => typeof t === 'string' ? { id: Math.random(), transporte: t } : { id: t.id || Math.random(), transporte: t.transporte || t })
+  const destinos = errorDestinos || supabaseDestinos.length === 0 ? FALLBACK_DESTINATIONS : supabaseDestinos
+  const transportes = errorTransportes || supabaseTransportes.length === 0 ? FALLBACK_TRANSPORTS : supabaseTransportes
 
   // Atualizar filtros quando initialFilters mudar (importante para página de resultados)
   useEffect(() => {
@@ -140,54 +124,70 @@ export function UnifiedSearchFilter({
     }
   }, [initialFilters])
 
-  // ✅ NOVO: Detectar mudança de destino/transporte e ajustar data automaticamente
+  // ✅ NOVO: Detectar mudança de destino e ajustar data automaticamente
   useEffect(() => {
-    if (datasDisponiveis.length > 0 && !loadingDatas) {
-      const primeiraData = datasDisponiveis[0]
-      const dataAtual = filters.data ? format(filters.data, 'yyyy-MM-dd') : null
+    // Só aplicar se não é inicialização e o destino mudou
+    if (filters.destino === "Bombinhas" && filters.data && filters.data < new Date(2026, 0, 1)) {
+      console.log('🎯 Bombinhas selecionado: ajustando data para janeiro 2026')
+      const bombinaDate = getDefaultDateForDestino("Bombinhas")
+      setFilters(prev => ({ ...prev, data: bombinaDate }))
+    } else if (filters.destino !== "Bombinhas" && filters.data && filters.data >= new Date(2026, 0, 1)) {
+      console.log('🎯 Outro destino selecionado: voltando para data padrão outubro 2025')
+      const otherDestinationDate = getDefaultDateForDestino(filters.destino)
+      setFilters(prev => ({ ...prev, data: otherDestinationDate }))
+    }
+  }, [filters.destino]) // Disparar apenas quando destino mudar
+
+  // ✅ NOVO: FILTROS CONDICIONAIS - Quando transporte muda, filtrar cidades de saída
+  useEffect(() => {
+    if (!filters.transporte) return
+
+    console.log('🚌 FILTRO CONDICIONAL: Transporte mudou para', filters.transporte)
+    
+    // Filtrar cidades disponíveis para o transporte selecionado
+    const cidadesDisponiveis = cidades.filter(cidade => cidade.transporte === filters.transporte)
+    
+    console.log('🏙️ Cidades disponíveis para', filters.transporte, ':', cidadesDisponiveis.length)
+    
+    // Verificar se a cidade atual ainda é válida para o novo transporte
+    const cidadeAtualValida = cidadesDisponiveis.find(cidade => cidade.cidade === filters.salida)
+    
+    if (!cidadeAtualValida && cidadesDisponiveis.length > 0) {
+      // Se cidade atual não é válida, selecionar a primeira disponível
+      const novaCidade = cidadesDisponiveis[0].cidade
+      console.log('🔄 Resetando cidade de saída:', filters.salida, '→', novaCidade)
       
-      // Se a data atual não está nas datas disponíveis, ajustar para a primeira disponível
-      if (!dataAtual || !datasDisponiveis.includes(dataAtual)) {
-        console.log(`📅 Ajustando data para primeira disponível: ${primeiraData}`)
-        const novaData = new Date(primeiraData + 'T00:00:00')
-        setFilters(prev => ({ ...prev, data: novaData }))
-      }
+      setFilters(prev => ({ 
+        ...prev, 
+        salida: novaCidade 
+      }))
     }
-  }, [datasDisponiveis, loadingDatas, filters.destino, filters.transporte])
+  }, [filters.transporte, cidades]) // Disparar quando transporte ou cidades mudarem
 
-  // ✅ NOVO: Filtros condicionais - transporte filtra cidades disponíveis
-  const cidadesDisponiveis = useMemo(() => {
+  // ✅ FUNÇÃO PARA OBTER CIDADES FILTRADAS POR TRANSPORTE
+  const getCidadesFiltradas = () => {
     if (!filters.transporte) return cidades
-    return cidades.filter(cidade => cidade.transporte === filters.transporte)
-  }, [cidades, filters.transporte])
-
-  // ✅ NOVO: Reset cidades quando muda transporte
-  useEffect(() => {
-    if (filters.transporte && filters.salida) {
-      const cidadeAtualDisponivel = cidadesDisponiveis.find(c => c.cidade === filters.salida)
-      if (!cidadeAtualDisponivel) {
-        console.log('🔄 Resetando salida porque não é compatível com o transporte selecionado')
-        setFilters(prev => ({ ...prev, salida: '' }))
-      }
-    }
-  }, [filters.transporte, cidadesDisponiveis, filters.salida])
+    
+    const cidadesFiltradas = cidades.filter(cidade => cidade.transporte === filters.transporte)
+    console.log('🏙️ Cidades filtradas para', filters.transporte, ':', cidadesFiltradas.length)
+    
+    return cidadesFiltradas
+  }
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [isRoomsOpen, setIsRoomsOpen] = useState(false)
   const [smartLoading, setSmartLoading] = useState(false)
 
-  // ✅ ATUALIZADO: Função para desabilitar datas baseada nas datas disponíveis
+  // ✅ ATUALIZADO: Função para desabilitar datas baseada no destino
   const isDateDisabled = (date: Date): boolean => {
-    // Se não temos datas disponíveis, desabilitar todas
-    if (!datasDisponiveis || datasDisponiveis.length === 0) {
-      return true
+    if (filters.destino === "Bombinhas") {
+      // Para Bombinhas: permitir datas a partir de janeiro 2026
+      const january2026 = new Date(2026, 0, 1) // Janeiro de 2026
+      return date < january2026
     }
-    
-    // Formatar a data para comparação
-    const dateStr = format(date, 'yyyy-MM-dd')
-    
-    // Habilitar apenas as datas que existem nas disponibilidades
-    return !datasDisponiveis.includes(dateStr)
+    // Para outros destinos: regra original (outubro 2025)
+    const october2025 = new Date(2025, 9, 1) // Outubro de 2025
+    return date < october2025
   }
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -380,21 +380,28 @@ export function UnifiedSearchFilter({
   // Layout sem wrapper para variant="results"
   const containerClass = "grid grid-cols-2 lg:grid-cols-6 gap-3 lg:gap-4"
 
-  // ✅ ATUALIZADO: Função para determinar o mês inicial do calendário baseado nas datas disponíveis
+  // ✅ ATUALIZADO: Função para determinar o mês inicial do calendário baseado no destino e data
   const getInitialCalendarMonth = (): Date => {
     // Se há uma data selecionada, abrir o calendário no mês dela
     if (filters.data) {
       return filters.data
     }
     
-    // Se temos datas disponíveis, abrir no mês da primeira data
-    if (datasDisponiveis.length > 0) {
-      const primeiraData = new Date(datasDisponiveis[0] + 'T00:00:00')
-      return primeiraData
+    // Para Bombinhas, abrir em janeiro 2026
+    if (filters.destino === "Bombinhas") {
+      return new Date(2026, 0, 1) // Janeiro de 2026
     }
     
-    // Fallback
-    return new Date()
+    const now = new Date()
+    const october2025 = new Date(2025, 9, 1) // Outubro de 2025
+    
+    // Para outros destinos: se estamos antes de outubro 2025, abrir em outubro 2025
+    if (now < october2025) {
+      return october2025
+    }
+    
+    // Senão, abrir no mês atual
+    return now
   }
 
   return (
@@ -423,14 +430,14 @@ export function UnifiedSearchFilter({
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
               {transportes.map((transporte) => (
-                <SelectItem key={transporte.id} value={transporte.transporte} className="rounded-lg hover:bg-[#EE7215]/5">
+                <SelectItem key={transporte} value={transporte} className="rounded-lg hover:bg-[#EE7215]/5">
                 <div className="flex items-center gap-2">
-                  {transporte.transporte === "Bus" ? (
+                  {transporte === "Bus" ? (
                     <Bus className="w-4 h-4 text-[#EE7215]" />
                   ) : (
                     <Plane className="w-4 h-4 text-[#EE7215]" />
                   )}
-                  <span className="font-medium">{transporte.transporte}</span>
+                  <span className="font-medium">{transporte}</span>
                 </div>
                 </SelectItem>
               ))}
@@ -443,23 +450,21 @@ export function UnifiedSearchFilter({
           <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
             Salida
           </label>
-          <Select
-            value={filters.salida}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, salida: value }))}
-          >
-            <SelectTrigger className="rounded-xl border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#EE7215]/30">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#EE7215]" />
-                <SelectValue placeholder="Elegir ciudad de salida" />
+          <Select value={filters.salida} onValueChange={(value) => setFilters(prev => ({ ...prev, salida: value }))}>
+            <SelectTrigger className="w-full h-10 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
+              <div className="flex items-center">
+                <MapPin className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
+              <SelectValue placeholder="Seleccionar ciudad">
+                <span className="text-sm font-medium">
+                  {filters.salida ? capitalizeWords(filters.salida) : "Seleccionar ciudad"}
+                </span>
+              </SelectValue>
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
-              {cidadesDisponiveis.map((cidade) => (
+              {getCidadesFiltradas().map((cidade) => (
                 <SelectItem key={cidade.id} value={cidade.cidade} className="rounded-lg hover:bg-[#EE7215]/5">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{cidade.cidade}</span>
-                    <span className="text-xs text-gray-500">{cidade.provincia}, {cidade.pais}</span>
-                  </div>
+                  {capitalizeWords(cidade.cidade)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -484,8 +489,8 @@ export function UnifiedSearchFilter({
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
               {destinos.map((destino) => (
-                <SelectItem key={destino.id} value={destino.destino} className="rounded-lg hover:bg-[#EE7215]/5">
-                  {destino.destino}
+                <SelectItem key={destino} value={destino} className="rounded-lg hover:bg-[#EE7215]/5">
+                  {destino}
                 </SelectItem>
               ))}
             </SelectContent>

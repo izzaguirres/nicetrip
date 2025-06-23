@@ -10,7 +10,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
 import { DisponibilidadeFilter, PrecoPessoas, calcularPrecoTotal } from "@/lib/supabase"
-import { useDisponibilidades } from "@/hooks/use-packages"
+import { fetchRealData, SearchFilters } from "@/lib/supabase-service"
 import {
   Search,
   MapPin,
@@ -289,14 +289,41 @@ export default function ResultadosPage() {
     setFilters(novosFilters)
   }, [searchParams]) // Depende dos searchParams
 
-  // Usar hook do Supabase para buscar disponibilidades
-  console.log('📞 CHAMANDO useDisponibilidades com filtros:', filters)
-  const { disponibilidades, loading, error } = useDisponibilidades(filters)
-  console.log('📞 RESPOSTA useDisponibilidades:', { 
-    disponibilidades: disponibilidades?.length || 0, 
-    loading, 
-    error 
-  })
+  // ✅ USAR NOVO SERVIÇO LIMPO DE DADOS
+  const [disponibilidades, setDisponibilidades] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Buscar dados reais do Supabase
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        console.log('🔍 BUSCANDO DADOS REAIS DO SUPABASE:', filters)
+        
+        const searchFilters: SearchFilters = {
+          destino: filters.destino,
+          transporte: filters.transporte,
+          data_saida: filters.data_saida
+          // Note: cidade_saida is handled separately via cidades_saida table
+        }
+        
+        const data = await fetchRealData(searchFilters)
+        console.log('✅ DADOS RECEBIDOS:', data.length, 'registros')
+        
+        setDisponibilidades(data)
+      } catch (err) {
+        console.error('❌ ERRO AO BUSCAR DADOS:', err)
+        setError(err instanceof Error ? err.message : 'Erro desconhecido')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadData()
+  }, [filters.destino, filters.transporte, filters.data_saida])
 
   // 💰 VALORES CORRETOS DO SUPABASE (conforme tabela disponibilidades)
   const valoresReaisSupabase = {
@@ -520,44 +547,102 @@ export default function ResultadosPage() {
     console.log(`🏨 Hotéis únicos encontrados: ${pacotesPorHotel.size}`)
     pacotesPorHotel.forEach((pacotes, hotel) => {
       console.log(`   ${hotel}: ${pacotes.length} opções`)
+      pacotes.forEach((pacote, idx) => {
+        console.log(`      ${idx + 1}. ${pacote.data_saida} - ${pacote.quarto_tipo} (${pacote.pontuacao} pts)`)
+      })
     })
+    
+    // ✅ DEBUG ESPECIAL para 19 de outubro
+    if (dataSelecionada === '2025-10-19') {
+      console.log('🎯 DEBUG ESPECIAL - 19 DE OUTUBRO:')
+      console.log(`   Data selecionada: ${dataSelecionada}`)
+      console.log(`   Pacotes por hotel encontrados: ${pacotesPorHotel.size}`)
+      console.log('   Hotéis:', Array.from(pacotesPorHotel.keys()))
+    }
 
     // Selecionar melhor pacote de cada hotel PRIORIZANDO PROXIMIDADE DE DATA
     const melhoresPorHotel: any[] = []
     pacotesPorHotel.forEach((pacotes, hotel) => {
       console.log(`\n🔍 ANALISANDO ${hotel}:`)
       
-      // Se temos data selecionada, calcular proximidade específica
+      // Se temos data selecionada E a data EXATA existe nos pacotes
       if (dataSelecionada) {
         const dataAlvo = new Date(dataSelecionada)
-        pacotes.forEach(pacote => {
-          const dataPacote = new Date(pacote.data_saida)
-          const diffDias = Math.abs((dataPacote.getTime() - dataAlvo.getTime()) / (1000 * 60 * 60 * 24))
-          pacote.proximidadeData = diffDias
-          console.log(`   📅 ${pacote.data_saida}: ${diffDias} dias (${pacote.pontuacao} pts)`)
-        })
         
-        // PRIORIZAR PROXIMIDADE DE DATA, usar pontuação como desempate
-        pacotes.sort((a, b) => {
-          // Primeiro critério: proximidade de data
-          const diffProximidade = a.proximidadeData - b.proximidadeData
-          if (diffProximidade !== 0) return diffProximidade
+        // Verificar se existe pacote com a data EXATA
+        const pacotesDataExata = pacotes.filter(pacote => pacote.data_saida === dataSelecionada)
+        
+        if (pacotesDataExata.length > 0) {
+          // ✅ SE TEM DATA EXATA: escolher o MELHOR tipo de quarto para esse hotel nessa data
+          console.log(`   ✅ DATA EXATA ENCONTRADA! ${pacotesDataExata.length} tipos de quarto disponíveis`)
           
-          // Segundo critério: pontuação (se proximidade igual)
-          return b.pontuacao - a.pontuacao
-        })
+          // Ordenar por capacidade ideal e preço para escolher o melhor
+          pacotesDataExata.sort((a, b) => {
+            // Priorizar capacidade adequada
+            if (quartos && quartos.length > 0) {
+              const totalPessoas = quartos.reduce((total, room) => 
+                total + room.adults + room.children0to3 + room.children4to5 + room.children6plus, 0
+              )
+              
+              const adequadoA = a.capacidade >= totalPessoas ? 1 : 0
+              const adequadoB = b.capacidade >= totalPessoas ? 1 : 0
+              
+              if (adequadoA !== adequadoB) return adequadoB - adequadoA
+              
+              // Se ambos adequados, preferir menor capacidade (mais eficiente)
+              if (adequadoA && adequadoB) {
+                return a.capacidade - b.capacidade
+              }
+            }
+            
+            // Como critério final, usar preço (menor preço melhor)
+            return a.preco_adulto - b.preco_adulto
+          })
+          
+          const melhorPacote = pacotesDataExata[0]
+          melhorPacote.pontuacao = 100 // Máxima pontuação para data exata
+          melhorPacote.proximidadeData = 0
+          melhoresPorHotel.push(melhorPacote)
+          
+          console.log(`   ✅ SELECIONADO MELHOR: ${melhorPacote.quarto_tipo} - ${melhorPacote.data_saida} (data exata, $${melhorPacote.preco_adulto})`)
+          
+          // ✅ IMPORTANTE: Não processar mais este hotel - já escolhemos o melhor
+          return // Sair do loop para este hotel
+        } else {
+          // Se não tem data exata, buscar mais próxima (lógica original)
+          pacotes.forEach(pacote => {
+            const dataPacote = new Date(pacote.data_saida)
+            const diffDias = Math.abs((dataPacote.getTime() - dataAlvo.getTime()) / (1000 * 60 * 60 * 24))
+            pacote.proximidadeData = diffDias
+            console.log(`   📅 ${pacote.data_saida}: ${diffDias} dias (${pacote.pontuacao} pts)`)
+          })
+          
+          // PRIORIZAR PROXIMIDADE DE DATA, usar pontuação como desempate
+          pacotes.sort((a, b) => {
+            // Primeiro critério: proximidade de data
+            const diffProximidade = a.proximidadeData - b.proximidadeData
+            if (diffProximidade !== 0) return diffProximidade
+            
+            // Segundo critério: pontuação (se proximidade igual)
+            return b.pontuacao - a.pontuacao
+          })
+          
+          const melhorPacote = pacotes[0]
+          melhoresPorHotel.push(melhorPacote)
+          
+          const proximidadeText = melhorPacote.proximidadeData !== undefined 
+            ? `${melhorPacote.proximidadeData} dias` 
+            : 'N/A'
+          console.log(`   ✅ SELECIONADO: ${melhorPacote.data_saida} (${proximidadeText}, ${melhorPacote.pontuacao} pts)`)
+        }
       } else {
         // Se não tem data, usar pontuação original
         pacotes.sort((a, b) => b.pontuacao - a.pontuacao)
+        
+        const melhorPacote = pacotes[0]
+        melhoresPorHotel.push(melhorPacote)
+        console.log(`   ✅ SELECIONADO: ${melhorPacote.quarto_tipo} (${melhorPacote.pontuacao} pts)`)
       }
-      
-      const melhorPacote = pacotes[0]
-      melhoresPorHotel.push(melhorPacote)
-      
-      const proximidadeText = melhorPacote.proximidadeData !== undefined 
-        ? `${melhorPacote.proximidadeData} dias` 
-        : 'N/A'
-      console.log(`   ✅ SELECIONADO: ${melhorPacote.data_saida} (${proximidadeText}, ${melhorPacote.pontuacao} pts)`)
     })
 
     // ✅ ETAPA 5: FILTRO DE RELEVÂNCIA TEMPORAL E FINALIZAÇÃO
@@ -642,28 +727,16 @@ export default function ResultadosPage() {
     })
   }
 
-  // ✅ CORREÇÃO FINAL: Se Smart Filter funciona mas useDisponibilidades não, usar os dados corretos
-  const shouldUseGPTResults = useGPTResults || searchParams.get('smart_suggestion') === 'true'
-  let resultadosBrutos = shouldUseGPTResults && pacotesGPT ? pacotesGPT : disponibilidades
+  // ✅ SEMPRE USAR DADOS REAIS DO SUPABASE
+  const shouldUseGPTResults = useGPTResults && pacotesGPT && pacotesGPT.length > 0
   
-  // ✅ CORREÇÃO CRÍTICA: Se Smart Filter mas sem dados, buscar diretamente
-  if (shouldUseGPTResults && pacotesGPT && pacotesGPT.length > 0) {
-    console.log('✅ USANDO DADOS DO SMART FILTER (GPT):', pacotesGPT.length, 'resultados')
+  let resultadosBrutos = []
+  
+  if (shouldUseGPTResults) {
+    console.log('✅ USANDO DADOS DO GPT:', pacotesGPT.length, 'resultados')
     resultadosBrutos = pacotesGPT
-  } else if (shouldUseGPTResults && !pacotesGPT) {
-    console.log('🔧 SMART FILTER SEM DADOS GPT - Verificando disponibilidades normais...')
-    console.log('🔧 Disponibilidades encontradas:', disponibilidades.length)
-    
-    // Se há disponibilidades normais, usar elas
-    if (disponibilidades.length > 0) {
-      console.log('✅ USANDO DISPONIBILIDADES NORMAIS PARA SMART FILTER')
-      resultadosBrutos = disponibilidades
-    } else {
-      console.log('❌ NENHUM DADO ENCONTRADO - nem GPT nem disponibilidades')
-      resultadosBrutos = []
-    }
   } else {
-    console.log('🔍 MODO NORMAL - usando disponibilidades:', disponibilidades.length)
+    console.log('🔍 USANDO DADOS REAIS DO SUPABASE:', disponibilidades.length, 'registros')
     resultadosBrutos = disponibilidades
   }
   
