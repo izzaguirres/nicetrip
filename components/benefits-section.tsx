@@ -11,39 +11,39 @@ const benefits = [
     title: "Guía Local",
     description:
       "Recorré los destinos con quien realmente los conoce.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/1_guia.png",
   },
   {
     tag: "ALOJAMIENTO",
     title: "Alojamiento Propio",
     description:
       "Hospedaje en Canasvieiras con gran ubicación y precio justo.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/2_alojamiento.png",
   },
   {
     tag: "ATENCIÓN",
     title: "Atención Personalizada",
     description: "Te acompañamos antes, durante y después del viaje.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/3_atencion.png",
   },
   {
     tag: "TOURS",
     title: "Tours Completos",
     description:
       "Rutas armadas por los mejores destinos turísticos.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/4_tours.png",
   },
   {
     tag: "TRASLADOS",
     title: "Traslados Seguros",
     description: "Cómodos y seguros para tu experiencia completa.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/5_traslados.png",
   },
   {
     tag: "ALQUILER",
     title: "Alquiler de Autos",
     description: "Movete con libertad y seguridad por toda la isla.",
-    image: "/placeholder.jpg",
+    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/6_alquiler.png",
   },
 ]
 

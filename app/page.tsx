@@ -164,7 +164,7 @@ export default function HomePage() {
         <section className="relative w-full overflow-hidden bg-gray-900">
           <div className="absolute inset-0 z-0">
             <Image
-              src="/images/header-bg.png"
+              src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/background header (1).png"
               alt="Fundo de praia tropical"
               fill
               className="object-cover object-center"
@@ -216,7 +216,7 @@ export default function HomePage() {
 
               <div className="hidden lg:block relative w-full h-[400px] lg:h-full lg:col-span-7 lg:self-end lg:justify-self-end -mb-12 lg:mb-0">
                 <Image
-                  src="/placeholder.jpg"
+                  src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/header_family.png"
                   alt="Família aproveitando as férias"
                   fill
                   className="object-contain object-bottom"
