@@ -154,7 +154,8 @@ export function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-600 text-sm">© 2025 Nice Trip Turismo. Todos los derechos reservados.</p>
             <p className="text-gray-500 text-sm">
-              Uma empresa do <span className="text-[#EE7215] font-medium">FLN GROUP</span>
+              Uma empresa do<br />
+              <span className="text-[#EE7215] font-medium">FLN GROUP</span>
             </p>
           </div>
         </div>

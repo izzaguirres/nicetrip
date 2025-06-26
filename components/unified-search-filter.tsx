@@ -467,9 +467,15 @@ export function UnifiedSearchFilter({
             disabled={!filters.transporte}
           >
             <SelectTrigger className={`h-10 lg:h-12 rounded-xl border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#EE7215]/30 ${!filters.transporte ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#EE7215]" />
-                <SelectValue placeholder={filters.transporte ? "Elegir ciudad de salida" : "Primero selecciona transporte"} />
+              <div className="flex items-center gap-2 w-full min-w-0">
+                <MapPin className="w-4 h-4 text-[#EE7215] flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <SelectValue placeholder={filters.transporte ? "Elegir ciudad" : "Selecciona transporte"} className="truncate">
+                    <span className="text-sm font-medium truncate">
+                      {filters.salida || (filters.transporte ? "Elegir ciudad" : "Selecciona transporte")}
+                    </span>
+                  </SelectValue>
+                </div>
               </div>
             </SelectTrigger>
             <SelectContent 
@@ -541,6 +547,8 @@ export function UnifiedSearchFilter({
                     onSelect={handleDateSelect}
                     disabled={isDateDisabled}
                     defaultMonth={getInitialCalendarMonth()}
+                    locale={es}
+                    weekStartsOn={0}
                     className="text-sm"
                     initialFocus
                     modifiers={{

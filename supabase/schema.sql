@@ -173,4 +173,87 @@ INSERT INTO packages (
   'passeio',
   true,
   false
-); 
+);
+
+-- Tabela para templates de conteúdo de pacotes
+CREATE TABLE package_content_templates (
+  id SERIAL PRIMARY KEY,
+  transporte VARCHAR(10) NOT NULL, -- 'Bus' ou 'Aéreo'
+  destino VARCHAR(100), -- NULL = aplica para todos os destinos
+  hotel VARCHAR(255), -- NULL = aplica para todos os hotéis
+  
+  -- Conteúdo do pacote
+  titulo VARCHAR(255),
+  descricao TEXT NOT NULL,
+  descricao_detalhada TEXT,
+  
+  -- Highlights/Destaques (JSON array)
+  highlights JSONB DEFAULT '[]',
+  
+  -- O que está incluído (JSON array)
+  includes JSONB DEFAULT '[]',
+  
+  -- Condições específicas
+  condicoes_cancelacao TEXT,
+  condicoes_equipaje TEXT,
+  condicoes_documentos TEXT,
+  condicoes_extras TEXT,
+  
+  -- Metadados
+  ativo BOOLEAN DEFAULT true,
+  prioridade INTEGER DEFAULT 1, -- Para definir qual template usar quando há múltiplos matches
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Índices para performance
+CREATE INDEX idx_package_content_transporte ON package_content_templates(transporte);
+CREATE INDEX idx_package_content_destino ON package_content_templates(destino);
+CREATE INDEX idx_package_content_hotel ON package_content_templates(hotel);
+CREATE INDEX idx_package_content_ativo ON package_content_templates(ativo);
+
+-- Função para buscar template mais específico
+CREATE OR REPLACE FUNCTION get_package_content_template(
+  p_transporte VARCHAR,
+  p_destino VARCHAR DEFAULT NULL,
+  p_hotel VARCHAR DEFAULT NULL
+)
+RETURNS TABLE (
+  id INTEGER,
+  titulo VARCHAR(255),
+  descricao TEXT,
+  descricao_detalhada TEXT,
+  highlights JSONB,
+  includes JSONB,
+  condicoes_cancelacao TEXT,
+  condicoes_equipaje TEXT,
+  condicoes_documentos TEXT,
+  condicoes_extras TEXT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    t.id,
+    t.titulo,
+    t.descricao,
+    t.descricao_detalhada,
+    t.highlights,
+    t.includes,
+    t.condicoes_cancelacao,
+    t.condicoes_equipaje,
+    t.condicoes_documentos,
+    t.condicoes_extras
+  FROM package_content_templates t
+  WHERE t.ativo = true
+    AND t.transporte = p_transporte
+    AND (t.destino IS NULL OR t.destino = p_destino)
+    AND (t.hotel IS NULL OR t.hotel = p_hotel)
+  ORDER BY 
+    -- Prioridade: mais específico primeiro
+    CASE WHEN t.hotel = p_hotel THEN 3
+         WHEN t.destino = p_destino THEN 2
+         ELSE 1 END DESC,
+    t.prioridade DESC
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql; 

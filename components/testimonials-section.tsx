@@ -6,58 +6,58 @@ import { TestimonialsColumn } from "@/components/ui/testimonials-columns"
 
 const testimonials = [
   {
-    text: "A Nice Trip transformou nossa lua de mel em algo mágico! O atendimento foi impecável desde o primeiro contato até nossa volta. Recomendamos de olhos fechados!",
-    image: "https://originui.com/avatar-80-03.jpg",
-    name: "Marina & Carlos",
-    role: "Lua de Mel em Floripa",
+    text: "La mejor agencia para hacer todas las excursiones en Floripa!!! Todo el personal súper amable, predispuesto y con ganas de darte una mano en todo. Segundo año que la elijo! Mención aparte para el guía de turismo Gustavo 💛 transmite una pasión que te deja con ganas de saber más de la historia de esta hermosa isla! Sin dudas volveré!",
+    image: "https://images.unsplash.com/photo-1494790108755-2616b332c265?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+    name: "Laly Provenzano",
+    role: "Viajera frecuente",
   },
   {
-    text: "Viagem em família perfeita! As crianças adoraram os passeios e nós ficamos tranquilos com toda a organização. Hospedagem excelente e guias super atenciosos.",
-    image: "https://originui.com/avatar-80-04.jpg",
-    name: "Família Santos",
-    role: "Férias em Família",
+    text: "Comunicación anticipada, gentil y precisa. Atención con horarios, sugestiones de paseos y total prestatividad. Parabéns e prosperidade à empresa.",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80",
+    name: "Ana Maria Nery",
+    role: "Empresaria",
   },
   {
-    text: "Primeira vez em Florianópolis e não poderia ter escolhido melhor! O city tour foi incrível e conhecemos lugares que jamais encontraríamos sozinhos.",
-    image: "https://originui.com/avatar-80-05.jpg",
-    name: "Ana Paula",
-    role: "Turismo em Floripa",
+    text: "En febrero de 2021 hice un paseo y conocí a Nice Trip recomiendo mucho, eles são ótimos, pessoas honestas, vale a pena viajar com eles, atendeu todas minhas expectativas...",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+    name: "Jonata Nunes",
+    role: "Turista satisfecho",
   },
   {
-    text: "O traslado do aeroporto foi pontual e confortável. A hospedagem em Canasvieiras tinha localização perfeita. Voltaremos com certeza!",
-    image: "https://originui.com/avatar-80-06.jpg",
-    name: "Roberto Silva",
-    role: "Viagem de Negócios",
+    text: "A vendedora foi muito simpática, os motoristas foram excelentes e a guia Anita foi maravilhosa. Ela nos proporcionou um ótimo suporte e atenção, assim como o Gustavo. Ambos foram muito gentis, especialmente considerando que eu estava acompanhando da minha mãe, que tem 83 anos. O motorista MARAVILHOSO que nos ajudou, nos ajudou durante o percurso. Tudo foi muito bom. Eu recomendo! Obrigado! Regiane, topgian e família.",
+    image: "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+    name: "Regiane Pereira",
+    role: "Familia completa",
   },
   {
-    text: "Beto Carrero com a Nice Trip foi uma experiência única! Tudo organizado, sem filas e com o melhor custo-benefício. Nossos filhos ainda falam da viagem!",
-    image: "/placeholder.svg?height=40&width=40&query=happy family mother",
-    name: "Juliana Costa",
-    role: "Passeio Beto Carrero",
+    text: "Compramos un paseo para isla de Campeche y la verdad fue todo impecable. Todo accesible desde medios de pago, traslado y el guía un crack. El viaje muy rápido y cómodo y la isla lo mejor de Florianópolis. Si volvemos el próximo año volveríamos a ir nuevamente con esta agencia. Muchas gracias 🤘",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80",
+    name: "Jonacel",
+    role: "Aventurero",
   },
   {
-    text: "Aluguel de carro facilitou muito nossa exploração pela região. Veículo novo, documentação em dia e atendimento excepcional. Super recomendo!",
-    image: "/placeholder.svg?height=40&width=40&query=happy traveler man",
-    name: "Pedro Oliveira",
-    role: "Aluguel de Carro",
+    text: "Atendimento excelente! Consegui agendar o passeio de última hora e fui atendida com muita empatia e respeito. Guia Gustavo foi um amor de pessoa!",
+    image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=688&q=80",
+    name: "Jessika Rezende",
+    role: "Turista de último momento",
   },
   {
-    text: "Ilha do Campeche foi um sonho realizado! Águas cristalinas, passeio bem organizado e guia que conhecia cada cantinho. Experiência inesquecível!",
-    image: "/placeholder.svg?height=40&width=40&query=happy woman beach",
-    name: "Camila Ferreira",
-    role: "Passeio Ilha do Campeche",
+    text: "São prestativos e ótimo guia quando fomos para Ilha de Campeche.",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=764&q=80",
+    name: "Vanessa Ribeiro",
+    role: "Exploradora de islas",
   },
   {
-    text: "Bombinhas com a Nice Trip superou todas as expectativas! Praias paradisíacas, mergulho incrível e toda a logística perfeita. Voltaremos em breve!",
-    image: "/placeholder.svg?height=40&width=40&query=happy couple beach",
-    name: "Lucas & Fernanda",
-    role: "Passeio Bombinhas",
+    text: "Pasamos un día espectacular en Balneario Camboriú Brasil, con el acompañamiento de Gustavo, un guía de 10, un lujo!! Muchas gracias Gus!! Inolvidable. Marcelo y Verónica de Argentina, Mar de Ajo, Pdo. de La Costa.🥰🏖️⛵😊",
+    image: "https://images.unsplash.com/photo-1494790108755-2616b332c265?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+    name: "Verónica Cabrera",
+    role: "Pareja viajera",
   },
   {
-    text: "Atendimento humanizado fez toda a diferença! Desde a reserva até nossa volta, sempre tivemos suporte. Nos sentimos cuidados durante toda a viagem.",
-    image: "/placeholder.svg?height=40&width=40&query=satisfied customer woman",
-    name: "Márcia Rodrigues",
-    role: "Atendimento Personalizado",
+    text: "Foi ótimo, são super educados e atenciosos. Através da Nice Trip tivemos um dia inesquecível. Muito obrigada por tudo.",
+    image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+    name: "Rose Queiroz",
+    role: "Cliente agradecida",
   },
 ]
 
@@ -78,7 +78,7 @@ export function TestimonialsSection() {
         >
           <div className="flex justify-center">
             <div className="border border-[#EE7215]/20 bg-[#EE7215]/5 text-[#EE7215] py-2 px-4 rounded-full text-sm font-medium">
-              Avaliações
+              Testimonios
             </div>
           </div>
 
@@ -91,7 +91,7 @@ export function TestimonialsSection() {
             duration={0.6}
             once={true}
           >
-            O que nossos clientes dizem
+            Lo que dicen nuestros clientes
           </TextAnimate>
           
           <TextAnimate
@@ -103,7 +103,7 @@ export function TestimonialsSection() {
             duration={0.6}
             once={true}
           >
-            Veja os depoimentos de quem já viveu experiências incríveis conosco.
+            Testimonios reales de quienes ya vivieron experiencias increíbles con nosotros.
           </TextAnimate>
         </motion.div>
 

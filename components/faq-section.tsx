@@ -125,7 +125,10 @@ export function FaqSection() {
 
           {/* Contact Section */}
           <div className="mt-12 text-center">
-            <p className="text-gray-600 mb-4 text-lg">¿Todavía tenés dudas? ¡Nuestro equipo está listo para ayudarte!</p>
+            <p className="text-gray-600 mb-4 text-lg">
+              ¿Todavía tenés dudas?<br />
+              ¡Nuestro equipo está listo para ayudarte!
+            </p>
             <Button className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white px-8 py-3 rounded-lg font-medium">
               Hablar con Especialista
             </Button>

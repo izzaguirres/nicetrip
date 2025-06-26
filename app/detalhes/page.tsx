@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getHospedagemData } from "@/lib/hospedagens-service"
+import { packageConditionsService } from "@/lib/package-conditions-service"
 import { 
   Star, 
   MapPin, 
@@ -51,6 +52,7 @@ export default function DetalhesPage() {
   const [touchEnd, setTouchEnd] = useState(0)
   const [isClient, setIsClient] = useState(false)
   const [comodidadesReais, setComodidadesReais] = useState<Array<{nome: string, icone: string}> | null>(null)
+  const [packageConditions, setPackageConditions] = useState<any>(null)
 
   // ✅ NOVO: Detectar se estamos no cliente (resolver hidratação)
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function DetalhesPage() {
   const hotelName = searchParams.get('hotel') || 'Hotel Premium'
   const destino = searchParams.get('destino') || 'Florianópolis'
   const preco = parseInt(searchParams.get('preco') || '2850')
+  const transporte = searchParams.get('transporte') || 'Bús'
   
   // Dados de quartos e pessoas
   const quartos = parseInt(searchParams.get('quartos') || '1')
@@ -90,6 +93,19 @@ export default function DetalhesPage() {
   const criancas_0_3 = parseInt(searchParams.get('criancas_0_3') || '0')
   const criancas_4_5 = parseInt(searchParams.get('criancas_4_5') || '0')
   const criancas_6 = parseInt(searchParams.get('criancas_6') || '0')
+  
+  // Calcular dias e noites baseado nos dados reais ou fallback do transporte
+  const diasTotaisParam = searchParams.get('dias_totais')
+  const noisesHotelParam = searchParams.get('noites_hotel')
+  
+  const diasNoites = (diasTotaisParam && noisesHotelParam) 
+    ? { 
+        dias: parseInt(diasTotaisParam), 
+        noites: parseInt(noisesHotelParam) 
+      }
+    : transporte === 'Aéreo' 
+      ? { dias: 8, noites: 7 }  // Aéreo: 8 dias, 7 noites (fallback)
+      : { dias: 10, noites: 7 } // Bus: 10 dias, 7 noites (fallback)
   
   const totalCriancas = criancas_0_3 + criancas_4_5 + criancas_6
   const totalPessoas = adultos + totalCriancas
@@ -210,6 +226,31 @@ export default function DetalhesPage() {
     
     carregarComodidades()
   }, [hotelName])
+
+  // ✅ CARREGAR CONDIÇÕES DINÂMICAS DO PACOTE
+  useEffect(() => {
+    const carregarCondicoes = async () => {
+      try {
+        console.log('🚀 CONDITIONS: Iniciando busca para transporte:', transporte)
+        // Normalizar transporte (Bús -> Bus)
+        const transporteNormalizado = transporte === 'Bús' ? 'Bus' : transporte
+        console.log('🔧 CONDITIONS: Transporte normalizado:', transporte, '->', transporteNormalizado)
+        
+        const conditions = await packageConditionsService.getConditions(transporteNormalizado as 'Bus' | 'Aéreo')
+        setPackageConditions(conditions)
+        console.log('📋 CONDITIONS: Condições finais setadas:', conditions)
+      } catch (error) {
+        console.error('❌ CONDITIONS: Erro ao carregar condições:', error)
+        setPackageConditions(null)
+      }
+    }
+    
+    if (transporte) {
+      carregarCondicoes()
+    } else {
+      console.log('⚠️ CONDITIONS: Transporte não definido ainda')
+    }
+  }, [transporte])
   
   // 💰 VALORES REAIS DO SUPABASE (conforme tabela disponibilidades)
   const dadosPacote = {
@@ -283,6 +324,70 @@ export default function DetalhesPage() {
     return iconMap[icone] || Coffee // Fallback para Coffee
   }
   
+  // Conteúdo dinâmico baseado no tipo de transporte e dados reais
+  const getStaticPackageContent = () => {
+    const isAereo = transporte === 'Aéreo'
+    const temDadosReais = diasTotaisParam && noisesHotelParam
+    const quartoTipoParam = searchParams.get('quarto_tipo')
+    
+    // Descrição mais específica com dados reais
+    const descricaoBase = isAereo 
+      ? `Experimente ${destino} com máximo confort! Nosso paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación.${quartoTipoParam ? ` Hospedagem em ${quartoTipoParam.toLowerCase()},` : ''} Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas en solo ${diasNoites.dias} días.`
+      : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}.${quartoTipoParam ? ` Acomodación en ${quartoTipoParam.toLowerCase()},` : ''} Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`
+    
+    return {
+      description: temDadosReais 
+        ? descricaoBase + ` ✅ Paquete confirmado con datos reales de disponibilidad.`
+        : descricaoBase,
+      
+      highlights: isAereo 
+        ? [
+            "Vuelos directos incluidos",
+            `${diasNoites.dias} días, ${diasNoites.noites} noches de relajación`,
+            `Hospedaje premium en ${hotelName}`,
+            "Transfers ejecutivos aeropuerto-hotel",
+            "Tours y excursiones incluidas"
+          ]
+        : [
+            "Viaje cómodo en bus premium",
+            `${diasNoites.dias} días completos de aventura`,
+            `${diasNoites.noites} noches en ${hotelName}`,
+            "Más tiempo para explorar",
+            "Transporte con aire acondicionado"
+          ],
+      
+      includes: isAereo 
+        ? [
+            `Vuelos ida y vuelta`,
+            `Hospedaje por ${diasNoites.noites} noches`,
+            "Transfers aeropuerto-hotel",
+            "Desayuno completo todos los días",
+            "Seguro de viaje incluido"
+          ]
+        : [
+            `Transporte en bus premium`,
+            `Hospedaje por ${diasNoites.noites} noches`,
+            "Viaje con aire acondicionado",
+            "Desayuno completo todos los días",
+            "Seguro de viaje incluido"
+          ],
+
+      condiciones: packageConditions || (isAereo 
+        ? {
+            cancelacion: "Cancelación gratuita hasta 72 horas antes del vuelo.",
+            equipaje: "Incluye 1 maleta de hasta 23kg por persona en vuelo.",
+            documentos: "Documento de identidad válido y confirmación de vuelo."
+          }
+        : {
+            cancelacion: "Cancelación gratuita hasta 24 horas antes del viaje.",
+            equipaje: "Equipaje sin restricciones de peso en bus.",
+            documentos: "Solo documento de identidad válido requerido."
+          })
+    }
+  }
+
+  const staticContent = getStaticPackageContent()
+  
   const packageData = {
     id: searchParams.get('id') || '1',
     name: `${hotelName} - ${destino}`,
@@ -294,14 +399,8 @@ export default function DetalhesPage() {
     originalPrice: preco + 350,
     dataViagem: searchParams.get('data') || '2025-10-02',
     images: getHotelImages(hotelName),
-    description: `Disfrute de una experiencia única en ${destino} con nuestro paquete premium. Hospedaje en ${hotelName} con vista al mar, transporte cómodo y experiencias gastronómicas exclusivas.`,
-    highlights: [
-      "Vista panorámica del océano",
-      `${hotelName} - Excelencia en hospedaje`,
-      "Transporte ejecutivo incluido",
-      "Desayuno gourmet",
-      "Acceso a playa privada"
-    ],
+    description: staticContent.description,
+    highlights: staticContent.highlights,
     amenities: comodidadesReais ? comodidadesReais.map(comodidade => ({
       icon: getIconComponent(comodidade.icone),
       name: comodidade.nome
@@ -311,16 +410,11 @@ export default function DetalhesPage() {
       { icon: Coffee, name: "Desayuno" },
       { icon: Utensils, name: "Restaurante" },
     ],
-    includes: [
-      "Hospedagem por 4 noites",
-      "Café da manhã completo",
-      "Transporte ida e volta",
-      "Tour guiado pela ilha",
-      "Seguro viagem"
-    ],
+    includes: staticContent.includes,
+    condiciones: staticContent.condiciones,
     checkIn: "15:00",
     checkOut: "11:00",
-    duration: "4 dias / 3 noites"
+    duration: `${diasNoites.dias} días / ${diasNoites.noites} noches`
   }
 
   const nextImage = () => {
@@ -558,11 +652,11 @@ export default function DetalhesPage() {
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <div className="inline-flex items-center gap-1.5 text-xs font-normal text-orange-700 bg-gradient-to-r from-orange-100 to-orange-200 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm">
                     <Sun className="w-3 h-3 text-orange-600" />
-                    4 días
+                    {diasNoites.dias} días
                   </div>
                   <div className="inline-flex items-center gap-1.5 text-xs font-normal text-blue-700 bg-gradient-to-r from-blue-100 to-blue-200 px-2.5 py-1 rounded-full border border-blue-300 shadow-sm">
                     <Bed className="w-3 h-3 text-blue-600" />
-                    3 noches
+                    {diasNoites.noites} noches
                   </div>
                   <div className="inline-flex items-center gap-1.5 text-xs font-normal text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-2.5 py-1 rounded-full border border-green-300 shadow-sm">
                     <Shield className="w-3 h-3 text-green-600" />
@@ -627,14 +721,14 @@ export default function DetalhesPage() {
                   {activeTab === "condiciones" && (
                     <div className="space-y-3">
                       <h4 className="font-normal text-gray-900 text-sm">Condiciones de cancelación</h4>
-                      <p className="text-gray-700 text-sm font-light">Cancelación gratuita hasta 24 horas antes del viaje.</p>
+                      <p className="text-gray-700 text-sm font-light">{packageData.condiciones.cancelacion}</p>
                       
                       <h4 className="font-normal text-gray-900 text-sm mt-4">Política de equipaje</h4>
-                      <p className="text-gray-700 text-sm font-light">Incluye 1 maleta de hasta 23kg por persona.</p>
+                      <p className="text-gray-700 text-sm font-light">{packageData.condiciones.equipaje}</p>
                       
                       <h4 className="font-normal text-gray-900 text-sm mt-4">Requisitos</h4>
                       <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1">
-                        <li>Documento de identidad válido</li>
+                        <li>{packageData.condiciones.documentos}</li>
                         <li>Vacunas al día (consultar requisitos actuales)</li>
                         <li>Seguro de viaje incluido en el paquete</li>
                       </ul>
@@ -689,7 +783,7 @@ export default function DetalhesPage() {
                   Qué ofrece este paquete
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {packageData.highlights.map((highlight, index) => (
+                  {packageData.highlights.map((highlight: string, index: number) => (
                     <div key={index} className="flex items-center gap-3 py-2">
                       <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
                         <div className="w-2 h-2 bg-[#EE7215] rounded-full"></div>

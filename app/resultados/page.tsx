@@ -1202,6 +1202,20 @@ export default function ResultadosPage() {
     const precoFinal = precoCalculado || calcularPrecoTotalSeguro(disponibilidade, pessoas)
     params.set('preco', precoFinal.toString())
     
+    // ✅ ADICIONAR DADOS REAIS DA TABELA DE DISPONIBILIDADES
+    if (disponibilidade.noites_hotel) {
+      params.set('noites_hotel', disponibilidade.noites_hotel.toString())
+    }
+    if (disponibilidade.dias_totais) {
+      params.set('dias_totais', disponibilidade.dias_totais.toString())
+    }
+    if (disponibilidade.dias_viagem) {
+      params.set('dias_viagem', disponibilidade.dias_viagem.toString())
+    }
+    if (disponibilidade.quarto_tipo) {
+      params.set('quarto_tipo', disponibilidade.quarto_tipo)
+    }
+    
     // ✅ SEMPRE INCLUIR CONFIGURAÇÃO ESPECÍFICA (1 quarto ou múltiplos)
     const roomsConfig = quartosIndividuais.map(quarto => ({
       adults: quarto.adults,
@@ -1213,6 +1227,11 @@ export default function ResultadosPage() {
     params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
     console.log('🔗 ADICIONANDO CONFIGURAÇÃO ESPECÍFICA À URL (sempre):', roomsConfig)
     console.log('🎯 PREÇO ESPECÍFICO DO CARD:', precoFinal)
+    console.log('📅 DADOS DA DISPONIBILIDADE:', {
+      noites_hotel: disponibilidade.noites_hotel,
+      dias_totais: disponibilidade.dias_totais,
+      transporte: disponibilidade.transporte
+    })
     
     return `/detalhes?${params.toString()}`
   }
@@ -1274,17 +1293,7 @@ export default function ResultadosPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       
-      {/* Botão flutuante para sugestão do GPT */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button
-          onClick={handleSugestaoGPT}
-          disabled={loadingGPT}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-full px-6 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
-        >
-          <Bot className="w-5 h-5" />
-          {loadingGPT ? "Buscando..." : "🤖 ¡Sugiéreme un paquete!"}
-        </Button>
-      </div>
+
       
       <div className="pt-20">
         {/* Filtro de pesquisa no topo */}
@@ -1327,63 +1336,16 @@ export default function ResultadosPage() {
         {/* Header da página */}
         <div className="bg-white border-b">
           <div className="container mx-auto px-4 lg:px-[70px] py-6">
-            {/* Indicador de Sugestão Inteligente */}
-            {searchParams.get('smart_suggestion') === 'true' && (
-              <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-                      <Brain className="w-5 h-5 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-600" />
-                      Sugestão Inteligente Ativada
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Estes resultados foram otimizados pela nossa IA baseando-se na sua configuração específica de quartos e preferências. 
-                      {searchParams.get('suggested_hotel') && (
-                        <button
-                          onClick={() => {
-                            const targetHotel = searchParams.get('suggested_hotel')
-                            const hotelElement = document.querySelector(`[data-hotel*="${targetHotel}"]`)
-                            if (hotelElement) {
-                              hotelElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              // Highlight animation
-                              hotelElement.classList.add('ring-4', 'ring-purple-300', 'ring-opacity-50')
-                              setTimeout(() => {
-                                hotelElement.classList.remove('ring-4', 'ring-purple-300', 'ring-opacity-50')
-                              }, 3000)
-                            }
-                          }}
-                          className="font-medium text-purple-700 hover:text-purple-800 hover:underline cursor-pointer transition-colors duration-200"
-                        >
-                          {" "}📍 Recomendação principal: {searchParams.get('suggested_hotel')} - {searchParams.get('suggested_room_type')} por R$ {searchParams.get('suggested_price')}/pessoa
-                        </button>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-                      Score: {searchParams.get('suggested_score') || '95'}/100
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            )}
+
             
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                  {useGPTResults ? "🤖 Sugerencias de IA" : searchParams.get('smart_suggestion') === 'true' ? "🧠 Resultados Otimizados" : "Disponibilidades encontradas"}
+                  🏖️ Paquetes para ti
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {resultados.length} {resultados.length === 1 ? 'disponibilidad encontrada' : 'disponibilidades encontradas'}
+                  {resultados.length} {resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles'}
                   {filters.destino && ` para ${filters.destino}`}
-                  {searchParams.get('smart_suggestion') === 'true' && (
-                    <span className="text-purple-600 font-medium"> • Selecionados pela IA</span>
-                  )}
                 </p>
               </div>
               
@@ -1432,16 +1394,7 @@ export default function ResultadosPage() {
         </div>
 
         <div className="container mx-auto px-4 lg:px-[70px] py-8">
-          {/* Texto explicativo no topo */}
-          {resultados.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-2">Mostrando los paquetes más adecuados para su búsqueda:</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Filtramos los paquetes disponibles según su salida, destino, número de personas y fecha. 
-                Los paquetes mostrados son los más próximos y relevantes.
-              </p>
-            </div>
-          )}
+
 
           {/* Resultados */}
           {resultados.length === 0 ? (
@@ -1481,15 +1434,7 @@ export default function ResultadosPage() {
                 >
                   Nueva búsqueda
                 </Button>
-                <Button 
-                  onClick={handleSugestaoGPT}
-                  disabled={loadingGPT}
-                  variant="outline"
-                  className="rounded-xl px-6 py-2.5 font-medium border-2 border-purple-200 text-purple-700 hover:bg-purple-50"
-                >
-                  <Bot className="w-4 h-4 mr-2" />
-                  {loadingGPT ? "Buscando..." : "🤖 ¡Sugiéreme un paquete!"}
-                </Button>
+
               </div>
             </div>
           ) : (
@@ -1501,7 +1446,7 @@ export default function ResultadosPage() {
                   <div className="mb-8">
                     <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
                       <span className="text-2xl">🧳</span>
-                      {resultados.length <= 3 ? 'Paquetes ideales para vos' : `Todos los paquetes disponibles (${resultados.length})`}
+                      Paquetes disponibles
                     </h3>
                     <div className={`grid gap-4 md:gap-6 ${
                       viewMode === "grid" 

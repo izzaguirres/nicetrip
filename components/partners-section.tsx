@@ -34,7 +34,8 @@ export function PartnersSection() {
       <div className="container mx-auto px-4 lg:px-[70px]">
         <div className="text-center mb-12">
           <h2 className="text-[24px] lg:text-[24px] font-bold text-gray-900 mb-4">
-            Uma empresa do <span className="text-[#EE7215]">FLN GROUP</span>
+            Uma empresa do<br />
+            <span className="text-[#EE7215]">FLN GROUP</span>
           </h2>
           <p className="text-gray-600 text-[16px] max-w-lg mx-auto">
             Parte de um grupo consolidado com hotéis próprios, transportes e serviços completos de turismo em
