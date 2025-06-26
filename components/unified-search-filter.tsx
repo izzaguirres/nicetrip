@@ -28,13 +28,14 @@ import { useSmartFilter } from "@/hooks/use-smart-filter"
 
 // Dados de fallback para quando o Supabase não estiver configurado
 const FALLBACK_CITIES = [
-  // ✅ CIDADES ARGENTINAS APENAS (para o público-alvo)
+  // ✅ CIDADES ARGENTINAS ATUALIZADAS (conforme Supabase)
   { id: 1, cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
   { id: 2, cidade: "Lanús", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
   { id: 3, cidade: "La Plata", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
-  { id: 4, cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina", transporte: "Aéreo" },
-  { id: 5, cidade: "Córdoba", provincia: "Córdoba", pais: "Argentina", transporte: "Aéreo" },
-  { id: 6, cidade: "Rosario", provincia: "Santa Fe", pais: "Argentina", transporte: "Aéreo" }
+  { id: 4, cidade: "Lomas de Zamora", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
+  { id: 20, cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina", transporte: "Aéreo" },
+  { id: 21, cidade: "Córdoba", provincia: "Córdoba", pais: "Argentina", transporte: "Aéreo" },
+  { id: 22, cidade: "Rosario", provincia: "Santa Fe", pais: "Argentina", transporte: "Aéreo" }
 ]
 
 const FALLBACK_DESTINATIONS = [
@@ -93,19 +94,22 @@ export function UnifiedSearchFilter({
       // Para Bombinhas: janeiro 2026 (quando tem disponibilidade)
       return new Date(2026, 0, 4) // 04 de Janeiro 2026
     }
-    // Para outros destinos: outubro 2025 (padrão atual)
+    // Para outros destinos: 19 de outubro 2025 (primeira data disponível)
     return new Date(2025, 9, 19) // 19 de Outubro 2025
   }
 
-  const defaultDate = getDefaultDateForDestino(initialFilters?.destino || "Canasvieiras")
+  // Data padrão: 19 de outubro 2025
+  const defaultDate = new Date(2025, 9, 19) // 19 de Outubro 2025
 
   const [filters, setFilters] = useState<SearchFilters>({
-    salida: initialFilters?.salida || "Buenos Aires",
+    salida: initialFilters?.salida || "",
     destino: initialFilters?.destino || "Canasvieiras",
     data: initialFilters?.data || defaultDate,
     rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }],
     transporte: initialFilters?.transporte || "Bus",
   })
+
+
 
   // Hooks do Supabase com fallback
   const { cidades: supabaseCidades, loading: loadingCidades, error: errorCidades } = useCidadesSaida(filters.transporte)
@@ -117,6 +121,8 @@ export function UnifiedSearchFilter({
   
   // Hook para buscar datas disponíveis
   const { datas: datasDisponiveis, loading: loadingDatas } = useDatasDisponiveis(filters.destino, filters.transporte)
+  
+
 
   // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
   const cidades = errorCidades || supabaseCidades.length === 0 ? FALLBACK_CITIES : supabaseCidades
@@ -140,16 +146,20 @@ export function UnifiedSearchFilter({
     }
   }, [initialFilters])
 
-  // ✅ NOVO: Detectar mudança de destino/transporte e ajustar data automaticamente
+  // ✅ NOVO: Detectar mudança de destino/transporte e ajustar data automaticamente (PROTEGER DATA PADRÃO)
   useEffect(() => {
-    if (datasDisponiveis.length > 0 && !loadingDatas) {
-      const primeiraData = datasDisponiveis[0]
-      const dataAtual = filters.data ? format(filters.data, 'yyyy-MM-dd') : null
+    if (datasDisponiveis.length > 0 && !loadingDatas && filters.data) {
+      const dataAtual = format(filters.data, 'yyyy-MM-dd')
       
-      // Se a data atual não está nas datas disponíveis, ajustar para a primeira disponível
-      if (!dataAtual || !datasDisponiveis.includes(dataAtual)) {
-        console.log(`📅 Ajustando data para primeira disponível: ${primeiraData}`)
-        const novaData = new Date(primeiraData + 'T00:00:00')
+             // NUNCA mexer na data padrão (19 de outubro 2025)
+       if (dataAtual === '2025-10-19') {
+         return
+       }
+      
+      // APENAS ajustar se a data atual NÃO está nas datas disponíveis (não forçar mudança na data padrão válida)
+      if (!datasDisponiveis.includes(dataAtual)) {
+        console.log(`📅 Data atual (${dataAtual}) não está disponível, ajustando para primeira disponível: ${datasDisponiveis[0]}`)
+        const novaData = new Date(datasDisponiveis[0] + 'T00:00:00')
         setFilters(prev => ({ ...prev, data: novaData }))
       }
     }
@@ -157,20 +167,22 @@ export function UnifiedSearchFilter({
 
   // ✅ NOVO: Filtros condicionais - transporte filtra cidades disponíveis
   const cidadesDisponiveis = useMemo(() => {
-    if (!filters.transporte) return cidades
+    if (!filters.transporte) return [] // Não mostrar cidades se não há transporte selecionado
     return cidades.filter(cidade => cidade.transporte === filters.transporte)
   }, [cidades, filters.transporte])
 
-  // ✅ NOVO: Reset cidades quando muda transporte
+  // ✅ NOVO: Reset cidades quando muda transporte e auto-selecionar primeira cidade se não tem seleção
   useEffect(() => {
-    if (filters.transporte && filters.salida) {
+    if (filters.transporte) {
       const cidadeAtualDisponivel = cidadesDisponiveis.find(c => c.cidade === filters.salida)
-      if (!cidadeAtualDisponivel) {
-        console.log('🔄 Resetando salida porque não é compatível com o transporte selecionado')
-        setFilters(prev => ({ ...prev, salida: '' }))
+      
+      if (!cidadeAtualDisponivel && cidadesDisponiveis.length > 0) {
+        // Se não tem cidade selecionada ou ela não é compatível, selecionar a primeira
+        console.log('🔄 Auto-selecionando primeira cidade disponível para transporte:', filters.transporte)
+        setFilters(prev => ({ ...prev, salida: cidadesDisponiveis[0].cidade }))
       }
     }
-  }, [filters.transporte, cidadesDisponiveis, filters.salida])
+  }, [filters.transporte, cidadesDisponiveis])
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [isRoomsOpen, setIsRoomsOpen] = useState(false)
@@ -178,13 +190,18 @@ export function UnifiedSearchFilter({
 
   // ✅ ATUALIZADO: Função para desabilitar datas baseada nas datas disponíveis
   const isDateDisabled = (date: Date): boolean => {
-    // Se não temos datas disponíveis, desabilitar todas
+    // Formatar a data para comparação
+    const dateStr = format(date, 'yyyy-MM-dd')
+    
+    // SEMPRE permitir a data padrão (19 de outubro 2025)
+    if (dateStr === '2025-10-19') {
+      return false
+    }
+    
+    // Se não temos datas disponíveis ainda, permitir apenas a data padrão
     if (!datasDisponiveis || datasDisponiveis.length === 0) {
       return true
     }
-    
-    // Formatar a data para comparação
-    const dateStr = format(date, 'yyyy-MM-dd')
     
     // Habilitar apenas as datas que existem nas disponibilidades
     return !datasDisponiveis.includes(dateStr)
@@ -378,6 +395,7 @@ export function UnifiedSearchFilter({
   const isFormValid = filters.salida && filters.destino && filters.data
 
   // Layout sem wrapper para variant="results"
+  // ✅ LAYOUT RESPONSIVO: Mobile (2 cols) | Desktop (5 cols + botão)
   const containerClass = "grid grid-cols-2 lg:grid-cols-6 gap-3 lg:gap-4"
 
   // ✅ ATUALIZADO: Função para determinar o mês inicial do calendário baseado nas datas disponíveis
@@ -405,7 +423,7 @@ export function UnifiedSearchFilter({
             Transporte
           </label>
           <Select value={filters.transporte} onValueChange={(value) => setFilters(prev => ({ ...prev, transporte: value }))}>
-            <SelectTrigger className="w-full h-10 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
+            <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
               <div className="flex items-center">
                 {filters.transporte === "Bus" ? (
                   <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
@@ -425,7 +443,7 @@ export function UnifiedSearchFilter({
               {transportes.map((transporte) => (
                 <SelectItem key={transporte.id} value={transporte.transporte} className="rounded-lg hover:bg-[#EE7215]/5">
                 <div className="flex items-center gap-2">
-                  {transporte.transporte === "Bus" ? (
+                  {transporte.transporte === "Bus" || transporte.transporte === "Bús" ? (
                     <Bus className="w-4 h-4 text-[#EE7215]" />
                   ) : (
                     <Plane className="w-4 h-4 text-[#EE7215]" />
@@ -446,19 +464,25 @@ export function UnifiedSearchFilter({
           <Select
             value={filters.salida}
             onValueChange={(value) => setFilters(prev => ({ ...prev, salida: value }))}
+            disabled={!filters.transporte}
           >
-            <SelectTrigger className="rounded-xl border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#EE7215]/30">
+            <SelectTrigger className={`h-10 lg:h-12 rounded-xl border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl transition-all duration-300 hover:border-[#EE7215]/30 ${!filters.transporte ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#EE7215]" />
-                <SelectValue placeholder="Elegir ciudad de salida" />
+                <SelectValue placeholder={filters.transporte ? "Elegir ciudad de salida" : "Primero selecciona transporte"} />
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
+            <SelectContent 
+              className="rounded-xl border-2 border-gray-200 shadow-xl max-h-[200px] overflow-y-auto"
+              position="popper"
+              sideOffset={4}
+              align="start"
+            >
               {cidadesDisponiveis.map((cidade) => (
                 <SelectItem key={cidade.id} value={cidade.cidade} className="rounded-lg hover:bg-[#EE7215]/5">
                   <div className="flex flex-col">
                     <span className="font-medium">{cidade.cidade}</span>
-                    <span className="text-xs text-gray-500">{cidade.provincia}, {cidade.pais}</span>
+                    <span className="text-xs text-gray-500">{cidade.provincia}</span>
                   </div>
                 </SelectItem>
               ))}
@@ -472,7 +496,7 @@ export function UnifiedSearchFilter({
             Destino
           </label>
           <Select value={filters.destino} onValueChange={(value) => setFilters(prev => ({ ...prev, destino: value }))}>
-            <SelectTrigger className="w-full h-10 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
+            <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
               <div className="flex items-center">
                 <MapPin className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
               <SelectValue placeholder="Seleccionar destino">
@@ -492,15 +516,15 @@ export function UnifiedSearchFilter({
           </Select>
         </div>
 
-        {/* Data - Ocupa linha inteira no mobile */}
-        <div className="space-y-2 col-span-2 lg:col-span-1">
+        {/* Data - Ao lado do destino */}
+        <div className="space-y-2">
           <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
             Fecha
           </label>
           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
               <button
-                className="w-full h-10 justify-start text-left font-normal rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md bg-white px-3 flex items-center"
+                className="w-full h-10 lg:h-12 justify-start text-left font-normal rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md bg-white px-3 flex items-center"
               >
                 <CalendarIcon className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
                 <span className="truncate text-sm font-medium text-gray-900">
@@ -519,12 +543,23 @@ export function UnifiedSearchFilter({
                     defaultMonth={getInitialCalendarMonth()}
                     className="text-sm"
                     initialFocus
+                    modifiers={{
+                      available: (date) => !isDateDisabled(date)
+                    }}
+                    modifiersStyles={{
+                      available: {
+                        backgroundColor: '#FFF7ED',
+                        color: '#EA580C',
+                        borderRadius: '50%',
+                        border: '1px solid #FB923C'
+                      }
+                    }}
                   />
                 </div>
                 <div className="border-t bg-gradient-to-r from-gray-50 to-gray-100 p-3 text-xs text-gray-600 leading-relaxed">
                   <div className="text-center space-y-1">
-                  <p className="font-semibold">Selecciona cualquier fecha deseada.</p>
-                  <p>Te mostraremos paquetes de la fecha más próxima disponible.</p>
+                  <p className="font-semibold">Fechas de salida disponibles.</p>
+                  <p>Solo puedes seleccionar los días destacados con salidas programadas.</p>
                   </div>
                 </div>
               </div>
@@ -532,15 +567,15 @@ export function UnifiedSearchFilter({
           </Popover>
         </div>
 
-        {/* Quartos e Pessoas */}
-        <div className="space-y-2">
+        {/* Quartos e Pessoas - 1 coluna igual aos outros */}
+        <div className="space-y-2 col-span-2 lg:col-span-1">
           <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
             Personas
           </label>
           <Popover open={isRoomsOpen} onOpenChange={setIsRoomsOpen}>
             <PopoverTrigger asChild>
               <button
-                className="w-full h-10 justify-start text-left font-normal rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md bg-white px-3 flex items-center"
+                className="w-full h-10 lg:h-12 justify-start text-left font-normal rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md bg-white px-3 flex items-center"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="flex items-center gap-1">
@@ -688,17 +723,17 @@ export function UnifiedSearchFilter({
           </Popover>
         </div>
 
-        {/* Botão de Busca Inteligente */}
+        {/* Botão de Busca Inteligente - Mantém tamanho original no desktop */}
         <div className="space-y-2 col-span-2 lg:col-span-1">
-          <label className={`text-sm font-medium lg:opacity-0 ${variant === 'homepage' ? 'text-white' : 'text-gray-700'}`}>
+          <label className={`text-sm font-medium opacity-0 lg:opacity-0 ${variant === 'homepage' ? 'text-white' : 'text-gray-700'}`}>
             Buscar
           </label>
-          <div className="h-10">
-            {/* Botão Smart Filter Único */}
+          <div className="h-12 lg:h-12">
+            {/* Botão Smart Filter Único - Mais Grosso */}
             <button
               onClick={handleSearch}
               disabled={!isFormValid || smartLoading}
-              className="relative w-full bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-500 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-[0_8px_24px_rgba(99,102,241,0.4)] hover:shadow-[0_12px_32px_rgba(99,102,241,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="relative w-full h-full bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 hover:from-purple-500 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-[0_8px_24px_rgba(99,102,241,0.4)] hover:shadow-[0_12px_32px_rgba(99,102,241,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               title="Busca otimizada com Inteligência Artificial"
             >
               {/* Shine Effect */}

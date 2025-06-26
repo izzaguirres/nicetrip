@@ -113,12 +113,15 @@ export default function ResultadosPage() {
         const configDecoded = JSON.parse(decodeURIComponent(roomsConfigParam))
         console.log('🎯 CONFIGURAÇÃO ESPECÍFICA ENCONTRADA:', configDecoded)
         
-        return configDecoded.map((room: any, index: number) => ({
-          adults: room.adults || 0,
-          children0to3: room.children_0_3 || 0,
-          children4to5: room.children_4_5 || 0,
-          children6plus: room.children_6 || 0
-        }))
+        // ✅ Safe guard: verificar se é array válido
+        if (Array.isArray(configDecoded) && configDecoded.length > 0) {
+          return configDecoded.map((room: any, index: number) => ({
+            adults: room.adults || 0,
+            children0to3: room.children_0_3 || 0,
+            children4to5: room.children_4_5 || 0,
+            children6plus: room.children_6 || 0
+          }))
+        }
       } catch (error) {
         console.log('⚠️ Erro ao decodificar rooms_config, usando fallback')
       }
@@ -452,7 +455,7 @@ export default function ResultadosPage() {
 
   // Função para filtrar pacotes válidos antes de exibir ou enviar ao GPT
   const filtrarPacotesValidos = (pacotes: any[], dataSelecionada?: string, quartos?: Room[]) => {
-    if (!pacotes || pacotes.length === 0) return []
+    if (!pacotes || !Array.isArray(pacotes) || pacotes.length === 0) return [] // ✅ Safe guard
     
     console.log('🔍 FILTRO DE PACOTES - DEBUG COMPLETO:')
     console.log(`📊 Pacotes recebidos: ${pacotes.length}`)
@@ -707,6 +710,7 @@ export default function ResultadosPage() {
 
   // Função para ordenar resultados de forma inteligente baseada na data selecionada
   const ordenarResultadosInteligente = (resultados: any[], dataSelecionada?: string) => {
+    if (!resultados || !Array.isArray(resultados)) return [] // ✅ Safe guard
     if (!dataSelecionada || resultados.length === 0) return resultados
 
     console.log('🔄 Ordenando resultados para data:', dataSelecionada)
@@ -754,14 +758,14 @@ export default function ResultadosPage() {
     resultadosBrutos, 
     filters.data_saida, 
     parseRoomsFromURL()
-  )
+  ) || [] // ✅ Safe guard
   
   // Log para debug
   console.log('Resultados após filtrarPacotesValidos:', resultadosFiltrados)
   console.log('🔢 TOTAL DE RESULTADOS FILTRADOS:', resultadosFiltrados.length)
   
   // Aplicar ordenação inteligente baseada na data selecionada
-  const resultados = ordenarResultadosInteligente(resultadosFiltrados, filters.data_saida)
+  const resultados = ordenarResultadosInteligente(resultadosFiltrados, filters.data_saida) || [] // ✅ Safe guard
   
   // Log para debug
   console.log('Resultados finais após ordenação:', resultados)
@@ -1079,7 +1083,7 @@ export default function ResultadosPage() {
   }
 
       // ✅ NOVO: Obter quartos individuais para breakdown
-  const quartosIndividuais = getQuartosIndividuais()
+  const quartosIndividuais = getQuartosIndividuais() || [] // ✅ Safe guard
   const numQuartos = parseInt(searchParams.get("quartos") || "1")
   const temMultiplosQuartos = numQuartos > 1
   
@@ -1393,16 +1397,16 @@ export default function ResultadosPage() {
                       <span className="text-2xl">🧳</span>
                       {resultados.length <= 3 ? 'Paquetes ideales para vos' : `Todos los paquetes disponibles (${resultados.length})`}
                     </h3>
-                    <div className={`grid gap-6 ${
+                    <div className={`grid gap-4 md:gap-6 ${
                       viewMode === "grid" 
                         ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" 
                         : "grid-cols-1"
                     }`}>
-                      {resultados.map((disponibilidade, index) => {
+                      {(resultados || []).map((disponibilidade, index) => {
                         const precoTotal = calcularPrecoTotalSeguro(disponibilidade, pessoas)
                         const totalPessoas = pessoas.adultos + pessoas.criancas_0_3 + pessoas.criancas_4_5 + pessoas.criancas_6_mais
                         const precoPorPessoa = calcularPrecoPorPessoa(precoTotal, totalPessoas)
-                        const amenidades = getAmenidades(disponibilidade.hotel, disponibilidade.destino)
+                        const amenidades = getAmenidades(disponibilidade.hotel, disponibilidade.destino) || [] // ✅ Safe guard
                         const hotelImage = getHotelImage(disponibilidade.hotel)
                         
                         return (
@@ -1440,8 +1444,8 @@ export default function ResultadosPage() {
                             {/* Hero Image */}
                             <div className={`relative overflow-hidden ${
                               viewMode === "list" 
-                                ? "md:w-80 md:flex-shrink-0 aspect-[4/3] md:aspect-[3/2]" 
-                                : "aspect-[4/3]"
+                                ? "md:w-80 md:flex-shrink-0 aspect-[3/2]" 
+                                : "aspect-[3/2] md:aspect-[4/3]"
                             }`}>
                               <Image
                                 src={hotelImage}
@@ -1455,28 +1459,20 @@ export default function ResultadosPage() {
                               
                               {/* Enhanced Gradient Overlay */}
                               <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent"></div>
-                              
-                              {/* Rating Overlay */}
-                              <div className="absolute top-4 right-4">
-                                <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-3 py-1.5 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-                                  <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                                  <span className="text-xs font-bold text-gray-900">4.8</span>
-                                </div>
-                              </div>
                             </div>
 
                             {/* Content Section */}
                             <div className={`${
                               viewMode === "list" 
                                 ? "flex-1 p-4 md:flex md:flex-col md:justify-between md:min-h-0" 
-                                : "p-6"
+                                : "p-4 md:p-6"
                             }`}>
                               {/* Hotel Info */}
-                              <div className={viewMode === "list" ? "mb-3" : "mb-5"}>
-                                <div className={`flex items-start justify-between ${viewMode === "list" ? "mb-2" : "mb-3"}`}>
+                              <div className={viewMode === "list" ? "mb-3" : "mb-4"}>
+                                <div className={`flex items-start justify-between ${viewMode === "list" ? "mb-2" : "mb-2"}`}>
                                   <div className="flex-1">
                                     <h3 className={`font-bold text-gray-900 leading-tight tracking-tight font-['Inter',_system-ui,_sans-serif] ${
-                                      viewMode === "list" ? "text-lg mb-1" : "text-xl mb-1.5"
+                                      viewMode === "list" ? "text-lg mb-1" : "text-lg md:text-xl mb-1"
                                     }`}>
                                       {disponibilidade.hotel}
                                     </h3>
@@ -1485,9 +1481,10 @@ export default function ResultadosPage() {
                                     </p>
                                   </div>
                                   <div className="ml-3">
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-1.5 rounded-full border border-emerald-200 hover:scale-[1.05] transition-all duration-200 shadow-sm">
-                                      ⭐ Mejor Valorado
-                                    </span>
+                                    <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                                      <Star className="w-3 h-3 text-amber-500 fill-current" />
+                                      <span className="text-xs font-bold text-amber-700">4.8</span>
+                                    </div>
                                   </div>
                                 </div>
                                 
@@ -1500,108 +1497,103 @@ export default function ResultadosPage() {
                                 </div>
                               </div>
 
-                              {/* Comodidades e Detalhes - Compacto para list view */}
+                              {/* Comodidades e Detalhes - Melhorados com badges sutis */}
                               {viewMode === "list" ? (
                                 <div className="flex-1 space-y-3 mb-4 md:overflow-y-auto">
-                                  {/* Comodidades compactas - PRIMEIRO */}
+                                  {/* Comodidades compactas - LIST VIEW */}
                                   <div>
-                                    <h4 className="text-sm font-bold text-gray-800 mb-1.5 tracking-tight">Comodidades</h4>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {amenidades.map((amenidade, idx) => (
-                                        <div key={idx} className="flex items-center gap-1.5 bg-gradient-to-r from-gray-50 to-gray-100 px-2 py-1 rounded-lg border border-gray-200/50">
+                                    <h4 className="text-sm font-bold text-gray-800 mb-2 tracking-tight">Comodidades</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {(amenidades || []).map((amenidade, idx) => (
+                                        <div key={idx} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg border border-gray-200/60 text-xs font-medium">
                                           <amenidade.icon className="w-3 h-3 text-[#EE7215]" />
-                                          <span className="text-xs font-semibold text-gray-700">{amenidade.label}</span>
+                                          <span>{amenidade.label}</span>
                                         </div>
                                       ))}
                                     </div>
                                   </div>
 
-                                  {/* Detalles compactos - SEGUNDO */}
+                                  {/* Detalles compactos - LIST VIEW */}
                                   <div>
-                                    <h4 className="text-sm font-bold text-gray-800 mb-1.5 tracking-tight">Detalles del viaje</h4>
+                                    <h4 className="text-sm font-bold text-gray-800 mb-2 tracking-tight">Detalles del viaje</h4>
                                     <div className="flex flex-wrap gap-2">
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gradient-to-r from-orange-50 to-orange-100 px-2 py-1 rounded-lg border border-orange-200/50">
-                                        <CalendarIcon className="w-3 h-3 text-[#EE7215]" />
-                                        <span className="font-semibold">{formatDate(disponibilidade.data_saida)}</span>
+                                      <div className="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 px-2 py-1 rounded-lg border border-orange-200/60 text-xs font-medium">
+                                        <CalendarIcon className="w-3 h-3" />
+                                        <span>{formatDate(disponibilidade.data_saida)}</span>
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gradient-to-r from-blue-50 to-blue-100 px-2 py-1 rounded-lg border border-blue-200/50">
+                                      <div className="inline-flex items-center gap-1.5 bg-sky-50 text-sky-700 px-2 py-1 rounded-lg border border-sky-200/60 text-xs font-medium">
                                         {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? (
-                                          <Bus className="w-3 h-3 text-[#EE7215]" />
+                                          <Bus className="w-3 h-3" />
                                         ) : (
-                                          <Plane className="w-3 h-3 text-[#EE7215]" />
+                                          <Plane className="w-3 h-3" />
                                         )}
-                                        <span className="font-semibold">
-                                          {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"}
-                                        </span>
+                                        <span>{(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"}</span>
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gradient-to-r from-purple-50 to-purple-100 px-2 py-1 rounded-lg border border-purple-200/50">
-                                        <Bed className="w-3 h-3 text-[#EE7215]" />
-                                        <span className="font-semibold">{disponibilidade.noites_hotel || 7} noches</span>
+                                      <div className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 px-2 py-1 rounded-lg border border-purple-200/60 text-xs font-medium">
+                                        <Bed className="w-3 h-3" />
+                                        <span>{disponibilidade.noites_hotel || 7} noches</span>
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-700 bg-gradient-to-r from-green-50 to-green-100 px-2 py-1 rounded-lg border border-green-200/50">
-                                        <Users className="w-3 h-3 text-[#EE7215]" />
-                                        <span className="font-semibold">{formatTotalPessoas(pessoas).replace('Adulto', 'Adulto').replace('Adultos', 'Adultos').replace('Niño', 'Niño').replace('Niños', 'Niños')}</span>
+                                      <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-200/60 text-xs font-medium">
+                                        <Users className="w-3 h-3" />
+                                        <span>{formatTotalPessoas(pessoas).replace('Adulto', 'Adulto').replace('Adultos', 'Adultos').replace('Niño', 'Niño').replace('Niños', 'Niños')}</span>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
                               ) : (
                                 <>
-                                  {/* Comodidades - Grid view */}
-                                  <div className="mb-5">
+                                  {/* Comodidades - GRID VIEW */}
+                                  <div className="mb-4">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 tracking-tight">Comodidades</h4>
-                                    <div className="grid grid-cols-2 gap-2.5">
-                                      {amenidades.map((amenidade, idx) => (
-                                        <div key={idx} className="flex items-center gap-2.5 bg-gradient-to-r from-gray-50 to-gray-100 px-3 py-2.5 rounded-xl hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border border-gray-200/50">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {(amenidades || []).map((amenidade, idx) => (
+                                        <div key={idx} className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl border border-gray-200/60 text-xs font-medium">
                                           <amenidade.icon className="w-4 h-4 text-[#EE7215]" />
-                                          <span className="text-xs font-semibold text-gray-700">{amenidade.label}</span>
+                                          <span>{amenidade.label}</span>
                                         </div>
                                       ))}
                                     </div>
                                   </div>
 
-                                  {/* Detalles del viaje - Grid view */}
-                                  <div className="mb-6">
+                                  {/* Detalles del viaje - GRID VIEW */}
+                                  <div className="mb-5">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 tracking-tight">Detalles del viaje</h4>
-                                    <div className="grid grid-cols-2 gap-2.5">
-                                      <div className="flex items-center gap-2.5 text-sm text-gray-700 bg-gradient-to-r from-orange-50 to-orange-100 px-3 py-2.5 rounded-xl border border-orange-200/50">
-                                        <CalendarIcon className="w-4 h-4 text-[#EE7215]" />
-                                        <span className="font-semibold">{formatDate(disponibilidade.data_saida)}</span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="inline-flex items-center gap-2 bg-orange-50 text-orange-700 px-3 py-2 rounded-xl border border-orange-200/60 text-xs font-medium">
+                                        <CalendarIcon className="w-4 h-4" />
+                                        <span>{formatDate(disponibilidade.data_saida)}</span>
                                       </div>
-                                      <div className="flex items-center gap-2.5 text-sm text-gray-700 bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-2.5 rounded-xl border border-blue-200/50">
+                                      <div className="inline-flex items-center gap-2 bg-sky-50 text-sky-700 px-3 py-2 rounded-xl border border-sky-200/60 text-xs font-medium">
                                         {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? (
-                                          <Bus className="w-4 h-4 text-[#EE7215]" />
+                                          <Bus className="w-4 h-4" />
                                         ) : (
-                                          <Plane className="w-4 h-4 text-[#EE7215]" />
+                                          <Plane className="w-4 h-4" />
                                         )}
-                                        <span className="font-semibold">
-                                          {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"}
-                                        </span>
+                                        <span>{(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"}</span>
                                       </div>
-                                      <div className="flex items-center gap-2.5 text-sm text-gray-700 bg-gradient-to-r from-purple-50 to-purple-100 px-3 py-2.5 rounded-xl border border-purple-200/50">
-                                        <Bed className="w-4 h-4 text-[#EE7215]" />
-                                        <span className="font-semibold">{disponibilidade.noites_hotel || 7} noches</span>
+                                      <div className="inline-flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-2 rounded-xl border border-purple-200/60 text-xs font-medium">
+                                        <Bed className="w-4 h-4" />
+                                        <span>{disponibilidade.noites_hotel || 7} noches</span>
                                       </div>
-                                      <div className="flex items-center gap-2.5 text-sm text-gray-700 bg-gradient-to-r from-green-50 to-green-100 px-3 py-2.5 rounded-xl border border-green-200/50">
-                                        <Users className="w-4 h-4 text-[#EE7215]" />
-                                        <span className="font-semibold">{formatTotalPessoas(pessoas).replace('Adulto', 'Adulto').replace('Adultos', 'Adultos').replace('Niño', 'Niño').replace('Niños', 'Niños')}</span>
+                                      <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl border border-emerald-200/60 text-xs font-medium">
+                                        <Users className="w-4 h-4" />
+                                        <span>{formatTotalPessoas(pessoas).replace('Adulto', 'Adulto').replace('Adultos', 'Adultos').replace('Niño', 'Niño').replace('Niños', 'Niños')}</span>
                                       </div>
                                     </div>
                                   </div>
                                 </>
                               )}
 
-                              {/* Pricing Block - Adaptado para list view */}
-                              <div className={`border-t border-gray-200 ${viewMode === "list" ? "pt-4" : "pt-6"}`}>
+                              {/* Pricing Block - Redesenhado conforme solicitado */}
+                              <div className="border-t border-gray-200 pt-4 mt-4">
                                 {viewMode === "list" ? (
-                                  // Layout horizontal: preço esquerda, botão direita
+                                  // Layout horizontal para list view
                                   <div className="flex items-end justify-between gap-4">
-                                    {/* Preço e info - Esquerda */}
+                                    {/* Breakdown de quartos para múltiplos quartos */}
                                     <div className="flex-1">
-                                      {/* ✅ NOVO: Breakdown de quartos para múltiplos quartos */}
                                       {temMultiplosQuartos ? (
                                         <div className="space-y-2 mb-3">
-                                          {quartosIndividuais.map((quarto, quartoIndex) => {
+                                          {(quartosIndividuais || []).map((quarto, quartoIndex) => {
                                             const precoQuarto = calcularPrecoQuarto(disponibilidade, quarto)
                                             const tipoQuarto = determinarTipoQuarto(quarto)
                                             const ocupacao = formatarOcupacaoQuarto(quarto)
@@ -1628,7 +1620,6 @@ export default function ResultadosPage() {
                                             )
                                           })}
                                           
-                                          {/* Total */}
                                           <div className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-[#EE7215]/10 to-[#F7931E]/10 rounded-lg border-2 border-[#EE7215]/20">
                                             <div className="text-sm font-black text-gray-900">
                                               💰 Total ({numQuartos} cuartos)
@@ -1650,23 +1641,24 @@ export default function ResultadosPage() {
                                           `Total para ${formatTotalPessoas(pessoas)}`
                                         }
                                       </div>
-                                      <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                        Todo incluido • {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"} + Hotel
+                                      <div className="space-y-1">
+                                        <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                        <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
+                                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                          {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel
+                                        </div>
                                       </div>
                                     </div>
 
                                     {/* Botão - Direita */}
                                     <div className="flex-shrink-0">
                                       <button 
-                                        className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-3 px-6 rounded-2xl shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] transform-gpu overflow-hidden group/btn"
+                                        className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-5 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] hover:shadow-[0_8px_24px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] transform-gpu overflow-hidden group/btn"
                                         onClick={() => {
                                           router.push(gerarUrlDetalhes(disponibilidade, precoTotal))
                                         }}
                                       >
-                                        {/* Shine Effect */}
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                                        
                                         <span className="relative flex items-center justify-center gap-2 text-sm">
                                           <span className="font-black tracking-wide">Ver detalles</span>
                                           <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300" />
@@ -1675,15 +1667,16 @@ export default function ResultadosPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  // Layout vertical original para grid view
+                                  // Layout vertical para grid view
                                   <>
-                                    <div className="text-center mb-5">
-                                      {/* ✅ NOVO: Breakdown de quartos para grid view */}
-                                      {temMultiplosQuartos ? (
+                                    {/* Para múltiplos quartos: primeiro desglose, depois valor final */}
+                                    {temMultiplosQuartos ? (
+                                      <>
+                                        {/* Breakdown de quartos primeiro */}
                                         <div className="space-y-3 mb-4">
                                           <div className="text-sm font-bold text-gray-800 mb-3">Desglose por cuarto:</div>
                                           
-                                          {quartosIndividuais.map((quarto, quartoIndex) => {
+                                          {(quartosIndividuais || []).map((quarto, quartoIndex) => {
                                             const precoQuarto = calcularPrecoQuarto(disponibilidade, quarto)
                                             const tipoQuarto = determinarTipoQuarto(quarto)
                                             const ocupacao = formatarOcupacaoQuarto(quarto)
@@ -1710,7 +1703,6 @@ export default function ResultadosPage() {
                                             )
                                           })}
                                           
-                                          {/* Total destacado */}
                                           <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-[#EE7215]/10 to-[#F7931E]/10 rounded-xl border-2 border-[#EE7215]/30 hover:border-[#EE7215]/50 transition-all duration-200">
                                             <div className="flex items-center gap-3">
                                               <div className="w-5 h-5 bg-gradient-to-r from-[#EE7215] to-[#F7931E] rounded-lg flex items-center justify-center">
@@ -1725,37 +1717,71 @@ export default function ResultadosPage() {
                                             </div>
                                           </div>
                                         </div>
-                                      ) : (
-                                        <div className="text-3xl font-black text-gray-900 tracking-tight mb-1">
-                                          {formatPrice(precoTotal)}
-                                        </div>
-                                      )}
-                                      
-                                      <div className="text-sm font-medium text-gray-600">
-                                        {temMultiplosQuartos ? 
-                                          `Total para ${formatTotalPessoas(pessoas)} en ${numQuartos} cuartos` :
-                                          `Total para ${formatTotalPessoas(pessoas)}`
-                                        }
-                                      </div>
-                                      <div className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-4 py-2 rounded-full border border-green-300 shadow-sm">
-                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                        Todo incluido • {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Vuelo"} + Hotel
-                                      </div>
-                                    </div>
 
-                                    {/* BOTÃO SUPER ATRATIVO - Grid view */}
+                                        {/* Linha divisória */}
+                                        <div className="border-t border-gray-200 pt-4 mt-4"></div>
+
+                                        {/* Valor final depois do desglose */}
+                                        <div className="flex items-start justify-between mb-4">
+                                          {/* Esquerda: Todo incluído */}
+                                          <div className="flex-1">
+                                            <div className="space-y-1">
+                                              <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                              <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                                {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Direita: Preço e pessoas */}
+                                          <div className="text-right">
+                                            <div className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
+                                              {formatPrice(precoTotal)}
+                                            </div>
+                                            <div className="text-xs font-medium text-gray-600">
+                                              Total para {formatTotalPessoas(pessoas)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      /* Para quarto único: layout normal */
+                                      <div className="flex items-start justify-between mb-4">
+                                        {/* Esquerda: Todo incluído */}
+                                        <div className="flex-1">
+                                          <div className="space-y-1">
+                                            <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                            <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
+                                              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                              {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Direita: Preço e pessoas */}
+                                        <div className="text-right">
+                                          <div className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
+                                            {formatPrice(precoTotal)}
+                                          </div>
+                                          <div className="text-xs font-medium text-gray-600">
+                                            Total para {formatTotalPessoas(pessoas)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Botão - Grid view mais sutil */}
                                     <button 
-                                      className="relative w-full bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-4 px-8 rounded-2xl shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] transform-gpu overflow-hidden group/btn"
+                                      className="relative w-full bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-3 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] hover:shadow-[0_8px_24px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] transform-gpu overflow-hidden group/btn"
                                       onClick={() => {
                                         router.push(gerarUrlDetalhes(disponibilidade, precoTotal))
                                       }}
                                     >
-                                      {/* Shine Effect */}
                                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                                      
-                                      <span className="relative flex items-center justify-center gap-2 text-base">
+                                      <span className="relative flex items-center justify-center gap-2 text-sm md:text-base">
                                         <span className="font-black tracking-wide">Ver detalles</span>
-                                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                                        <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
                                       </span>
                                     </button>
                                   </>

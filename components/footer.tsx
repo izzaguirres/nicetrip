@@ -13,8 +13,8 @@ export function Footer() {
           {/* Left Side - Logo and Company Info */}
           <div className="space-y-4">
             <Link href="/" className="inline-block">
-              <Image
-                src="/images/nice-trip-logo-new.png"
+                          <Image
+              src="/images/nicetrip-logo-1.png"
                 alt="Nice Trip"
                 width={140}
                 height={35}
@@ -45,21 +45,21 @@ export function Footer() {
         {/* Navigation Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 border-t border-gray-100">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Serviços</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Servicios</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Pacotes
+                  Paquetes
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Hospedagens
+                  Hospedajes
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Passeios
+                  Paseos
                 </Link>
               </li>
               <li>
@@ -101,17 +101,17 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Sobre Nós
+                  Sobre Nosotros
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Nossa Equipe
+                  Nuestro Equipo
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Depoimentos
+                  Testimonios
                 </Link>
               </li>
               <li>
@@ -123,26 +123,26 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-900 mb-4">Suporte</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Soporte</h3>
             <ul className="space-y-2">
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Central de Ajuda
+                  Centro de Ayuda
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Condições
+                  Condiciones
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Política de Privacidade
+                  Política de Privacidad
                 </Link>
               </li>
               <li>
                 <Link href="#" className="text-gray-600 hover:text-[#EE7215] transition-colors">
-                  Contato
+                  Contacto
                 </Link>
               </li>
             </ul>
@@ -152,7 +152,7 @@ export function Footer() {
         {/* Bottom Footer */}
         <div className="pt-8 border-t border-gray-100">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-gray-600 text-sm">© 2025 Nice Trip Turismo. Todos os direitos reservados.</p>
+            <p className="text-gray-600 text-sm">© 2025 Nice Trip Turismo. Todos los derechos reservados.</p>
             <p className="text-gray-500 text-sm">
               Uma empresa do <span className="text-[#EE7215] font-medium">FLN GROUP</span>
             </p>

@@ -7,52 +7,52 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const FAQS = [
   {
-    question: "Como funciona o processo de reserva?",
+    question: "¿Cómo puedo reservar un paquete?",
     answer:
-      "O processo é muito simples! Você escolhe seu pacote, preenche os dados, faz o pagamento e pronto. Nossa equipe entra em contato para confirmar todos os detalhes e enviar o roteiro completo da sua viagem.",
+      "Solo tenés que usar el buscador en la parte superior de la página para encontrar la opción ideal. Al hacer clic en \"Reservar\", serás redirigido directamente a nuestro WhatsApp",
     category: "Reservas",
   },
   {
-    question: "Quais formas de pagamento vocês aceitam?",
+    question: "¿Los paseos están incluidos en el paquete?",
     answer:
-      "Aceitamos cartão de crédito (até 12x), PIX, transferência bancária e boleto. Para pagamentos à vista, oferecemos desconto especial. Também trabalhamos com parcelamento personalizado.",
-    category: "Pagamento",
+      "Nuestros paquetes incluyen transporte (Bus o Aéreo), alojamiento y regreso. Los paseos locales se contratan por separado. ⚠️ Solo están incluidos en los paquetes de octubre y noviembre.",
+    category: "Paseos",
   },
   {
-    question: "Os passeios incluem alimentação?",
+    question: "¿Puedo reservar solo el alojamiento?",
     answer:
-      "Depende do pacote escolhido. Nossos pacotes completos incluem café da manhã na hospedagem e algumas refeições nos passeios. Sempre informamos detalhadamente o que está incluso em cada roteiro.",
-    category: "Passeios",
+      "¡Sí! Podés reservar únicamente la estadía en uno de nuestros hoteles, sin necesidad de contratar paseos, traslados ni paquetes.",
+    category: "Hospedaje",
   },
   {
-    question: "Posso cancelar ou alterar minha reserva?",
+    question: "¿Qué formas de pago aceptan?",
     answer:
-      "Sim! Temos política flexível de cancelamento. Até 30 dias antes da viagem, reembolso de 100%. Entre 15-30 dias, 80%. Alterações de datas podem ser feitas sem custo adicional conforme disponibilidade.",
-    category: "Cancelamento",
+      "Aceptamos pagos vía Pix en nuestras cuentas de Brasil, y también transferencias o depósitos en dólares en nuestras cuentas en Argentina.",
+    category: "Pagos",
   },
   {
-    question: "As hospedagens são próprias da Nice Trip?",
+    question: "¿Nice Trip es una agencia confiable?",
     answer:
-      "Temos 3 hospedagens próprias em Canasvieiras com ótima localização e custo-benefício. Também trabalhamos com parceiros selecionados para oferecer mais opções de acordo com seu perfil e orçamento.",
-    category: "Hospedagem",
+      "Con más de 13 años de experiencia y operación propia en Florianópolis, ya realizamos miles de viajes con seguridad, soporte personalizado y total transparencia.",
+    category: "Confianza",
   },
   {
-    question: "Os guias são locais e experientes?",
+    question: "¿Puedo cancelar o modificar mi reserva?",
     answer:
-      "Sim! Todos nossos guias são locais, apaixonados por Floripa e região, com anos de experiência. Eles conhecem os melhores lugares, horários ideais e histórias que só quem vive aqui sabe contar.",
-    category: "Guias",
+      "Sí. Tenemos una política de cancelación clara, disponible en nuestro sitio web en la sección de \"Condiciones Generales\".",
+    category: "Cancelación",
   },
   {
-    question: "Vocês oferecem seguro viagem?",
+    question: "¿Ofrecen seguro de viaje?",
     answer:
-      "Todos nossos pacotes incluem seguro básico de viagem. Para maior tranquilidade, oferecemos também seguros mais completos com cobertura ampliada por um valor adicional.",
-    category: "Segurança",
+      "Todos nuestros paquetes incluyen seguro médico con cobertura internacional. También podés contratar un seguro ampliado con cobertura extra por un costo adicional.",
+    category: "Seguro",
   },
   {
-    question: "Como funciona o traslado do aeroporto?",
+    question: "¿Cómo funciona la atención por WhatsApp?",
     answer:
-      "Nosso traslado é pontual e confortável, com veículos próprios e motoristas experientes. Monitoramos seu voo e estamos sempre no horário. O serviço está incluso na maioria dos nossos pacotes.",
-    category: "Transporte",
+      "Nuestro equipo está disponible en horario comercial para atenderte con agilidad y atención. Siempre que lo necesites, estamos a un mensaje de distancia.",
+    category: "Soporte",
   },
 ]
 
@@ -75,7 +75,7 @@ export function FaqSection() {
               duration={0.6}
               once={true}
             >
-              Perguntas Frequentes
+              Preguntas Frecuentes
             </TextAnimate>
             
             <TextAnimate
@@ -87,7 +87,7 @@ export function FaqSection() {
               duration={0.6}
               once={true}
             >
-              Tire suas dúvidas sobre nossos serviços e planeje sua viagem com total tranquilidade.
+              Resolvé todas tus dudas sobre nuestros servicios y planificá tu viaje con total tranquilidad.
             </TextAnimate>
           </div>
 
@@ -125,9 +125,9 @@ export function FaqSection() {
 
           {/* Contact Section */}
           <div className="mt-12 text-center">
-            <p className="text-gray-600 mb-4 text-lg">Ainda tem dúvidas? Nossa equipe está pronta para ajudar!</p>
+            <p className="text-gray-600 mb-4 text-lg">¿Todavía tenés dudas? ¡Nuestro equipo está listo para ayudarte!</p>
             <Button className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white px-8 py-3 rounded-lg font-medium">
-              Falar com Especialista
+              Hablar con Especialista
             </Button>
           </div>
         </div>

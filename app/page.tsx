@@ -58,8 +58,8 @@ export default function HomePage() {
           <div className="flex items-center justify-between h-16 lg:h-20 py-4">
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0">
-              <Image
-                src="/images/nice-trip-logo-new.png"
+                          <Image
+              src="/images/nicetrip-logo-1.png"
                 alt="Nice Trip"
                 width={120}
                 height={30}
@@ -73,37 +73,37 @@ export default function HomePage() {
                 href="/"
                 className="text-gray-900 bg-transparent border-2 border-[#EE7215] px-3 py-2 rounded-xl font-bold text-[15px] transition-all duration-300 hover:scale-[1.02] hover:bg-[#EE7215]/5"
               >
-                Início
+                Inicio
               </Link>
               <Link
                 href="/resultados?categoria=paquete"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
-                Pacotes
+                Paquetes
               </Link>
               <Link
                 href="/resultados?categoria=hospedagem"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
-                Hospedagens
+                Hospedajes
               </Link>
               <Link
                 href="/resultados?categoria=passeio"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
-                Passeios
+                Paseos
               </Link>
               <Link
                 href="#"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
-                Condições
+                Condiciones
               </Link>
               <Link
                 href="#"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
-                Contato
+                Contacto
               </Link>
             </nav>
 
@@ -113,7 +113,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                 <div className="relative z-10 flex items-center">
                   <Globe className="w-4 h-4 mr-2 flex-shrink-0" />
-                  <span className="flex-shrink-0">Acesso Agências</span>
+                  <span className="flex-shrink-0">Acceso Agencias</span>
                 </div>
               </button>
             </div>
@@ -129,28 +129,28 @@ export default function HomePage() {
             <div className="lg:hidden py-4 border-t border-gray-100">
               <nav className="flex flex-col space-y-3">
                 <Link href="/" className="text-gray-900 bg-transparent border-2 border-[#EE7215] px-3 py-2 rounded-xl font-bold transition-all duration-300">
-                  Início
+                  Inicio
                 </Link>
                 <Link href="/resultados?categoria=paquete" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
-                  Pacotes
+                  Paquetes
                 </Link>
                 <Link href="/resultados?categoria=hospedagem" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
-                  Hospedagens
+                  Hospedajes
                 </Link>
                 <Link href="/resultados?categoria=passeio" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
-                  Passeios
+                  Paseos
                 </Link>
                 <Link href="#" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
-                  Condições
+                  Condiciones
                 </Link>
                 <Link href="#" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
-                  Contato
+                  Contacto
                 </Link>
                 <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white rounded-xl w-full py-2.5 font-semibold transition-all duration-300 overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                   <div className="relative z-10 flex items-center justify-center">
                     <Globe className="w-4 h-4 mr-2" />
-                    Acesso Agências
+                    Acceso Agencias
                   </div>
                 </button>
               </nav>

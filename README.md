@@ -181,9 +181,24 @@ nice-trip-page-complete/
 └── README.md            # Esta documentação
 ```
 
-## 🆕 **Atualizações Recentes v3.1**
+## 🆕 **Atualizações Recentes v3.2**
 
-### 🔥 **SmartFilter & Layout Optimizations**
+### 📱 **Otimização Mobile Cards - Janeiro 2025**
+- [x] **Cards Mobile Compactos**: Reduziu tamanho dos cards para melhor usabilidade mobile
+- [x] **Badges Temáticos Coloridos**: 
+  - Comodidades: Cinza com ícones laranja (#EE7215)
+  - Detalhes del Viaje: Orange (data), Sky (transporte), Purple (noites), Emerald (pessoas)
+- [x] **Layout de Preços Reestruturado**:
+  - Esquerda: "Todo incluido" + badge verde "Bus + Hotel" ou "Aéreo + Hotel"
+  - Direita: Valor em destaque + "Total para X Adultos"
+- [x] **Hierarquia Visual Melhorada**:
+  - Valores: text-3xl md:text-4xl (quarto único), text-2xl md:text-3xl (múltiplos)
+  - Texto pessoas: text-xs para economia de espaço
+  - Botão mais sutil: py-2.5 px-5 (list), py-3 px-6 (grid)
+- [x] **Multi-Quartos Otimizado**: Ordem invertida (Desglose primeiro + linha divisória)
+- [x] **Todas Informações Mantidas**: Design compacto sem perda de funcionalidade
+
+### 🔥 **SmartFilter & Layout Optimizations (v3.1)**
 - [x] **Layout Horizontal Premium**: Cards sem limitação de altura (`md:max-h-96` removido)
 - [x] **View Mode Otimizado**: List view como padrão no desktop para melhor comparação
 - [x] **Navbar Fixa Inteligente**: Header fixo com `!important` flags para economizar espaço
@@ -191,7 +206,7 @@ nice-trip-page-complete/
 - [x] **Espaçamento Refinado**: Micro-ajustes de `space-y-4` para `space-y-3`
 - [x] **Reordenação UX**: Botões List/Grid reordenados (List primeiro)
 
-### 📱 **Melhorias de Interface**
+### 📱 **Melhorias de Interface (v3.1)**
 - [x] **Zero Height Overflow**: Conteúdo horizontal sempre visível
 - [x] **Glassmorphism Mantido**: `bg-white/95 backdrop-blur-sm` preservado
 - [x] **Apple-style Consistency**: Design premium sem comprometer funcionalidade
