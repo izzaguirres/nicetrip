@@ -93,6 +93,29 @@ OPENAI_API_KEY=your_openai_api_key
 - created_at: timestamp
 ```
 
+### Tabela `hospedagens` (Nova)
+```sql
+- id: bigint (primary key)
+- nome: text (nome do hotel)
+- inclusos: json (serviços inclusos)
+- comodidades: json (comodidades do hotel)
+- created_at: timestamp
+```
+
+### Estrutura JSON das Comodidades
+```json
+{
+  "inclusos": [
+    {"nome": "Wi-Fi", "icone": "wifi"},
+    {"nome": "Aire Acondicionado", "icone": "aire"}
+  ],
+  "comodidades": [
+    {"nome": "TV", "icone": "tv"},
+    {"nome": "Frigobar", "icone": "fridge"}
+  ]
+}
+```
+
 ## 🎯 **Funcionalidades Principais**
 
 ### 🏠 **Homepage**
@@ -103,11 +126,20 @@ OPENAI_API_KEY=your_openai_api_key
 
 ### 📋 **Página de Resultados**
 - Filtros avançados no topo
-- Cards premium com imagens e informações detalhadas
-- Modo grid/list view
+- Cards premium com **imagens reais dos hotéis**
+- **Comodidades reais** do Supabase com ícones dinâmicos
+- Modo grid/list view otimizado
 - Breakdown de quartos para múltiplas ocupações
 - Integração direta com WhatsApp
 - Badges "Más Popular" e "IA Recomienda"
+- **Galeria de fotos** com modal premium
+
+### 🏨 **Página de Detalhes**
+- **Galeria completa** com navegação por setas
+- **Comodidades reais** organizadas por categorias
+- Modal responsivo com fechamento inteligente
+- Informações detalhadas do pacote
+- Mapeamento automático de dados Supabase
 
 ### 🤖 **Sistema de IA**
 - Botão flutuante para sugestões
@@ -176,12 +208,45 @@ nice-trip-page-complete/
 │   └── use-packages.ts   # Hook Supabase
 ├── lib/                  # Utilities e configs
 │   ├── supabase.ts      # Cliente Supabase
+│   ├── hospedagens-service.ts # Serviço de dados de hotéis com cache
 │   └── utils.ts         # Funções utilitárias
 ├── public/              # Assets estáticos
 └── README.md            # Esta documentação
 ```
 
-## 🆕 **Atualizações Recentes v3.2**
+## 🆕 **Atualizações Recentes v3.3**
+
+### 🏨 **Sistema de Imagens e Comodidades Reais - Janeiro 2025**
+- [x] **Imagens Reais dos Hotéis**: Integração completa com fotos reais dos 7 hotéis principais
+  - **Residencial Terrazas**: 8 imagens (.png/.jpg)
+  - **Residencial Leônidas**: 8 imagens (.jpg)
+  - **Hotel Fênix**: 8 imagens (.jpg)
+  - **Palace I**: 9 imagens (.jpg/.jpeg)
+  - **Bombinhas Palace Hotel**: 7 imagens (.jpg)
+  - **Canas Gold Hotel**: 8 imagens (.png/.jpg)
+  - **Verdes Pássaros Apart Hotel**: 6 imagens (.png)
+- [x] **Galeria Modal Premium**: 
+  - Navegação por setas (teclado/mouse)
+  - Fechamento via ESC, backdrop click ou botão
+  - Design responsivo com z-index otimizado
+  - Suporte a touch/swipe mobile
+- [x] **Comodidades Reais do Supabase**:
+  - Integração com tabela `hospedagens` (colunas `inclusos` e `comodidades`)
+  - Mapeamento inteligente entre hotéis das tabelas `disponibilidades` ↔ `hospedagens`
+  - Ícones Lucide React dinâmicos (Wifi, AirVent, Tv, Refrigerator, etc.)
+  - Sistema de fallback para hotéis sem dados
+- [x] **Sistema de Cache Inteligente**:
+  - Cache de 30 minutos para performance
+  - Serviço `lib/hospedagens-service.ts` para dados centralizados
+  - Prevenção de queries desnecessárias ao Supabase
+- [x] **Correções de Hidratação**: 
+  - Função `formatPrice()` com detecção client-side
+  - Resolução de erros `.toLocaleString()` server/client
+  - Renderização de ícones React corrigida
+- [x] **Arquitetura Limpa**: 
+  - Single source of truth para dados de hotéis
+  - Mapeamento robusto de nomes entre tabelas
+  - Graceful fallbacks para UI nunca quebrar
 
 ### 📱 **Otimização Mobile Cards - Janeiro 2025**
 - [x] **Cards Mobile Compactos**: Reduziu tamanho dos cards para melhor usabilidade mobile
