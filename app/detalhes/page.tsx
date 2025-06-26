@@ -6,6 +6,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
+import { getHospedagemData } from "@/lib/hospedagens-service"
 import { 
   Star, 
   MapPin, 
@@ -26,7 +27,17 @@ import {
   Camera,
   Bed,
   Sun,
-  ArrowRight
+  ArrowRight,
+  AirVent,
+  Tv,
+  Refrigerator,
+  Waves,
+  Sparkles,
+  ChefHat,
+  Bath,
+  Flame,
+  Gamepad2,
+  Circle
 } from "lucide-react"
 
 export default function DetalhesPage() {
@@ -38,6 +49,35 @@ export default function DetalhesPage() {
   const [activeTab, setActiveTab] = useState("descripcion")
   const [touchStart, setTouchStart] = useState(0)
   const [touchEnd, setTouchEnd] = useState(0)
+  const [isClient, setIsClient] = useState(false)
+  const [comodidadesReais, setComodidadesReais] = useState<Array<{nome: string, icone: string}> | null>(null)
+
+  // ✅ NOVO: Detectar se estamos no cliente (resolver hidratação)
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // ✅ NOVO: Fechar modal com tecla ESC
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showAllPhotos) {
+        setShowAllPhotos(false)
+      }
+    }
+
+    if (showAllPhotos) {
+      document.addEventListener('keydown', handleKeyDown)
+      // Impedir scroll da página quando modal está aberta
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'auto'
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.body.style.overflow = 'auto'
+    }
+  }, [showAllPhotos])
   
   // Dados dinâmicos da URL
   const hotelName = searchParams.get('hotel') || 'Hotel Premium'
@@ -54,6 +94,57 @@ export default function DetalhesPage() {
   const totalCriancas = criancas_0_3 + criancas_4_5 + criancas_6
   const totalPessoas = adultos + totalCriancas
   const temMultiplosQuartos = quartos > 1
+
+  // Função para obter todas as imagens de um hotel
+  const getHotelImages = (hotelName: string): string[] => {
+    // Mapeamento: Nome do banco → [Pasta, número de imagens]
+    const hotelGalleryMap: { [key: string]: { folder: string, count: number } } = {
+      "RESIDENCIAL TERRAZAS": { folder: "Residencial Terrazas", count: 8 },
+      "RESIDENCIAL LEÔNIDAS": { folder: "Residencial Leônidas", count: 8 },
+      "HOTEL FÊNIX": { folder: "Hotel Fênix", count: 8 },
+      "HOTEL FENIX": { folder: "Hotel Fênix", count: 8 }, // Variação
+      "PALACE I": { folder: "Palace I", count: 9 }, // Único com 9 imagens
+      "BOMBINHAS PALACE HOTEL": { folder: "Bombinhas Palace Hotel", count: 8 },
+      "CANAS GOLD HOTEL": { folder: "Canas Gold Hotel", count: 8 },
+      "VERDES PÁSSAROS APART HOTEL": { folder: "Verdes Pássaros Apart Hotel", count: 6 }
+    }
+    
+    const normalizedName = hotelName.toUpperCase().trim()
+    const hotelInfo = hotelGalleryMap[normalizedName]
+    
+    if (!hotelInfo) {
+      // Fallback para hotéis sem imagens - usar Unsplash
+      return [
+        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
+        "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
+        "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800&q=80",
+        "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
+        "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80"
+      ]
+    }
+    
+    const images: string[] = []
+    for (let i = 1; i <= hotelInfo.count; i++) {
+      // Definir extensão correta baseada nas pastas reais
+      let extension = 'jpg' // padrão
+      
+      if (hotelInfo.folder === 'Residencial Terrazas') {
+        extension = i === 1 || i === 4 || i === 5 || i === 6 || i === 7 ? 'png' : 'jpg'
+      } else if (hotelInfo.folder === 'Canas Gold Hotel') {
+        extension = [1, 3, 6, 7].includes(i) ? 'png' : 'jpg'
+      } else if (hotelInfo.folder === 'Palace I') {
+        extension = [4, 8].includes(i) ? 'jpeg' : 'jpg'
+      } else if (hotelInfo.folder === 'Verdes Pássaros Apart Hotel') {
+        extension = 'png'
+      }
+      
+      const imagePath = `/images/hoteles/${hotelInfo.folder}/${i}.${extension}`
+      images.push(imagePath)
+    }
+    
+    return images
+  }
   
   // Função para distribuir pessoas pelos quartos (igual ao card de resultados)
   const getQuartosIndividuais = () => {
@@ -103,6 +194,22 @@ export default function DetalhesPage() {
   }
   
   const quartosIndividuais = getQuartosIndividuais()
+
+  // ✅ CARREGAR COMODIDADES REAIS DO HOTEL
+  useEffect(() => {
+    const carregarComodidades = async () => {
+      try {
+        const hospedagem = await getHospedagemData(hotelName)
+        if (hospedagem && hospedagem.comodidades) {
+          setComodidadesReais(hospedagem.comodidades)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar comodidades:', error)
+      }
+    }
+    
+    carregarComodidades()
+  }, [hotelName])
   
   // 💰 VALORES REAIS DO SUPABASE (conforme tabela disponibilidades)
   const dadosPacote = {
@@ -153,6 +260,28 @@ export default function DetalhesPage() {
     if (totalCriancasQuarto > 0) partes.push(`${totalCriancasQuarto} Niño${totalCriancasQuarto > 1 ? 's' : ''}`)
     return partes.join(', ')
   }
+
+  // ✅ FUNÇÃO PARA MAPEAR ÍCONES DAS COMODIDADES
+  const getIconComponent = (icone: string) => {
+    const iconMap: { [key: string]: any } = {
+      'wifi': Wifi,
+      'aire': Shield, // Usando Shield temporariamente, pode ser atualizado
+      'tv': Bed, // Usando Bed temporariamente
+      'fridge': Coffee, // Usando Coffee temporariamente
+      'pool': Utensils, // Usando Utensils temporariamente
+      'restaurant': Utensils,
+      'safe': Shield,
+      'cleaning': Star,
+      'reception': Clock,
+      'parking': Car,
+      'kitchen': Coffee,
+      'hot_tub': Coffee,
+      'bbq': Coffee,
+      'gamepad': Coffee
+    }
+    
+    return iconMap[icone] || Coffee // Fallback para Coffee
+  }
   
   const packageData = {
     id: searchParams.get('id') || '1',
@@ -164,14 +293,7 @@ export default function DetalhesPage() {
     price: preco,
     originalPrice: preco + 350,
     dataViagem: searchParams.get('data') || '2025-10-02',
-    images: [
-      "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
-      "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
-      "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800&q=80",
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
-      "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80"
-    ],
+    images: getHotelImages(hotelName),
     description: `Disfrute de una experiencia única en ${destino} con nuestro paquete premium. Hospedaje en ${hotelName} con vista al mar, transporte cómodo y experiencias gastronómicas exclusivas.`,
     highlights: [
       "Vista panorámica del océano",
@@ -180,7 +302,10 @@ export default function DetalhesPage() {
       "Desayuno gourmet",
       "Acceso a playa privada"
     ],
-    amenities: [
+    amenities: comodidadesReais ? comodidadesReais.map(comodidade => ({
+      icon: getIconComponent(comodidade.icone),
+      name: comodidade.nome
+    })) : [
       { icon: Wifi, name: "Wi-Fi gratuito" },
       { icon: Car, name: "Estacionamiento" },
       { icon: Coffee, name: "Desayuno" },
@@ -234,11 +359,21 @@ export default function DetalhesPage() {
     }
   }
 
+  // ✅ FUNÇÃO PARA FORMATAÇÃO SEGURA DE PREÇOS (resolve hidratação)
+  const formatPrice = (value: number): string => {
+    if (!isClient) {
+      // No servidor, usar formatação simples
+      return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+    }
+    // No cliente, usar toLocaleString brasileiro
+    return value.toLocaleString('pt-BR')
+  }
+
   // Share functionality
   const handleShare = async () => {
     const shareData = {
       title: `${packageData.name} - Nice Trip`,
-      text: `¡Mira este increíble paquete en ${destino}! Desde $ ${packageData.price.toLocaleString()}`,
+      text: `¡Mira este increíble paquete en ${destino}! Desde $ ${formatPrice(packageData.price)}`,
       url: window.location.href
     }
 
@@ -355,7 +490,7 @@ export default function DetalhesPage() {
                 </div>
                 {/* Indicadores de posição */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                  {packageData.images.map((_, index) => (
+                  {packageData.images.map((_: string, index: number) => (
                     <div 
                       key={index} 
                       className="w-2 h-2 rounded-full bg-white/60"
@@ -388,7 +523,7 @@ export default function DetalhesPage() {
               </div>
               
               {/* Secondary Images */}
-              {packageData.images.slice(1, 5).map((image, index) => (
+              {packageData.images.slice(1, 5).map((image: string, index: number) => (
                 <div key={index} className="relative group">
                   <Image
                     src={image}
@@ -571,14 +706,36 @@ export default function DetalhesPage() {
                   Comodidades
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {packageData.amenities.map((amenity, index) => (
-                    <div key={index} className="flex items-center gap-3 py-2">
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <amenity.icon className="w-4 h-4 text-gray-600" />
+                  {packageData.amenities.map((amenity, index) => {
+                    // ✅ Mapear string do ícone para componente React
+                    const iconComponents: { [key: string]: any } = {
+                      'Wifi': Wifi,
+                      'AirVent': AirVent,
+                      'Tv': Tv,
+                      'Refrigerator': Refrigerator,
+                      'Waves': Waves,
+                      'Utensils': Utensils,
+                      'Shield': Shield,
+                      'Sparkles': Sparkles,
+                      'Clock': Clock,
+                      'Car': Car,
+                      'ChefHat': ChefHat,
+                      'Bath': Bath,
+                      'Flame': Flame,
+                      'Gamepad2': Gamepad2,
+                      'Circle': Circle
+                    }
+                    const IconComponent = iconComponents[amenity.icon] || Circle
+                    
+                    return (
+                      <div key={index} className="flex items-center gap-3 py-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <IconComponent className="w-4 h-4 text-gray-600" />
+                        </div>
+                        <span className="text-gray-700">{amenity.name}</span>
                       </div>
-                      <span className="text-gray-700">{amenity.name}</span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -643,7 +800,7 @@ export default function DetalhesPage() {
                                 </div>
                               </div>
                               <div className="text-base font-black text-[#EE7215]">
-                                $ {precoQuartoCalculado.toLocaleString()}
+                                $ {formatPrice(precoQuartoCalculado)}
                               </div>
                             </div>
                           )
@@ -660,7 +817,7 @@ export default function DetalhesPage() {
                             </div>
                           </div>
                           <div className="text-xl font-black text-[#EE7215]">
-                            $ {precoTotalReal.toLocaleString()}
+                            $ {formatPrice(precoTotalReal)}
                           </div>
                         </div>
                       </div>
@@ -694,7 +851,7 @@ export default function DetalhesPage() {
                       </div>
 
                       <div className="text-2xl font-bold text-gray-900 mb-1">
-                        $ {precoTotalReal.toLocaleString()}
+                        $ {formatPrice(precoTotalReal)}
                       </div>
                       <div className="text-xs font-light text-gray-600 mb-3">
                         Total para {formatarOcupacaoQuarto(quartosIndividuais[0])}
@@ -739,12 +896,12 @@ export default function DetalhesPage() {
                   {/* Price Breakdown */}
                   <div className="space-y-2 text-xs border-t border-gray-200 pt-3">
                     <div className="flex justify-between">
-                      <span className="font-light text-gray-600">$ {precoTotalReal.toLocaleString()} x 1 paquete</span>
-                      <span className="font-normal text-gray-900">$ {precoTotalReal.toLocaleString()}</span>
+                      <span className="font-light text-gray-600">$ {formatPrice(precoTotalReal)} x 1 paquete</span>
+                      <span className="font-normal text-gray-900">$ {formatPrice(precoTotalReal)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-sm border-t border-gray-200 pt-2">
                       <span>Total</span>
-                      <span>$ {precoTotalReal.toLocaleString()}</span>
+                      <span>$ {formatPrice(precoTotalReal)}</span>
                     </div>
                   </div>
                 </div>
@@ -771,7 +928,7 @@ export default function DetalhesPage() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1">
             <div className="text-sm font-light text-gray-600">Precio total</div>
-            <div className="text-lg font-bold text-gray-900">$ {precoTotalReal.toLocaleString()}</div>
+            <div className="text-lg font-bold text-gray-900">$ {formatPrice(precoTotalReal)}</div>
             <div className="text-xs font-light text-gray-600">
               {temMultiplosQuartos 
                 ? `${adultos} Adultos, ${totalCriancas} Niños en ${quartos} cuartos`
@@ -795,20 +952,39 @@ export default function DetalhesPage() {
 
       {/* Photo Modal */}
       {showAllPhotos && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
+        <div 
+          className="fixed inset-0 bg-black z-[9999] flex items-center justify-center"
+          onClick={(e) => {
+            // ✅ NOVO: Fechar ao clicar no fundo (backdrop)
+            if (e.target === e.currentTarget) {
+              console.log('🎯 FECHANDO MODAL VIA BACKDROP')
+              setShowAllPhotos(false)
+            }
+          }}
+        >
           {/* Header com botões */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4">
+          <div className="absolute top-0 left-0 right-0 z-[10000] flex items-center justify-between p-4">
             <button 
-              onClick={() => setShowAllPhotos(false)}
-              className="text-white hover:bg-white/20 p-2 rounded-full transition-all flex items-center gap-2"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('🎯 FECHANDO MODAL VIA BOTÃO VOLVER')
+                setShowAllPhotos(false)
+              }}
+              className="text-white hover:bg-white/20 p-3 rounded-full transition-all flex items-center gap-2 bg-black/20 backdrop-blur-sm cursor-pointer"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
               <span className="text-sm font-medium">Volver</span>
             </button>
             
             <button 
-              onClick={() => setShowAllPhotos(false)}
-              className="text-white hover:bg-white/20 p-2 rounded-full transition-all"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                console.log('🎯 FECHANDO MODAL VIA BOTÃO X')
+                setShowAllPhotos(false)
+              }}
+              className="text-white hover:bg-white/20 p-3 rounded-full transition-all text-xl font-bold bg-black/20 backdrop-blur-sm w-12 h-12 flex items-center justify-center cursor-pointer"
             >
               ×
             </button>
@@ -820,31 +996,57 @@ export default function DetalhesPage() {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <button 
-              onClick={prevImage}
-              className="absolute left-4 text-white hover:bg-white/20 p-3 rounded-full z-10 transition-all"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
+            {/* Botão Anterior */}
+            {packageData.images.length > 1 && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  prevImage()
+                }}
+                className="absolute left-4 text-white hover:bg-white/20 p-3 rounded-full z-10 transition-all bg-black/20 backdrop-blur-sm"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
             
             <Image
               src={packageData.images[currentImageIndex]}
               alt={`Foto ${currentImageIndex + 1}`}
               width={1200}
               height={800}
-              className="max-w-full max-h-full object-contain select-none"
+              className="max-w-full max-h-full object-contain select-none cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
             />
             
-            <button 
-              onClick={nextImage}
-              className="absolute right-4 text-white hover:bg-white/20 p-3 rounded-full z-10 transition-all"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
+            {/* Botão Próximo */}
+            {packageData.images.length > 1 && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  nextImage()
+                }}
+                className="absolute right-4 text-white hover:bg-white/20 p-3 rounded-full z-10 transition-all bg-black/20 backdrop-blur-sm"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
           </div>
           
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full">
             {currentImageIndex + 1} / {packageData.images.length}
+          </div>
+          
+          {/* Indicação de como fechar (apenas mobile) */}
+          <div 
+            className="lg:hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 text-white text-xs bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              console.log('🎯 FECHANDO MODAL VIA TOQUE MOBILE')
+              setShowAllPhotos(false)
+            }}
+          >
+            Toque para fechar
           </div>
         </div>
       )}

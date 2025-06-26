@@ -11,6 +11,7 @@ import { Footer } from "@/components/footer"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
 import { DisponibilidadeFilter, PrecoPessoas, calcularPrecoTotal } from "@/lib/supabase"
 import { fetchRealData, SearchFilters } from "@/lib/supabase-service"
+import { getHospedagemData, formatComodidadesForCards, COMODIDADES_GENERICAS } from "@/lib/hospedagens-service"
 import {
   Search,
   MapPin,
@@ -39,6 +40,12 @@ import {
   ArrowRight,
   Brain,
   Sparkles,
+  Refrigerator,
+  Bath,
+  ChefHat,
+  Flame,
+  Gamepad2,
+  Circle,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -78,6 +85,7 @@ export default function ResultadosPage() {
   const [pacotesGPT, setPacotesGPT] = useState<any[] | null>(null)
   const [loadingGPT, setLoadingGPT] = useState(false)
   const [useGPTResults, setUseGPTResults] = useState(false)
+  const [comodidadesCache, setComodidadesCache] = useState<{[key: string]: Array<{icon: string, label: string}>}>({})
   
   // Processar parâmetros da URL para reconstruir os quartos
   const parseRoomsFromURL = (): Room[] => {
@@ -327,6 +335,28 @@ export default function ResultadosPage() {
     
     loadData()
   }, [filters.destino, filters.transporte, filters.data_saida])
+
+  // ✅ CARREGAR COMODIDADES DOS HOTÉIS QUANDO RESULTADOS MUDAREM
+  useEffect(() => {
+    if (disponibilidades && disponibilidades.length > 0) {
+      const carregarComodidades = async () => {
+        const novoCache: {[key: string]: Array<{icon: string, label: string}>} = {}
+        
+        for (const disponibilidade of disponibilidades) {
+          if (!comodidadesCache[disponibilidade.hotel]) {
+            const comodidades = await getComodidadesReais(disponibilidade.hotel)
+            novoCache[disponibilidade.hotel] = comodidades
+          }
+        }
+        
+        if (Object.keys(novoCache).length > 0) {
+          setComodidadesCache(prev => ({ ...prev, ...novoCache }))
+        }
+      }
+      
+      carregarComodidades()
+    }
+  }, [disponibilidades])
 
   // 💰 VALORES CORRETOS DO SUPABASE (conforme tabela disponibilidades)
   const valoresReaisSupabase = {
@@ -980,25 +1010,101 @@ export default function ResultadosPage() {
 
   // Função para obter a imagem específica do hotel
   const getHotelImage = (hotelName: string) => {
-    const hotelImages: { [key: string]: string } = {
-          "Residencial Terrazas": "/placeholder.jpg",
-    "Residencial Leonidas": "/placeholder.jpg",
-    "Hotel Fenix": "/placeholder.jpg",
+    // Mapeamento correto: Nome do banco → Pasta das imagens
+    const hotelImageMap: { [key: string]: string } = {
+      "RESIDENCIAL TERRAZAS": "/images/hoteles/Residencial Terrazas/1.png",
+      "RESIDENCIAL LEÔNIDAS": "/images/hoteles/Residencial Leônidas/1.jpg", 
+      "HOTEL FÊNIX": "/images/hoteles/Hotel Fênix/1.jpg",
+      "HOTEL FENIX": "/images/hoteles/Hotel Fênix/1.jpg", // Variação sem acento
+      "PALACE I": "/images/hoteles/Palace I/1.jpg",
+      "BOMBINHAS PALACE HOTEL": "/images/hoteles/Bombinhas Palace Hotel/1.jpg",
+      "CANAS GOLD HOTEL": "/images/hoteles/Canas Gold Hotel/1.png",
+      "VERDES PÁSSAROS APART HOTEL": "/images/hoteles/Verdes Pássaros Apart Hotel/1.png"
     }
     
-    return hotelImages[hotelName] || "/placeholder.svg"
+    // Normalizar nome do hotel (maiúsculo e limpar)
+    const normalizedName = hotelName.toUpperCase().trim()
+    
+    return hotelImageMap[normalizedName] || null // Retorna null se não encontrar
   }
 
-  // Função para gerar amenidades genéricas baseadas no tipo de hotel
-  const getAmenidades = (hotel: string, destino: string) => {
-    const amenidadesSimples = [
-      { icon: Tv, label: "TV" },
-      { icon: AirVent, label: "AIRE" },
-      { icon: Coffee, label: "DESAYUNO" },
-    ]
+  // Função para obter todas as imagens de um hotel
+  const getHotelImages = (hotelName: string): string[] => {
+    // Mapeamento: Nome do banco → [Pasta, número de imagens]
+    const hotelGalleryMap: { [key: string]: { folder: string, count: number } } = {
+      "RESIDENCIAL TERRAZAS": { folder: "Residencial Terrazas", count: 8 },
+      "RESIDENCIAL LEÔNIDAS": { folder: "Residencial Leônidas", count: 8 },
+      "HOTEL FÊNIX": { folder: "Hotel Fênix", count: 8 },
+      "HOTEL FENIX": { folder: "Hotel Fênix", count: 8 }, // Variação
+      "PALACE I": { folder: "Palace I", count: 9 }, // Único com 9 imagens
+      "BOMBINHAS PALACE HOTEL": { folder: "Bombinhas Palace Hotel", count: 8 },
+      "CANAS GOLD HOTEL": { folder: "Canas Gold Hotel", count: 8 },
+      "VERDES PÁSSAROS APART HOTEL": { folder: "Verdes Pássaros Apart Hotel", count: 6 }
+    }
+    
+    const normalizedName = hotelName.toUpperCase().trim()
+    const hotelInfo = hotelGalleryMap[normalizedName]
+    
+    if (!hotelInfo) return []
+    
+    const images: string[] = []
+    for (let i = 1; i <= hotelInfo.count; i++) {
+      // Definir extensão correta baseada nas pastas reais
+      let extension = 'jpg' // padrão
+      
+      if (hotelInfo.folder === 'Residencial Terrazas') {
+        extension = i === 1 || i === 4 || i === 5 || i === 6 || i === 7 ? 'png' : 'jpg'
+      } else if (hotelInfo.folder === 'Canas Gold Hotel') {
+        extension = [1, 3, 6, 7].includes(i) ? 'png' : 'jpg'
+      } else if (hotelInfo.folder === 'Palace I') {
+        extension = [4, 8].includes(i) ? 'jpeg' : 'jpg'
+      } else if (hotelInfo.folder === 'Verdes Pássaros Apart Hotel') {
+        extension = 'png'
+      }
+      
+      const imagePath = `/images/hoteles/${hotelInfo.folder}/${i}.${extension}`
+      images.push(imagePath)
+    }
+    
+    return images
+  }
 
-    // Retorna exatamente 3 amenidades simplificadas
-    return amenidadesSimples
+  // ✅ NOVA FUNÇÃO: Buscar comodidades reais da tabela hospedagens
+  const getComodidadesReais = async (hotelName: string) => {
+    try {
+      const hospedagem = await getHospedagemData(hotelName)
+      
+      if (hospedagem && hospedagem.comodidades && hospedagem.comodidades.length > 0) {
+        console.log(`✅ Comodidades encontradas para ${hotelName}:`, hospedagem.comodidades)
+        return formatComodidadesForCards(hospedagem.comodidades)
+      } else {
+        console.log(`⚠️ Usando comodidades genéricas para ${hotelName}`)
+        return COMODIDADES_GENERICAS
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar comodidades:', error)
+      return COMODIDADES_GENERICAS
+    }
+  }
+
+  // Mapeamento de ícones para componentes React
+  const iconComponents: { [key: string]: any } = {
+    Wifi,
+    AirVent,
+    Tv,
+    Refrigerator,
+    Waves,
+    Utensils,
+    Shield,
+    Sparkles,
+    Clock,
+    Car,
+    ChefHat,
+    Bath,
+    Flame,
+    Gamepad2,
+    Circle,
+    Coffee // Fallback
   }
 
   // Função para formatar informações de pessoas
@@ -1406,8 +1512,8 @@ export default function ResultadosPage() {
                         const precoTotal = calcularPrecoTotalSeguro(disponibilidade, pessoas)
                         const totalPessoas = pessoas.adultos + pessoas.criancas_0_3 + pessoas.criancas_4_5 + pessoas.criancas_6_mais
                         const precoPorPessoa = calcularPrecoPorPessoa(precoTotal, totalPessoas)
-                        const amenidades = getAmenidades(disponibilidade.hotel, disponibilidade.destino) || [] // ✅ Safe guard
-                        const hotelImage = getHotelImage(disponibilidade.hotel)
+                        const amenidades = comodidadesCache[disponibilidade.hotel] || COMODIDADES_GENERICAS
+                        const hotelImage = getHotelImage(disponibilidade.hotel) || "/placeholder.svg"
                         
                         return (
                           <Card 
@@ -1447,15 +1553,26 @@ export default function ResultadosPage() {
                                 ? "md:w-80 md:flex-shrink-0 aspect-[3/2]" 
                                 : "aspect-[3/2] md:aspect-[4/3]"
                             }`}>
-                              <Image
-                                src={hotelImage}
-                                alt={`${disponibilidade.destino} - ${disponibilidade.hotel}`}
-                                width={400}
-                                height={300}
-                                className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${
+                              {hotelImage ? (
+                                <Image
+                                  src={hotelImage}
+                                  alt={`${disponibilidade.destino} - ${disponibilidade.hotel}`}
+                                  width={400}
+                                  height={300}
+                                  className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${
+                                    viewMode === "list" ? "md:rounded-l-2xl md:rounded-r-none" : ""
+                                  }`}
+                                />
+                              ) : (
+                                <div className={`w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center ${
                                   viewMode === "list" ? "md:rounded-l-2xl md:rounded-r-none" : ""
-                                }`}
-                              />
+                                }`}>
+                                  <div className="text-center text-gray-500">
+                                    <Hotel className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm font-medium">Sin imágenes</p>
+                                  </div>
+                                </div>
+                              )}
                               
                               {/* Enhanced Gradient Overlay */}
                               <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent"></div>
@@ -1504,12 +1621,15 @@ export default function ResultadosPage() {
                                   <div>
                                     <h4 className="text-sm font-bold text-gray-800 mb-2 tracking-tight">Comodidades</h4>
                                     <div className="flex flex-wrap gap-2">
-                                      {(amenidades || []).map((amenidade, idx) => (
-                                        <div key={idx} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg border border-gray-200/60 text-xs font-medium">
-                                          <amenidade.icon className="w-3 h-3 text-[#EE7215]" />
-                                          <span>{amenidade.label}</span>
-                                        </div>
-                                      ))}
+                                      {(amenidades || []).map((amenidade: {icon: string, label: string}, idx: number) => {
+                                        const IconComponent = iconComponents[amenidade.icon] || iconComponents.Circle
+                                        return (
+                                          <div key={idx} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg border border-gray-200/60 text-xs font-medium">
+                                            <IconComponent className="w-3 h-3 text-[#EE7215]" />
+                                            <span>{amenidade.label}</span>
+                                          </div>
+                                        )
+                                      })}
                                     </div>
                                   </div>
 
@@ -1546,12 +1666,34 @@ export default function ResultadosPage() {
                                   <div className="mb-4">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 tracking-tight">Comodidades</h4>
                                     <div className="grid grid-cols-2 gap-2">
-                                      {(amenidades || []).map((amenidade, idx) => (
-                                        <div key={idx} className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl border border-gray-200/60 text-xs font-medium">
-                                          <amenidade.icon className="w-4 h-4 text-[#EE7215]" />
-                                          <span>{amenidade.label}</span>
-                                        </div>
-                                      ))}
+                                      {(amenidades || []).map((amenidade, idx) => {
+                                        // ✅ Mapear string do ícone para componente React
+                                        const iconComponents: { [key: string]: any } = {
+                                          'Wifi': Wifi,
+                                          'AirVent': AirVent,
+                                          'Tv': Tv,
+                                          'Refrigerator': Refrigerator,
+                                          'Waves': Waves,
+                                          'Utensils': Utensils,
+                                          'Shield': Shield,
+                                          'Sparkles': Sparkles,
+                                          'Clock': Clock,
+                                          'Car': Car,
+                                          'ChefHat': ChefHat,
+                                          'Bath': Bath,
+                                          'Flame': Flame,
+                                          'Gamepad2': Gamepad2,
+                                          'Circle': Circle
+                                        }
+                                        const IconComponent = iconComponents[amenidade.icon] || Circle
+                                        
+                                        return (
+                                          <div key={idx} className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl border border-gray-200/60 text-xs font-medium">
+                                            <IconComponent className="w-4 h-4 text-[#EE7215]" />
+                                            <span>{amenidade.label}</span>
+                                          </div>
+                                        )
+                                      })}
                                     </div>
                                   </div>
 
