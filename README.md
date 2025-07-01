@@ -102,6 +102,36 @@ OPENAI_API_KEY=your_openai_api_key
 - created_at: timestamp
 ```
 
+### Tabela `package_content_templates` (Nova v3.4)
+```sql
+- id: serial (primary key)
+- transporte: varchar(10) (Bus/Aéreo)
+- destino: varchar(100) (nullable)
+- hotel: varchar(255) (nullable)
+- titulo: varchar(255)
+- descricao: text
+- descricao_detalhada: text
+- condicoes_cancelacao: text
+- condicoes_equipaje: text  
+- condicoes_documentos: text
+- condicoes_cancelacao_completa: text (v3.4)
+- condicoes_equipaje_completa: text (v3.4)
+- condicoes_documentos_completa: text (v3.4)
+- ativo: boolean
+- created_at: timestamp
+```
+
+### Tabela `package_descriptions` (Nova v3.4)
+```sql
+- id: serial (primary key)
+- transporte: varchar(10) (Bus/Aéreo)
+- destino: varchar(100) (nullable)
+- hotel: varchar(255) (nullable)
+- titulo: varchar(255)
+- descripcion_detallada: text
+- created_at: timestamp
+```
+
 ### Estrutura JSON das Comodidades
 ```json
 {
@@ -137,6 +167,12 @@ OPENAI_API_KEY=your_openai_api_key
 ### 🏨 **Página de Detalhes**
 - **Galeria completa** com navegação por setas
 - **Comodidades reais** organizadas por categorias
+- **Descrições dinâmicas** personalizadas por transporte/hotel
+- **Sistema de abas**: Descripción, Condiciones, Avaliaciones
+- **Condições dinâmicas** do Supabase com modal completo
+- **Links condicionais** "Ver Condiciones Completas"
+- **Modal premium** com formatação markdown
+- **Processamento de texto** (negrito, quebras de linha)
 - Modal responsivo com fechamento inteligente
 - Informações detalhadas do pacote
 - Mapeamento automático de dados Supabase
@@ -209,12 +245,46 @@ nice-trip-page-complete/
 ├── lib/                  # Utilities e configs
 │   ├── supabase.ts      # Cliente Supabase
 │   ├── hospedagens-service.ts # Serviço de dados de hotéis com cache
+│   ├── package-conditions-service.ts # Condições dinâmicas (v3.4)
+│   ├── package-description-service.ts # Descrições dinâmicas (v3.4)
 │   └── utils.ts         # Funções utilitárias
 ├── public/              # Assets estáticos
 └── README.md            # Esta documentação
 ```
 
-## 🆕 **Atualizações Recentes v3.3**
+## 🆕 **Atualizações Recentes v3.4**
+
+### 🔗 **Sistema de Condições Dinâmicas e Modal Premium - Janeiro 2025**
+- [x] **Condições Dinâmicas do Supabase**: 
+  - Integração com tabela `package_content_templates` (IDs 3 e 4)
+  - Condições específicas por transporte (Bus/Aéreo)
+  - Cache inteligente por tipo de transporte
+  - Fallback graceful para condições estáticas
+- [x] **Modal de Condições Completas**:
+  - Links "Ver Condiciones Completas" condicionais
+  - Modal overlay responsivo com scroll interno
+  - Formatação markdown (`**negrito**`, quebras de linha)
+  - Múltiplas formas de fechar (ESC, backdrop, botões)
+  - UX premium com backdrop-blur e animações
+- [x] **Serviço de Descrições por Pacote**:
+  - Tabela `package_descriptions` para conteúdo personalizado
+  - Busca hierárquica: hotel específico → genérico → fallback
+  - Processamento markdown completo
+  - Cache otimizado para performance
+- [x] **Melhorias de UX e Layout**:
+  - Ajustes de espaçamento homepage (filtro mais próximo do subtítulo)
+  - Mobile padding otimizado para melhor breathing room
+  - Normalização de transportes ("Bús" → "Bus")
+- [x] **Localização Completa para Espanhol**:
+  - Partners section traduzida ("Una empresa del FLN GROUP")
+  - Dados de contato reais no footer
+  - Telefone: +55 48 99860-1754
+  - Email: reservas@nicetripturismo.com.br
+- [x] **Arquitetura de Dados Expandida**:
+  - Colunas de condições completas no Supabase
+  - Interface TypeScript atualizada
+  - Serviços modulares e reutilizáveis
+  - Estados de loading e erro tratados
 
 ### 🏨 **Sistema de Imagens e Comodidades Reais - Janeiro 2025**
 - [x] **Imagens Reais dos Hotéis**: Integração completa com fotos reais dos 7 hotéis principais
@@ -317,9 +387,10 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 ## 📞 **Contato & Suporte**
 
-- **WhatsApp**: +55 11 99999-9999
-- **Email**: contato@nicetrip.com
+- **WhatsApp**: +55 48 99860-1754
+- **Email**: reservas@nicetripturismo.com.br
 - **Website**: https://nicetrip.vercel.app
+- **Empresa**: FLN GROUP
 
 ---
 
