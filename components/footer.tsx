@@ -32,11 +32,11 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-center lg:justify-end space-x-2">
                 <Phone className="w-4 h-4 text-[#EE7215]" />
-                <span className="text-gray-900 font-medium">(48) 99999-9999</span>
+                <span className="text-gray-900 font-medium">+55 48 99860-1754</span>
               </div>
               <div className="flex items-center lg:justify-end space-x-2">
                 <Mail className="w-4 h-4 text-[#EE7215]" />
-                <span className="text-gray-900 font-medium">contato@nicetrip.com.br</span>
+                <span className="text-gray-900 font-medium">reservas@nicetripturismo.com.br</span>
               </div>
             </div>
           </div>
@@ -154,7 +154,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-600 text-sm">© 2025 Nice Trip Turismo. Todos los derechos reservados.</p>
             <p className="text-gray-500 text-sm">
-              Uma empresa do<br />
+              Una empresa del<br />
               <span className="text-[#EE7215] font-medium">FLN GROUP</span>
             </p>
           </div>

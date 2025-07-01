@@ -8,6 +8,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getHospedagemData } from "@/lib/hospedagens-service"
 import { packageConditionsService } from "@/lib/package-conditions-service"
+import { packageDescriptionService } from "@/lib/package-description-service"
 import { 
   Star, 
   MapPin, 
@@ -53,6 +54,9 @@ export default function DetalhesPage() {
   const [isClient, setIsClient] = useState(false)
   const [comodidadesReais, setComodidadesReais] = useState<Array<{nome: string, icone: string}> | null>(null)
   const [packageConditions, setPackageConditions] = useState<any>(null)
+  const [packageDescription, setPackageDescription] = useState<{titulo: string, descripcion: string} | null>(null)
+  const [showConditionsModal, setShowConditionsModal] = useState(false)
+  const [selectedConditionType, setSelectedConditionType] = useState<'cancelacion' | 'equipaje' | 'documentos' | null>(null)
 
   // ✅ NOVO: Detectar se estamos no cliente (resolver hidratação)
   useEffect(() => {
@@ -235,6 +239,7 @@ export default function DetalhesPage() {
         // Normalizar transporte (Bús -> Bus)
         const transporteNormalizado = transporte === 'Bús' ? 'Bus' : transporte
         console.log('🔧 CONDITIONS: Transporte normalizado:', transporte, '->', transporteNormalizado)
+        console.log('🎯 CONDITIONS: Vai buscar pelos IDs 3 e 4 com transporte:', transporteNormalizado)
         
         const conditions = await packageConditionsService.getConditions(transporteNormalizado as 'Bus' | 'Aéreo')
         setPackageConditions(conditions)
@@ -251,6 +256,38 @@ export default function DetalhesPage() {
       console.log('⚠️ CONDITIONS: Transporte não definido ainda')
     }
   }, [transporte])
+
+  // ✅ CARREGAR DESCRIÇÕES DINÂMICAS DO PACOTE
+  useEffect(() => {
+    const carregarDescricoes = async () => {
+      try {
+        console.log('🚀 DESCRIPTIONS: Iniciando busca para:', { transporte, destino, hotelName })
+        // Normalizar transporte (Bús -> Bus)
+        const transporteNormalizado = transporte === 'Bús' ? 'Bus' : transporte
+        console.log('🔧 DESCRIPTIONS: Transporte normalizado:', transporte, '->', transporteNormalizado)
+        console.log('🎯 DESCRIPTIONS: Vai buscar com transporte normalizado:', transporteNormalizado)
+        
+        const description = await packageDescriptionService.getDescription(
+          transporteNormalizado as 'Bus' | 'Aéreo',
+          destino,
+          hotelName
+        )
+        setPackageDescription(description)
+        console.log('📋 DESCRIPTIONS: Descrição final setada:', description)
+        console.log('🎯 DESCRIPTIONS: Título:', description.titulo)
+        console.log('🎯 DESCRIPTIONS: Descrição detalhada preview:', description.descripcion.substring(0, 100) + '...')
+      } catch (error) {
+        console.error('❌ DESCRIPTIONS: Erro ao carregar descrição:', error)
+        setPackageDescription(null)
+      }
+    }
+    
+    if (transporte && destino && hotelName) {
+      carregarDescricoes()
+    } else {
+      console.log('⚠️ DESCRIPTIONS: Dados ainda não completos:', { transporte, destino, hotelName })
+    }
+  }, [transporte, destino, hotelName])
   
   // 💰 VALORES REAIS DO SUPABASE (conforme tabela disponibilidades)
   const dadosPacote = {
@@ -285,6 +322,16 @@ export default function DetalhesPage() {
   console.log('  - Preço calculado interno:', precoCalculadoInterno)
   console.log('  - Preço final usado:', precoTotalReal)
   
+  console.log('🚌 DEBUG TRANSPORTE:')
+  console.log('  - Transporte da URL:', transporte)
+  console.log('  - É Aéreo?:', transporte === 'Aéreo')
+  console.log('  - É Bus?:', transporte === 'Bus')
+  console.log('  - É Bús?:', transporte === 'Bús')
+  
+  console.log('📋 DEBUG CONDIÇÕES:')
+  console.log('  - packageConditions:', packageConditions)
+  console.log('  - packageConditions existe?:', !!packageConditions)
+  
   // Determinar tipo de quarto baseado na ocupação
   const determinarTipoQuarto = (quarto: any) => {
     const totalPessoasQuarto = quarto.adultos + quarto.criancas_0_3 + quarto.criancas_4_5 + quarto.criancas_6
@@ -303,6 +350,43 @@ export default function DetalhesPage() {
   }
 
   // ✅ FUNÇÃO PARA MAPEAR ÍCONES DAS COMODIDADES
+  // ✅ FUNÇÃO PARA PROCESSAR FORMATAÇÃO MARKDOWN
+  const processMarkdownFormatting = (text: string): string => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **texto** -> <strong>texto</strong>
+      .replace(/\*(.*?)\*/g, '<em>$1</em>') // *texto* -> <em>texto</em>  
+      .replace(/\n\n/g, '<br/><br/>') // parágrafos duplos -> duas quebras
+      .replace(/\n/g, '<br/>') // quebras de linha simples
+  }
+
+  // ✅ FUNÇÃO PARA ABRIR MODAL COM CONDIÇÕES COMPLETAS
+  const openConditionsModal = (type: 'cancelacion' | 'equipaje' | 'documentos') => {
+    setSelectedConditionType(type)
+    setShowConditionsModal(true)
+    document.body.style.overflow = 'hidden' // Prevenir scroll do body
+  }
+
+  // ✅ FUNÇÃO PARA FECHAR MODAL
+  const closeConditionsModal = () => {
+    setShowConditionsModal(false)
+    setSelectedConditionType(null)
+    document.body.style.overflow = 'unset' // Restaurar scroll do body
+  }
+
+  // ✅ FECHAR MODAL DE CONDIÇÕES COM ESC
+  useEffect(() => {
+    const handleConditionsEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showConditionsModal) {
+        closeConditionsModal()
+      }
+    }
+
+    if (showConditionsModal) {
+      document.addEventListener('keydown', handleConditionsEsc)
+      return () => document.removeEventListener('keydown', handleConditionsEsc)
+    }
+  }, [showConditionsModal])
+
   const getIconComponent = (icone: string) => {
     const iconMap: { [key: string]: any } = {
       'wifi': Wifi,
@@ -336,9 +420,9 @@ export default function DetalhesPage() {
       : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}.${quartoTipoParam ? ` Acomodación en ${quartoTipoParam.toLowerCase()},` : ''} Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`
     
     return {
-      description: temDadosReais 
+      description: packageDescription?.descripcion || (temDadosReais 
         ? descricaoBase + ` ✅ Paquete confirmado con datos reales de disponibilidad.`
-        : descricaoBase,
+        : descricaoBase),
       
       highlights: isAereo 
         ? [
@@ -390,7 +474,7 @@ export default function DetalhesPage() {
   
   const packageData = {
     id: searchParams.get('id') || '1',
-    name: `${hotelName} - ${destino}`,
+    name: packageDescription?.titulo || `${hotelName} - ${destino}`,
     location: `${destino}, Santa Catarina`,
     hotel: hotelName,
     rating: 4.9,
@@ -701,37 +785,158 @@ export default function DetalhesPage() {
                 {/* Tab Content */}
                 <div className="min-h-[120px]">
                   {activeTab === "descripcion" && (
-                    <div className="space-y-2">
-                      <p className="text-gray-700 text-sm font-light leading-relaxed">
-                        {packageData.description}
-                      </p>
-                      <p className="text-gray-700 text-sm font-light leading-relaxed">
-                        Ubicado a solo 50 metros de la playa de {destino}, nuestro hotel socio ofrece comodidad y 
-                        practicidad para su estadía. Con piscina, restaurante y habitaciones espaciosas, tendrá todo lo que necesita 
-                        para relajarse después de un día de playa o excursiones.
-                      </p>
-                      <p className="text-gray-700 text-sm font-light leading-relaxed">
-                        El paquete incluye traslado de ida y vuelta del aeropuerto, desayuno completo todos los días, y dos 
-                        excursiones exclusivas: un city tour por Florianópolis y un paseo en barco por la Bahía Norte con parada 
-                        en la Isla del Francés.
-                      </p>
+                    <div className="space-y-3">
+                      <div className="text-gray-700 text-sm font-light leading-relaxed">
+                        {packageDescription?.descripcion ? (
+                          // ✅ DESCRIÇÃO DINÂMICA DO SUPABASE (DESCRIPCION_DETALLADA)
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-700"
+                            dangerouslySetInnerHTML={{ 
+                              __html: processMarkdownFormatting(packageDescription.descripcion)
+                            }} 
+                          />
+                        ) : packageDescription === null && (transporte && destino && hotelName) ? (
+                          // ✅ LOADING STATE 
+                          <div className="flex items-center gap-2 py-4">
+                            <div className="w-4 h-4 border-2 border-[#EE7215] border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-gray-500 text-sm">Cargando descripción personalizada...</span>
+                          </div>
+                        ) : (
+                          // ✅ FALLBACK ESTÁTICO (SEM USAR packageData.description)
+                          <div className="space-y-3">
+                            <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+                              <p className="text-sm text-blue-700 font-medium">
+                                📋 Descripción no disponible en base de datos - usando contenido estático
+                              </p>
+                            </div>
+                            <div className="space-y-2">
+                              <p>
+                                {transporte === 'Aéreo' 
+                                  ? `Experimente ${destino} con máximo confort! Nuestro paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación. Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas en solo ${diasNoites.dias} días.`
+                                  : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}. Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`
+                                }
+                              </p>
+                              <p>
+                                Ubicado a solo 50 metros de la playa de {destino}, nuestro hotel socio ofrece comodidad y 
+                                practicidad para su estadía. Con piscina, restaurante y habitaciones espaciosas, tendrá todo lo que necesita 
+                                para relajarse después de un día de playa o excursiones.
+                              </p>
+                              <p>
+                                El paquete incluye traslado de ida y vuelta, desayuno completo todos los días, y dos 
+                                excursiones exclusivas: un city tour por Florianópolis y un paseo en barco por la Bahía Norte con parada 
+                                en la Isla del Francés.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                   
                   {activeTab === "condiciones" && (
-                    <div className="space-y-3">
-                      <h4 className="font-normal text-gray-900 text-sm">Condiciones de cancelación</h4>
-                      <p className="text-gray-700 text-sm font-light">{packageData.condiciones.cancelacion}</p>
-                      
-                      <h4 className="font-normal text-gray-900 text-sm mt-4">Política de equipaje</h4>
-                      <p className="text-gray-700 text-sm font-light">{packageData.condiciones.equipaje}</p>
-                      
-                      <h4 className="font-normal text-gray-900 text-sm mt-4">Requisitos</h4>
-                      <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1">
-                        <li>{packageData.condiciones.documentos}</li>
-                        <li>Vacunas al día (consultar requisitos actuales)</li>
-                        <li>Seguro de viaje incluido en el paquete</li>
-                      </ul>
+                    <div className="space-y-4">
+                      {packageConditions ? (
+                        // ✅ CONDIÇÕES DINÂMICAS DO SUPABASE
+                        <>
+                          {/* Condiciones de Cancelación */}
+                          <div className="border-b border-gray-100 pb-3">
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Condiciones de cancelación</h4>
+                            <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.cancelacion}</p>
+                            {packageConditions.cancelacion_completa && (
+                              <button
+                                onClick={() => openConditionsModal('cancelacion')}
+                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
+                              >
+                                Ver Condiciones Completas
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Política de Equipaje */}
+                          <div className="border-b border-gray-100 pb-3">
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Política de equipaje</h4>
+                            <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.equipaje}</p>
+                            {packageConditions.equipaje_completa && (
+                              <button
+                                onClick={() => openConditionsModal('equipaje')}
+                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
+                              >
+                                Ver Condiciones Completas
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Requisitos */}
+                          <div>
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Requisitos</h4>
+                            <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1 mb-2">
+                              <li>{packageConditions.documentos}</li>
+                              <li>Vacunas al día (consultar requisitos actuales)</li>
+                              <li>Seguro de viaje incluido en el paquete</li>
+                            </ul>
+                            {packageConditions.documentos_completa && (
+                              <button
+                                onClick={() => openConditionsModal('documentos')}
+                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
+                              >
+                                Ver Condiciones Completas
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      ) : packageConditions === null && transporte ? (
+                        // ✅ LOADING STATE
+                        <div className="flex items-center gap-2 py-4">
+                          <div className="w-4 h-4 border-2 border-[#EE7215] border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-gray-500 text-sm">Cargando condiciones personalizadas...</span>
+                        </div>
+                      ) : (
+                        // ✅ FALLBACK ESTÁTICO
+                        <div className="space-y-4">
+                          <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded mb-4">
+                            <p className="text-sm text-blue-700 font-medium">
+                              📋 Condiciones no disponibles en base de datos - usando contenido estático
+                            </p>
+                          </div>
+                          
+                          {/* Condiciones de Cancelación */}
+                          <div className="border-b border-gray-100 pb-3">
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Condiciones de cancelación</h4>
+                            <p className="text-gray-700 text-sm font-light mb-2">
+                              {transporte === 'Aéreo' 
+                                ? "Cancelación gratuita hasta 72 horas antes del vuelo."
+                                : "Cancelación gratuita hasta 24 horas antes del viaje."
+                              }
+                            </p>
+                          </div>
+
+                          {/* Política de Equipaje */}
+                          <div className="border-b border-gray-100 pb-3">
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Política de equipaje</h4>
+                            <p className="text-gray-700 text-sm font-light mb-2">
+                              {transporte === 'Aéreo' 
+                                ? "Incluye 1 maleta de hasta 23kg por persona en vuelo."
+                                : "Equipaje sin restricciones de peso en bus."
+                              }
+                            </p>
+                          </div>
+
+                          {/* Requisitos */}
+                          <div>
+                            <h4 className="font-normal text-gray-900 text-sm mb-2">Requisitos</h4>
+                            <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1 mb-2">
+                              <li>
+                                {transporte === 'Aéreo' 
+                                  ? "Documento de identidad válido y confirmación de vuelo."
+                                  : "Solo documento de identidad válido requerido."
+                                }
+                              </li>
+                              <li>Vacunas al día (consultar requisitos actuales)</li>
+                              <li>Seguro de viaje incluido en el paquete</li>
+                            </ul>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -1043,6 +1248,63 @@ export default function DetalhesPage() {
           </div>
         </div>
       </div>
+
+      {/* Conditions Modal */}
+      {showConditionsModal && selectedConditionType && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeConditionsModal()
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">
+                {selectedConditionType === 'cancelacion' && 'Condiciones de Cancelación Completas'}
+                {selectedConditionType === 'equipaje' && 'Política de Equipaje Completa'}
+                {selectedConditionType === 'documentos' && 'Requisitos Completos'}
+              </h2>
+              <button
+                onClick={closeConditionsModal}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-gray-400 hover:text-gray-600 text-xl font-bold">×</span>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div 
+                className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ 
+                  __html: processMarkdownFormatting(
+                    (selectedConditionType === 'cancelacion' && packageConditions?.cancelacion_completa) ||
+                    (selectedConditionType === 'equipaje' && packageConditions?.equipaje_completa) ||
+                    (selectedConditionType === 'documentos' && packageConditions?.documentos_completa) ||
+                    'Conteúdo não disponível.'
+                  )
+                }} 
+              />
+            </div>
+            
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+              <div className="text-sm text-gray-600">
+                Para consultas adicionales, contáctanos por WhatsApp
+              </div>
+              <button
+                onClick={closeConditionsModal}
+                className="px-4 py-2 bg-[#EE7215] hover:bg-[#E65100] text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Photo Modal */}
       {showAllPhotos && (

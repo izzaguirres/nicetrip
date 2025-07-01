@@ -174,7 +174,7 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-black/40" />
           </div>
 
-          <div className="container mx-auto px-4 lg:px-[70px] pt-20 lg:pt-24 relative z-10">
+          <div className="container mx-auto px-4 lg:px-[70px] pt-24 lg:pt-24 relative z-10">
             <div className="grid lg:grid-cols-12 gap-8 items-start min-h-[460px] lg:min-h-[560px]">
               <div className="text-center lg:text-left lg:col-span-5 lg:pt-14">
                 <div className="inline-block mb-6">
@@ -229,7 +229,7 @@ export default function HomePage() {
         </section>
 
         {/* Search Filter Section */}
-        <section className="relative z-20 -mt-24 lg:-mt-24">
+        <section className="relative z-20 -mt-36 lg:-mt-36">
           <div className="container mx-auto px-4 lg:px-[70px]">
             <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
               <div className="mb-5">
