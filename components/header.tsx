@@ -103,7 +103,7 @@ export function Header() {
               Paseos
             </Link>
             <Link
-              href="#"
+              href="/condiciones"
               className={getLinkClasses("/condiciones")}
             >
               Condiciones
@@ -166,7 +166,7 @@ export function Header() {
                 Paseos
               </Link>
               <Link 
-                href="#" 
+                href="/condiciones" 
                 className={getMobileLinkClasses("/condiciones")}
                 onClick={() => setMobileMenuOpen(false)}
               >

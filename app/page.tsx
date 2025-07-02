@@ -94,7 +94,7 @@ export default function HomePage() {
                 Paseos
               </Link>
               <Link
-                href="#"
+                href="/condiciones"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
                 Condiciones
@@ -140,7 +140,7 @@ export default function HomePage() {
                 <Link href="/resultados?categoria=passeio" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
                   Paseos
                 </Link>
-                <Link href="#" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
+                <Link href="/condiciones" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
                   Condiciones
                 </Link>
                 <Link href="#" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
