@@ -469,7 +469,10 @@ export function useCidadesSaida(transporte?: string) {
         console.log('Supabase não configurado, usando cidades de fallback')
         let cidadesFiltradas = FALLBACK_CIDADES
         if (transporte) {
-          cidadesFiltradas = FALLBACK_CIDADES.filter(cidade => cidade.transporte === transporte)
+          const tNorm = transporte.replace('ú', 'u').toLowerCase()
+          cidadesFiltradas = FALLBACK_CIDADES.filter(cidade => {
+            return cidade.transporte.replace('ú', 'u').toLowerCase() === tNorm
+          })
         }
         setCidades(cidadesFiltradas)
         return

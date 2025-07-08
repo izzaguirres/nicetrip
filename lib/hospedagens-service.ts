@@ -121,6 +121,18 @@ async function refreshHospedagensCache(): Promise<void> {
 
 // ✅ FUNÇÃO PARA CONVERTER COMODIDADES PARA O FORMATO DOS CARDS
 export function formatComodidadesForCards(comodidades: Array<{nome: string, icone: string}>): Array<{icon: string, label: string}> {
+  // Ordenar comodidades colocando as "mais importantes" primeiro
+  const prioridade = [
+    'coffee',     // Desayuno primeiro
+    'pool',       // Piscina
+    'hot_tub',    // Hidromassagem / Jacuzzi
+    'reception',  // Recepción 24h
+    'wifi',       // Wi-Fi
+    'aire',       // Ar-condicionado
+    'kitchen',    // Cozinha completa
+    'fridge'      // Geladeira
+  ]
+
   // Mapeamento de ícones para strings (será convertido para componentes na UI)
   const iconMap: { [key: string]: string } = {
     'wifi': 'Wifi',
@@ -136,10 +148,21 @@ export function formatComodidadesForCards(comodidades: Array<{nome: string, icon
     'kitchen': 'ChefHat',
     'hot_tub': 'Bath',
     'bbq': 'Flame',
-    'gamepad': 'Gamepad2'
+    'gamepad': 'Gamepad2',
+    'coffee': 'Coffee'
   }
 
-  return comodidades.slice(0, 3).map(comodidade => ({
+  const getRank = (icone: string): number => {
+    const normalized = icone.trim().toLowerCase()
+    const idx = prioridade.indexOf(normalized)
+    return idx === -1 ? prioridade.length : idx
+  }
+
+  const comodidadesOrdenadas = [...comodidades].sort((a, b) => {
+    return getRank(a.icone) - getRank(b.icone)
+  })
+
+  return comodidadesOrdenadas.map(comodidade => ({
     icon: iconMap[comodidade.icone] || 'Circle',
     label: comodidade.nome.toUpperCase()
   }))

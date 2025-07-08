@@ -86,6 +86,8 @@ export default function ResultadosPage() {
   const [loadingGPT, setLoadingGPT] = useState(false)
   const [useGPTResults, setUseGPTResults] = useState(false)
   const [comodidadesCache, setComodidadesCache] = useState<{[key: string]: Array<{icon: string, label: string}>}>({})
+  // I am adding a cache for beach distance per hotel
+  const [distanciaPraiaCache, setDistanciaPraiaCache] = useState<{[key: string]: number | null}>({})
   
   // Processar parâmetros da URL para reconstruir os quartos
   const parseRoomsFromURL = (): Room[] => {
@@ -802,22 +804,16 @@ export default function ResultadosPage() {
   console.log('🎯 TOTAL DE RESULTADOS FINAIS:', resultados.length)
 
   const formatPrice = (price: number) => {
-    // Validar se o preço é um número válido
-    const validPrice = Number(price) || 0
-    
-    if (isNaN(validPrice) || validPrice < 0) {
-      return '$0' // Retornar $0 se o preço for inválido
+    const validPrice = Number(price) || 0;
+    if (isNaN(validPrice)) {
+      return 'USD 0';
     }
-    
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(validPrice)
+    // Formatação para espanhol da Argentina, mas com USD
+    return `USD ${Math.round(validPrice).toLocaleString('es-AR')}`;
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "Data não disponível"
     // ✅ CORRIGIDO: Forçar timezone local para evitar problemas de timezone
     const [year, month, day] = dateString.split('-').map(Number)
     const date = new Date(year, month - 1, day) // month é 0-indexed
@@ -942,6 +938,10 @@ export default function ResultadosPage() {
   }
 
   const handleNormalFilterSearch = (searchFilters: any, roomsConfigOverride?: any[]) => {
+    // Se 'salida' não veio do filtro, herdar do estado atual / URL
+    if (!('salida' in searchFilters) || !searchFilters.salida) {
+      searchFilters.salida = filters.cidade_saida || searchParams.get('salida') || undefined
+    }
     // Busca normal (código original)
     const dataString = searchFilters.data ? format(searchFilters.data, 'yyyy-MM-dd') : undefined
     const params = new URLSearchParams()
@@ -1257,6 +1257,25 @@ export default function ResultadosPage() {
     return tiposUnicos.join(' + ')
   }
 
+  useEffect(() => {
+    if (disponibilidades && disponibilidades.length > 0) {
+      const carregarDistancias = async () => {
+        const novoCache: {[key: string]: number | null} = {}
+        for (const disponibilidade of disponibilidades) {
+          const hotelName = disponibilidade.hotel
+          if (distanciaPraiaCache[hotelName] === undefined) {
+            const hospedagem = await getHospedagemData(hotelName)
+            novoCache[hotelName] = hospedagem?.distancia_praia ?? null
+          }
+        }
+        if (Object.keys(novoCache).length > 0) {
+          setDistanciaPraiaCache(prev => ({ ...prev, ...novoCache }))
+        }
+      }
+      carregarDistancias()
+    }
+  }, [disponibilidades, distanciaPraiaCache])
+
   if (loading || loadingGPT) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -1457,8 +1476,13 @@ export default function ResultadosPage() {
                         const precoTotal = calcularPrecoTotalSeguro(disponibilidade, pessoas)
                         const totalPessoas = pessoas.adultos + pessoas.criancas_0_3 + pessoas.criancas_4_5 + pessoas.criancas_6_mais
                         const precoPorPessoa = calcularPrecoPorPessoa(precoTotal, totalPessoas)
-                        const amenidades = comodidadesCache[disponibilidade.hotel] || COMODIDADES_GENERICAS
+                        const amenidadesRaw = comodidadesCache[disponibilidade.hotel] || COMODIDADES_GENERICAS
+                        const maxComodidades = isMobile ? 4 : 7
+                        const amenidades = amenidadesRaw.slice(0, maxComodidades)
+                        const hasMoreAmenidades = !isMobile && amenidadesRaw.length > maxComodidades
                         const hotelImage = getHotelImage(disponibilidade.hotel) || "/placeholder.svg"
+                        // I am retrieving beach distance for the current hotel
+                        const distanciaPraia = distanciaPraiaCache[disponibilidade.hotel]
                         
                         return (
                           <Card 
@@ -1554,8 +1578,12 @@ export default function ResultadosPage() {
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <MapPin className="w-4 h-4 text-[#EE7215]" />
                                   <span className="font-medium">{disponibilidade.destino}</span>
-                                  <span className="text-gray-400">•</span>
-                                  <span className="font-medium">400m de la playa</span>
+                                  {distanciaPraia != null && (
+                                    <>
+                                      <span className="text-gray-400">•</span>
+                                      <span className="font-medium">{distanciaPraia}m de la playa</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
 
@@ -1566,7 +1594,7 @@ export default function ResultadosPage() {
                                   <div>
                                     <h4 className="text-sm font-bold text-gray-800 mb-2 tracking-tight">Comodidades</h4>
                                     <div className="flex flex-wrap gap-2">
-                                      {(amenidades || []).map((amenidade: {icon: string, label: string}, idx: number) => {
+                                      {amenidades.map((amenidade: {icon: string, label: string}, idx: number) => {
                                         const IconComponent = iconComponents[amenidade.icon] || iconComponents.Circle
                                         return (
                                           <div key={idx} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg border border-gray-200/60 text-xs font-medium">
@@ -1575,6 +1603,11 @@ export default function ResultadosPage() {
                                           </div>
                                         )
                                       })}
+                                      {hasMoreAmenidades && (
+                                        <div className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2 py-1 rounded-lg border border-gray-200/60 text-xs font-medium">
+                                          <span className="font-bold">...</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
@@ -1611,7 +1644,7 @@ export default function ResultadosPage() {
                                   <div className="mb-4">
                                     <h4 className="text-sm font-bold text-gray-800 mb-3 tracking-tight">Comodidades</h4>
                                     <div className="grid grid-cols-2 gap-2">
-                                      {(amenidades || []).map((amenidade, idx) => {
+                                      {amenidades.map((amenidade, idx) => {
                                         // ✅ Mapear string do ícone para componente React
                                         const iconComponents: { [key: string]: any } = {
                                           'Wifi': Wifi,
@@ -1639,6 +1672,11 @@ export default function ResultadosPage() {
                                           </div>
                                         )
                                       })}
+                                      {hasMoreAmenidades && (
+                                        <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-xl border border-gray-200/60 text-xs font-medium">
+                                          <span className="font-bold">...</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
@@ -1729,7 +1767,7 @@ export default function ResultadosPage() {
                                         }
                                       </div>
                                       <div className="space-y-1">
-                                        <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                        
                                         <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
                                           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                                           {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel
@@ -1813,7 +1851,7 @@ export default function ResultadosPage() {
                                           {/* Esquerda: Todo incluído */}
                                           <div className="flex-1">
                                             <div className="space-y-1">
-                                              <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                              
                                               <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                                                 {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel
@@ -1838,7 +1876,7 @@ export default function ResultadosPage() {
                                         {/* Esquerda: Todo incluído */}
                                         <div className="flex-1">
                                           <div className="space-y-1">
-                                            <div className="text-xs font-medium text-gray-600">Todo incluido</div>
+                                            
                                             <div className="inline-flex items-center gap-2 text-xs font-bold text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-3 py-1.5 rounded-full border border-green-300 shadow-sm">
                                               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                                               {(disponibilidade.transporte === "Bus" || disponibilidade.transporte === "Bús") ? "Bus" : "Aéreo"} + Hotel

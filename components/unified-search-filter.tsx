@@ -1,8 +1,16 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -25,6 +33,7 @@ import { es } from "date-fns/locale"
 import { useRouter } from "next/navigation"
 import { useCidadesSaida, useDestinos, useDatasDisponiveis, useTransportesDisponiveis } from "@/hooks/use-packages"
 import { useSmartFilter } from "@/hooks/use-smart-filter"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Dados de fallback para quando o Supabase não estiver configurado
 const FALLBACK_CITIES = [
@@ -75,12 +84,19 @@ const capitalizeWords = (str: string): string => {
   return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 }
 
+// Helper para normalizar transporte (Bus/Bús)
+const normalizeTransport = (t?: string): string => {
+  return (t || "").toLowerCase().replace('ú', 'u')
+}
+
 export function UnifiedSearchFilter({ 
   variant = "homepage", 
   initialFilters,
   onSearch 
 }: UnifiedSearchFilterProps) {
   const router = useRouter()
+  const isInitialMount = useRef(true);
+  const prevTransportRef = useRef<string | undefined>()
   
   // ✅ NOVO: Função para definir data padrão baseada no destino
   const getDefaultDateForDestino = (destino: string, primeiraDataDisponivel?: string): Date => {
@@ -103,10 +119,10 @@ export function UnifiedSearchFilter({
 
   const [filters, setFilters] = useState<SearchFilters>({
     salida: initialFilters?.salida || "",
-    destino: initialFilters?.destino || "Canasvieiras",
+    destino: initialFilters?.destino || "",
     data: initialFilters?.data || defaultDate,
     rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }],
-    transporte: initialFilters?.transporte || "Bus",
+    transporte: initialFilters?.transporte || "",
   })
 
 
@@ -167,22 +183,56 @@ export function UnifiedSearchFilter({
 
   // ✅ NOVO: Filtros condicionais - transporte filtra cidades disponíveis
   const cidadesDisponiveis = useMemo(() => {
-    if (!filters.transporte) return [] // Não mostrar cidades se não há transporte selecionado
-    return cidades.filter(cidade => cidade.transporte === filters.transporte)
-  }, [cidades, filters.transporte])
+    if (!filters.transporte) return []
+    const tNorm = normalizeTransport(filters.transporte)
+    let lista = cidades.filter(cidade => normalizeTransport(cidade.transporte) === tNorm)
 
-  // ✅ NOVO: Reset cidades quando muda transporte e auto-selecionar primeira cidade se não tem seleção
-  useEffect(() => {
-    if (filters.transporte) {
-      const cidadeAtualDisponivel = cidadesDisponiveis.find(c => c.cidade === filters.salida)
-      
-      if (!cidadeAtualDisponivel && cidadesDisponiveis.length > 0) {
-        // Se não tem cidade selecionada ou ela não é compatível, selecionar a primeira
-        console.log('🔄 Auto-selecionando primeira cidade disponível para transporte:', filters.transporte)
-        setFilters(prev => ({ ...prev, salida: cidadesDisponiveis[0].cidade }))
-      }
+    // Garantir que a cidade atualmente selecionada esteja presente
+    if (
+      filters.salida &&
+      !lista.some(c => c.cidade === filters.salida)
+    ) {
+      lista = [
+        {
+          id: -1,
+          cidade: filters.salida,
+          provincia: "",
+          pais: "",
+          transporte: filters.transporte,
+        } as any,
+        ...lista,
+      ]
     }
-  }, [filters.transporte, cidadesDisponiveis])
+
+    return lista
+  }, [cidades, filters.transporte, filters.salida])
+
+  // ✅ NOVO: Agrupar cidades por província
+  const groupedCities = useMemo(() => {
+    if (!cidadesDisponiveis) return {}
+
+    return cidadesDisponiveis.reduce((acc, cidade) => {
+      const { provincia } = cidade
+      if (!acc[provincia]) {
+        acc[provincia] = []
+      }
+      acc[provincia].push(cidade)
+      return acc
+    }, {} as Record<string, typeof cidadesDisponiveis>)
+  }, [cidadesDisponiveis])
+
+  // Resetar saída somente quando o transporte efetivamente muda
+  useEffect(() => {
+    if (prevTransportRef.current === undefined) {
+      prevTransportRef.current = filters.transporte
+      return
+    }
+
+    if (prevTransportRef.current !== filters.transporte) {
+      prevTransportRef.current = filters.transporte
+      setFilters(prev => ({ ...prev, salida: "" }))
+    }
+  }, [filters.transporte])
 
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [isRoomsOpen, setIsRoomsOpen] = useState(false)
@@ -423,20 +473,11 @@ export function UnifiedSearchFilter({
             Transporte
           </label>
           <Select value={filters.transporte} onValueChange={(value) => setFilters(prev => ({ ...prev, transporte: value }))}>
-            <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
+            <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium">
               <div className="flex items-center">
-                {filters.transporte === "Bus" ? (
-                  <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-              ) : filters.transporte === "Aéreo" ? (
-                <Plane className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-                ) : (
-                <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-                )}
-              <SelectValue placeholder="Seleccionar transporte">
-                <span className="text-sm font-medium">
-                  {filters.transporte || "Seleccionar transporte"}
-                </span>
-              </SelectValue>
+                {/* Mostra um ícone laranja default, e deixa o ícone do item selecionado aparecer */}
+                {!filters.transporte && <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />}
+                <SelectValue placeholder="Seleccionar transporte" />
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
@@ -470,28 +511,30 @@ export function UnifiedSearchFilter({
               <div className="flex items-center gap-2 w-full min-w-0">
                 <MapPin className="w-4 h-4 text-[#EE7215] flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <SelectValue placeholder={filters.transporte ? "Elegir ciudad" : "Selecciona transporte"} className="truncate">
-                    <span className="text-sm font-medium truncate">
-                      {filters.salida || (filters.transporte ? "Elegir ciudad" : "Selecciona transporte")}
-                    </span>
-                  </SelectValue>
+                  <SelectValue placeholder={filters.transporte ? "Elegir ciudad" : "Seleccione transporte"} className="truncate" />
                 </div>
               </div>
             </SelectTrigger>
             <SelectContent 
-              className="rounded-xl border-2 border-gray-200 shadow-xl max-h-[200px] overflow-y-auto"
+              className="rounded-xl border-2 border-gray-200 shadow-xl"
               position="popper"
               sideOffset={4}
               align="start"
             >
-              {cidadesDisponiveis.map((cidade) => (
-                <SelectItem key={cidade.id} value={cidade.cidade} className="rounded-lg hover:bg-[#EE7215]/5">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{cidade.cidade}</span>
-                    <span className="text-xs text-gray-500">{cidade.provincia}</span>
-                  </div>
-                </SelectItem>
-              ))}
+              <ScrollArea className="h-48">
+                {Object.entries(groupedCities).map(([provincia, cidades]) => (
+                  <SelectGroup key={provincia}>
+                    <SelectLabel className="px-4 py-2 font-bold text-gray-800">{provincia}</SelectLabel>
+                    {cidades.map((cidade) => (
+                      <SelectItem key={cidade.id} value={cidade.cidade} className="rounded-lg hover:bg-[#EE7215]/5 pl-8">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{cidade.cidade}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </ScrollArea>
             </SelectContent>
           </Select>
         </div>
@@ -503,13 +546,9 @@ export function UnifiedSearchFilter({
           </label>
           <Select value={filters.destino} onValueChange={(value) => setFilters(prev => ({ ...prev, destino: value }))}>
             <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-              <SelectValue placeholder="Seleccionar destino">
-                <span className="text-sm font-medium">
-                  {filters.destino || "Seleccionar destino"}
-                </span>
-              </SelectValue>
+                <SelectValue placeholder="Elegir destino" />
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
