@@ -20,6 +20,12 @@ const nextConfig = {
         port: '',
         pathname: '/izzaguirres/nicetrip/main/public/images/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'maps.googleapis.com',
+        port: '',
+        pathname: '/maps/api/staticmap/**',
+      },
     ],
   },
 }

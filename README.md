@@ -177,6 +177,11 @@ OPENAI_API_KEY=your_openai_api_key
 - Informações detalhadas do pacote
 - Mapeamento automático de dados Supabase
 
+### 📄 **Página de Condições (Nova)**
+- **Sistema de abas**: Navegação entre "Generales", "Bús" e "Aéreo"
+- **Conteúdo dinâmico**: Carrega condições direto do Supabase
+- **Design consistente**: Mantém a identidade visual premium da plataforma
+
 ### 🤖 **Sistema de IA**
 - Botão flutuante para sugestões
 - Análise inteligente de preferências
@@ -337,7 +342,7 @@ nice-trip-page-complete/
 - [x] **Layout Horizontal Premium**: Cards sem limitação de altura (`md:max-h-96` removido)
 - [x] **View Mode Otimizado**: List view como padrão no desktop para melhor comparação
 - [x] **Navbar Fixa Inteligente**: Header fixo com `!important` flags para economizar espaço
-- [x] **Button Alignment**: "Ver detalles" alinhado na base com badge "Todo incluido"
+- [x] **Button Alignment**: "Ver detalles" alinhado na base
 - [x] **Espaçamento Refinado**: Micro-ajustes de `space-y-4` para `space-y-3`
 - [x] **Reordenação UX**: Botões List/Grid reordenados (List primeiro)
 
@@ -347,6 +352,14 @@ nice-trip-page-complete/
 - [x] **Apple-style Consistency**: Design premium sem comprometer funcionalidade
 - [x] **Responsive Perfect**: Layout adaptativo em todos os breakpoints
 - [x] **Micro-interactions**: Hover effects e animações mantidas
+
+### ✨ **Melhorias de Usabilidade e UX (v3.5 - Junho 2025)**
+- [x] **Filtros de Busca Aprimorados**:
+  - Valores padrão removidos para uma seleção de usuário mais explícita.
+  - Seletor de "Salida" agora agrupa cidades por província.
+  - Corrigido problema de rolagem rápida no dropdown de cidades.
+- [x] **Clareza nos Cards de Resultado**:
+  - Moeda exibida como "USD" para evitar ambiguidades.
 
 ## 🎯 **Próximos Passos**
 

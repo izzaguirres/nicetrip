@@ -23,27 +23,28 @@ interface HospedagemData {
   estacionamento: boolean
   piscina: boolean
   restaurante: boolean
+  latitude: number
+  longitude: number
 }
 
 // Cache global com duração de 30 minutos
 const CACHE_DURATION = 30 * 60 * 1000 // 30 minutos
 let hospedagensCache: HospedagemCache | null = null
 
-// ✅ MAPEAMENTO INTELIGENTE DE NOMES
-const HOTEL_NAME_MAP: { [key: string]: string } = {
-  // Nomes da tabela disponibilidades → Nomes da tabela hospedagens
-  "RESIDENCIAL TERRAZAS": "Residencial Terrazas",
-  "RESIDENCIAL LEÔNIDAS": "Residencial Leônidas", 
-  "HOTEL FÊNIX": "Hotel Fênix",
-  "HOTEL FENIX": "Hotel Fênix", // Variação sem acento
-  "BOMBINHAS PALACE HOTEL": "Bombinhas Palace Hotel",
-  "CANAS GOLD HOTEL": "Canas Gold Hotel",
-  "VERDES PÁSSAROS APART HOTEL": "Verdes Pássaros Apart Hotel",
-  "PALACE I": "Palace I" // Caso exista
-}
+// ✅ String normalizer to handle accents and case
+const normalizeString = (str: string): string => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+};
+
+// ✅ MAPEAMENTO INTELIGENTE DE NOMES - REMOVIDO PARA SIMPLIFICAR E CENTRALIZAR A LÓGICA
+// const HOTEL_NAME_MAP: { [key: string]: string } = { ... }
 
 // ✅ FUNÇÃO PRINCIPAL: BUSCAR DADOS DE HOSPEDAGEM
-export async function getHospedagemData(hotelName: string): Promise<HospedagemData | null> {
+export async function getHospedagemData(hotelOficial: string): Promise<HospedagemData | null> {
   try {
     // Verificar cache primeiro
     const now = Date.now()
@@ -56,21 +57,24 @@ export async function getHospedagemData(hotelName: string): Promise<HospedagemDa
       console.log('⚡ CACHE HIT: Usando dados de hospedagens em cache')
     }
 
-    // Normalizar nome do hotel
-    const normalizedName = HOTEL_NAME_MAP[hotelName.toUpperCase()] || hotelName
+    if (!hotelOficial) {
+        console.warn('⚠️ getHospedagemData foi chamado com um nome de hotel nulo ou indefinido.');
+        return null;
+    }
+    
+    // A busca agora é simples: usa o nome oficial normalizado para uma correspondência exata.
+    const normalizedQueryName = normalizeString(hotelOficial);
 
-    // Buscar no cache
-    const hospedagem = hospedagensCache?.data.find(h => 
-      h.nome.toLowerCase() === normalizedName.toLowerCase() ||
-      h.nome.toLowerCase().includes(normalizedName.toLowerCase()) ||
-      normalizedName.toLowerCase().includes(h.nome.toLowerCase())
-    )
+    const hospedagem = hospedagensCache?.data.find(h => {
+      const normalizedCachedName = normalizeString(h.nome);
+      return normalizedCachedName === normalizedQueryName;
+    });
 
     if (hospedagem) {
-      console.log(`✅ Hospedagem encontrada: ${hospedagem.nome}`)
+      console.log(`✅ Hospedagem encontrada: ${hospedagem.nome} para a busca "${hotelOficial}"`)
       return hospedagem
     } else {
-      console.log(`⚠️ Hospedagem não encontrada para: ${hotelName}`)
+      console.log(`⚠️ Hospedagem não encontrada para: ${hotelOficial}`)
       return null
     }
 
@@ -98,7 +102,9 @@ async function refreshHospedagensCache(): Promise<void> {
         wifi_gratuito,
         estacionamento,
         piscina,
-        restaurante
+        restaurante,
+        latitude,
+        longitude
       `)
       .eq('ativo', true)
 

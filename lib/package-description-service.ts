@@ -32,7 +32,7 @@ class PackageDescriptionService {
         .select('titulo, descripcion_detallada')
         .eq('transporte', transporte)
         .eq('destino', destino)
-        .eq('hotel', hotel)
+        .ilike('hotel', hotel) // Use ilike for case-insensitive matching
         .limit(1)
         .single()
 

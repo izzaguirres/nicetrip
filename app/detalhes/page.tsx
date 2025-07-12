@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import Image from "next/image"
+import Image, { StaticImageData } from "next/image"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getHospedagemData } from "@/lib/hospedagens-service"
 import { packageConditionsService } from "@/lib/package-conditions-service"
 import { packageDescriptionService } from "@/lib/package-description-service"
+import { calculateFinalPrice, calculateInstallments } from "@/lib/utils"
+import { getHotelData } from '@/lib/hotel-data';
 import { 
   Star, 
   MapPin, 
@@ -23,12 +25,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  PlusCircle,
   Shield,
   Award,
   Clock,
   Camera,
   Bed,
   Sun,
+  Moon,
   ArrowRight,
   AirVent,
   Tv,
@@ -39,8 +43,17 @@ import {
   Bath,
   Flame,
   Gamepad2,
-  Circle
+  Circle,
+  MessageCircle,
+  Plane,
+  Bus
 } from "lucide-react"
+import dynamic from 'next/dynamic'
+
+const MapDisplay = dynamic(() => import('@/components/ui/map-display'), {
+  ssr: false,
+  loading: () => <div className="bg-gray-200 animate-pulse w-full h-full rounded-xl"></div>
+});
 
 export default function DetalhesPage() {
   const searchParams = useSearchParams()
@@ -52,11 +65,59 @@ export default function DetalhesPage() {
   const [touchStart, setTouchStart] = useState(0)
   const [touchEnd, setTouchEnd] = useState(0)
   const [isClient, setIsClient] = useState(false)
-  const [comodidadesReais, setComodidadesReais] = useState<Array<{nome: string, icone: string}> | null>(null)
+  const [hospedagemData, setHospedagemData] = useState<any>(null);
   const [packageConditions, setPackageConditions] = useState<any>(null)
   const [packageDescription, setPackageDescription] = useState<{titulo: string, descripcion: string} | null>(null)
   const [showConditionsModal, setShowConditionsModal] = useState(false)
   const [selectedConditionType, setSelectedConditionType] = useState<'cancelacion' | 'equipaje' | 'documentos' | null>(null)
+  const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
+
+  // Dados dinâmicos da URL (movidos para o topo)
+  const hotelName = searchParams.get('hotel') || 'Hotel Premium'
+  const displayName = getHotelData(hotelName)?.displayName || hotelName;
+  const destino = searchParams.get('destino') || 'Florianópolis'
+  const preco = parseInt(searchParams.get('preco') || '2850')
+  const transporte = searchParams.get('transporte') || 'Bús'
+  const saida = searchParams.get('salida') || 'Buenos Aires';
+  
+  // Dados de quartos e pessoas (movidos para o topo)
+  const quartos = parseInt(searchParams.get('quartos') || '1')
+  const adultos = parseInt(searchParams.get('adultos') || '2')
+  const criancas_0_3 = parseInt(searchParams.get('criancas_0_3') || '0')
+  const criancas_4_5 = parseInt(searchParams.get('criancas_4_5') || '0')
+  const criancas_6 = parseInt(searchParams.get('criancas_6') || '0')
+  
+  const ADDITIONAL_SERVICES = [
+    { id: 1, name: 'Butaca Cama', description: 'assento reclinável tipo cama', price: 100, icon: Bed },
+    { id: 2, name: 'Butaca Especial Panorámica', description: 'frente al bus, com cafetera', price: 50, icon: Coffee },
+    { id: 3, name: 'Media Pensión', description: 'Cenas restantes en el hotel', price: 90, icon: Utensils },
+    { id: 4, name: 'Pack de 2 Actividades', description: 'experiências extras no destino', price: 70, icon: Waves },
+    { id: 5, name: '6 Cenas + 2 Actividades', description: 'PROMOÇÃO', price: 120, icon: Sparkles },
+  ];
+
+  const handleAddonToggle = (serviceId: number) => {
+    setSelectedAddons(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
+  const addonsPrice = ADDITIONAL_SERVICES
+    .filter(service => selectedAddons.includes(service.id))
+    .reduce((total, service) => {
+        const fullPricePassengers = adultos + criancas_6;
+        let servicePrice = 0;
+
+        if (service.name === 'Butaca Cama') {
+            const butacaCamaPassengers = fullPricePassengers + criancas_4_5;
+            servicePrice = butacaCamaPassengers * service.price;
+        } else {
+            servicePrice = fullPricePassengers * service.price;
+        }
+        
+        return total + servicePrice;
+    }, 0);
 
   // ✅ NOVO: Detectar se estamos no cliente (resolver hidratação)
   useEffect(() => {
@@ -85,19 +146,6 @@ export default function DetalhesPage() {
     }
   }, [showAllPhotos])
   
-  // Dados dinâmicos da URL
-  const hotelName = searchParams.get('hotel') || 'Hotel Premium'
-  const destino = searchParams.get('destino') || 'Florianópolis'
-  const preco = parseInt(searchParams.get('preco') || '2850')
-  const transporte = searchParams.get('transporte') || 'Bús'
-  
-  // Dados de quartos e pessoas
-  const quartos = parseInt(searchParams.get('quartos') || '1')
-  const adultos = parseInt(searchParams.get('adultos') || '2')
-  const criancas_0_3 = parseInt(searchParams.get('criancas_0_3') || '0')
-  const criancas_4_5 = parseInt(searchParams.get('criancas_4_5') || '0')
-  const criancas_6 = parseInt(searchParams.get('criancas_6') || '0')
-  
   // Calcular dias e noites baseado nos dados reais ou fallback do transporte
   const diasTotaisParam = searchParams.get('dias_totais')
   const noisesHotelParam = searchParams.get('noites_hotel')
@@ -115,121 +163,103 @@ export default function DetalhesPage() {
   const totalPessoas = adultos + totalCriancas
   const temMultiplosQuartos = quartos > 1
 
-  // Função para obter todas as imagens de um hotel
-  const getHotelImages = (hotelName: string): string[] => {
-    // Mapeamento: Nome do banco → [Pasta, número de imagens]
-    const hotelGalleryMap: { [key: string]: { folder: string, count: number } } = {
-      "RESIDENCIAL TERRAZAS": { folder: "Residencial Terrazas", count: 8 },
-      "RESIDENCIAL LEÔNIDAS": { folder: "Residencial Leônidas", count: 8 },
-      "HOTEL FÊNIX": { folder: "Hotel Fênix", count: 8 },
-      "HOTEL FENIX": { folder: "Hotel Fênix", count: 8 }, // Variação
-      "PALACE I": { folder: "Palace I", count: 9 }, // Único com 9 imagens
-      "BOMBINHAS PALACE HOTEL": { folder: "Bombinhas Palace Hotel", count: 8 },
-      "CANAS GOLD HOTEL": { folder: "Canas Gold Hotel", count: 8 },
-      "VERDES PÁSSAROS APART HOTEL": { folder: "Verdes Pássaros Apart Hotel", count: 6 }
-    }
-    
-    const normalizedName = hotelName.toUpperCase().trim()
-    const hotelInfo = hotelGalleryMap[normalizedName]
-    
-    if (!hotelInfo) {
-      // Fallback para hotéis sem imagens - usar Unsplash
-      return [
-        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
-        "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
-        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
-        "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800&q=80",
-        "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
-        "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80"
-      ]
-    }
-    
-    const images: string[] = []
-    for (let i = 1; i <= hotelInfo.count; i++) {
-      // Definir extensão correta baseada nas pastas reais
-      let extension = 'jpg' // padrão
-      
-      if (hotelInfo.folder === 'Residencial Terrazas') {
-        extension = i === 1 || i === 4 || i === 5 || i === 6 || i === 7 ? 'png' : 'jpg'
-      } else if (hotelInfo.folder === 'Canas Gold Hotel') {
-        extension = [1, 3, 6, 7].includes(i) ? 'png' : 'jpg'
-      } else if (hotelInfo.folder === 'Palace I') {
-        extension = [4, 8].includes(i) ? 'jpeg' : 'jpg'
-      } else if (hotelInfo.folder === 'Verdes Pássaros Apart Hotel') {
-        extension = 'png'
-      }
-      
-      const imagePath = `/images/hoteles/${hotelInfo.folder}/${i}.${extension}`
-      images.push(imagePath)
-    }
-    
-    return images
-  }
-  
   // Função para distribuir pessoas pelos quartos (igual ao card de resultados)
   const getQuartosIndividuais = () => {
-    // ✅ TENTAR LER CONFIGURAÇÃO ESPECÍFICA POR QUARTO DA URL
     const quartosEspecificos = searchParams.get('rooms_config')
     
     if (quartosEspecificos) {
       try {
-        // Se existe configuração específica, decodificar e usar
         const configDecoded = JSON.parse(decodeURIComponent(quartosEspecificos))
-        console.log('🎯 CONFIGURAÇÃO ESPECÍFICA ENCONTRADA:', configDecoded)
-        console.log('📋 QUARTOS MAPEADOS:', configDecoded.map((room: any, index: number) => ({
-          numero: index + 1,
-          adultos: room.adults || 0,
-          criancas_0_3: room.children_0_3 || 0,
-          criancas_4_5: room.children_4_5 || 0,
-          criancas_6: room.children_6 || 0
-        })))
-        
-        return configDecoded.map((room: any, index: number) => ({
-          numero: index + 1,
-          adultos: room.adults || 0,
-          criancas_0_3: room.children_0_3 || 0,
-          criancas_4_5: room.children_4_5 || 0,
-          criancas_6: room.children_6 || 0
-        }))
+        if (Array.isArray(configDecoded) && configDecoded.length > 0) {
+            console.log('🎯 CONFIGURAÇÃO ESPECÍFICA ENCONTRADA:', configDecoded)
+            return configDecoded.map((room: any, index: number) => ({
+              numero: index + 1,
+              adultos: room.adults || 0,
+              criancas_0_3: room.children_0_3 || 0,
+              criancas_4_5: room.children_4_5 || 0,
+              criancas_6: room.children_6 || 0
+            }));
+        }
       } catch (error) {
-        console.log('⚠️ Erro ao decodificar configuração específica, usando distribuição automática')
+        console.log('⚠️ Erro ao decodificar configuração específica, usando fallback:', error)
       }
     }
     
-    // ✅ FALLBACK: Distribuição automática (comportamento atual)
-    console.log('📊 USANDO DISTRIBUIÇÃO AUTOMÁTICA')
+    // ✅ FALLBACK ROBUSTO: Sempre executa se a lógica acima falhar ou não retornar.
+    console.log('📊 USANDO DISTRIBUIÇÃO AUTOMÁTICA DE FALLBACK')
+    const quartos = parseInt(searchParams.get('quartos') || '1');
+    const adultos = parseInt(searchParams.get('adultos') || '2');
+    const criancas_0_3 = parseInt(searchParams.get('criancas_0_3') || '0');
+    const criancas_4_5 = parseInt(searchParams.get('criancas_4_5') || '0');
+    const criancas_6 = parseInt(searchParams.get('criancas_6') || '0');
+
     const quartosArray = []
-    const adultosPorQuarto = Math.floor(adultos / quartos)
-    
+    let adultosRestantes = adultos;
+    let criancas_0_3_restantes = criancas_0_3;
+    let criancas_4_5_restantes = criancas_4_5;
+    let criancas_6_restantes = criancas_6;
+
     for (let i = 0; i < quartos; i++) {
+      const adultosNesteQuarto = Math.floor(adultosRestantes / (quartos - i));
+      const criancas03NesteQuarto = Math.floor(criancas_0_3_restantes / (quartos - i));
+      const criancas45NesteQuarto = Math.floor(criancas_4_5_restantes / (quartos - i));
+      const criancas6NesteQuarto = Math.floor(criancas_6_restantes / (quartos - i));
+      
       quartosArray.push({
         numero: i + 1,
-        adultos: adultosPorQuarto + (i < (adultos % quartos) ? 1 : 0),
-        criancas_0_3: Math.floor(criancas_0_3 / quartos) + (i < (criancas_0_3 % quartos) ? 1 : 0),
-        criancas_4_5: Math.floor(criancas_4_5 / quartos) + (i < (criancas_4_5 % quartos) ? 1 : 0),
-        criancas_6: Math.floor(criancas_6 / quartos) + (i < (criancas_6 % quartos) ? 1 : 0)
+        adultos: adultosNesteQuarto,
+        criancas_0_3: criancas03NesteQuarto,
+        criancas_4_5: criancas45NesteQuarto,
+        criancas_6: criancas6NesteQuarto
       })
+
+      adultosRestantes -= adultosNesteQuarto;
+      criancas_0_3_restantes -= criancas03NesteQuarto;
+      criancas_4_5_restantes -= criancas45NesteQuarto;
+      criancas_6_restantes -= criancas6NesteQuarto;
     }
+
+    if(adultosRestantes > 0) quartosArray[0].adultos += adultosRestantes;
+    if(criancas_0_3_restantes > 0) quartosArray[0].criancas_0_3 += criancas_0_3_restantes;
+    if(criancas_4_5_restantes > 0) quartosArray[0].criancas_4_5 += criancas_4_5_restantes;
+    if(criancas_6_restantes > 0) quartosArray[0].criancas_6 += criancas_6_restantes;
+
     return quartosArray
   }
+
+  // Busca os dados do hotel (nome e imagens) do nosso mapa central
+  const hotelData = getHotelData(hotelName);
+  const packageImages = hotelData?.imageFiles || [
+    // Fallback para hotéis sem imagens - usar Unsplash
+    "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
+    "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80",
+    "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80",
+    "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800&q=80",
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
+    "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=800&q=80"
+  ];
+
+  console.log('--- DEBUG DE IMAGENS ---');
+  console.log(`Hotel: ${hotelName} -> Buscando por: ${displayName}`);
+  console.log(`Imagens encontradas:`, packageImages.length);
+  console.log('-------------------------');
   
   const quartosIndividuais = getQuartosIndividuais()
 
   // ✅ CARREGAR COMODIDADES REAIS DO HOTEL
   useEffect(() => {
-    const carregarComodidades = async () => {
+    const carregarHospedagem = async () => {
       try {
-        const hospedagem = await getHospedagemData(hotelName)
-        if (hospedagem && hospedagem.comodidades) {
-          setComodidadesReais(hospedagem.comodidades)
-        }
+        // Usa o displayName, que é o nome limpo e oficial
+        const data = await getHospedagemData(displayName)
+        setHospedagemData(data);
       } catch (error) {
-        console.error('Erro ao carregar comodidades:', error)
+        console.error('Erro ao carregar dados da hospedagem:', error)
       }
     }
     
-    carregarComodidades()
-  }, [hotelName])
+    carregarHospedagem()
+  }, [displayName])
 
   // ✅ CARREGAR CONDIÇÕES DINÂMICAS DO PACOTE
   useEffect(() => {
@@ -289,12 +319,12 @@ export default function DetalhesPage() {
     }
   }, [transporte, destino, hotelName])
   
-  // 💰 VALORES REAIS DO SUPABASE (conforme tabela disponibilidades)
+  // 💰 Obter valores dinâmicos da URL com fallback
   const dadosPacote = {
-    preco_adulto: 490,         // R$ 490,00
-    preco_crianca_0_3: 50,     // R$ 50,00
-    preco_crianca_4_5: 350,    // R$ 350,00  
-    preco_crianca_6_mais: 490  // R$ 490,00
+    preco_adulto: parseInt(searchParams.get('preco_adulto') || '490'),
+    preco_crianca_0_3: parseInt(searchParams.get('preco_crianca_0_3') || '50'),
+    preco_crianca_4_5: parseInt(searchParams.get('preco_crianca_4_5') || '350'),
+    preco_crianca_6_mais: parseInt(searchParams.get('preco_crianca_6_mais') || '490')
   }
   
   // 🧮 CALCULAR PREÇO EXATO POR QUARTO baseado nos dados reais do Supabase
@@ -314,13 +344,15 @@ export default function DetalhesPage() {
     return total + calcularPrecoQuarto(quarto)
   }, 0)
   
-  // ✅ SEMPRE USAR O PREÇO DO CARD SELECIONADO (que vem via URL)
-  const precoTotalReal = preco || precoCalculadoInterno
+  const basePrice = preco || precoCalculadoInterno;
+  const priceWithTaxes = calculateFinalPrice(basePrice, transporte);
+  const precoTotalReal = priceWithTaxes + addonsPrice;
   
+  const { installments, installmentValue } = calculateInstallments(precoTotalReal, searchParams.get('data') || new Date());
+
   console.log('💰 DEBUG PREÇO DETALHES:')
-  console.log('  - Preço da URL (card selecionado):', preco)
-  console.log('  - Preço calculado interno:', precoCalculadoInterno)
-  console.log('  - Preço final usado:', precoTotalReal)
+  console.log('  - Preço da URL (base):', preco)
+  console.log('  - Preço final com taxas:', precoTotalReal)
   
   console.log('🚌 DEBUG TRANSPORTE:')
   console.log('  - Transporte da URL:', transporte)
@@ -352,11 +384,11 @@ export default function DetalhesPage() {
   // ✅ FUNÇÃO PARA MAPEAR ÍCONES DAS COMODIDADES
   // ✅ FUNÇÃO PARA PROCESSAR FORMATAÇÃO MARKDOWN
   const processMarkdownFormatting = (text: string): string => {
+    if (!text) return '';
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // **texto** -> <strong>texto</strong>
       .replace(/\*(.*?)\*/g, '<em>$1</em>') // *texto* -> <em>texto</em>  
-      .replace(/\n\n/g, '<br/><br/>') // parágrafos duplos -> duas quebras
-      .replace(/\n/g, '<br/>') // quebras de linha simples
+      .replace(/\n/g, '<br />'); // quebras de linha simples
   }
 
   // ✅ FUNÇÃO PARA ABRIR MODAL COM CONDIÇÕES COMPLETAS
@@ -411,34 +443,26 @@ export default function DetalhesPage() {
   // Conteúdo dinâmico baseado no tipo de transporte e dados reais
   const getStaticPackageContent = () => {
     const isAereo = transporte === 'Aéreo'
-    const temDadosReais = diasTotaisParam && noisesHotelParam
-    const quartoTipoParam = searchParams.get('quarto_tipo')
     
-    // Descrição mais específica com dados reais
-    const descricaoBase = isAereo 
-      ? `Experimente ${destino} com máximo confort! Nosso paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación.${quartoTipoParam ? ` Hospedagem em ${quartoTipoParam.toLowerCase()},` : ''} Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas en solo ${diasNoites.dias} días.`
-      : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}.${quartoTipoParam ? ` Acomodación en ${quartoTipoParam.toLowerCase()},` : ''} Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`
-    
+    // Prioriza a descrição dinâmica do Supabase
+    const finalDescription = packageDescription?.descripcion 
+      ? packageDescription.descripcion
+      : isAereo 
+        ? `Experimente ${destino} com máximo confort! Nosso paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación. Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas.`
+        : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}. Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`;
+
     return {
-      description: packageDescription?.descripcion || (temDadosReais 
-        ? descricaoBase + ` ✅ Paquete confirmado con datos reales de disponibilidad.`
-        : descricaoBase),
+      description: finalDescription,
       
-      highlights: isAereo 
-        ? [
-            "Vuelos directos incluidos",
-            `${diasNoites.dias} días, ${diasNoites.noites} noches de relajación`,
-            `Hospedaje premium en ${hotelName}`,
-            "Transfers ejecutivos aeropuerto-hotel",
-            "Tours y excursiones incluidas"
-          ]
-        : [
-            "Viaje cómodo en bus premium",
-            `${diasNoites.dias} días completos de aventura`,
-            `${diasNoites.noites} noches en ${hotelName}`,
-            "Más tiempo para explorar",
-            "Transporte con aire acondicionado"
-          ],
+      highlights: [
+        transporte === 'Aéreo' ? "Viaje cómodo en avión premium" : "Viaje cómodo en bus premium",
+        "Snack a bordo",
+        "Alojamiento",
+        "Coordinación en viaje y en destino",
+        "Guias locales bilingües",
+        "Kit de viaje",
+        "Asistencia al viajero (ver mayores de 70 años)"
+      ],
       
       includes: isAereo 
         ? [
@@ -470,34 +494,35 @@ export default function DetalhesPage() {
     }
   }
 
-  const staticContent = getStaticPackageContent()
+  // Remove the now-redundant function
+  // const staticContent = getStaticPackageContent()
   
   const packageData = {
     id: searchParams.get('id') || '1',
-    name: packageDescription?.titulo || `${hotelName} - ${destino}`,
+    name: displayName,
     location: `${destino}, Santa Catarina`,
-    hotel: hotelName,
+    hotel: displayName, // Usar o nome limpo aqui também
     rating: 4.9,
     reviewCount: 127,
     price: preco,
     originalPrice: preco + 350,
     dataViagem: searchParams.get('data') || '2025-10-02',
-    images: getHotelImages(hotelName),
-    description: staticContent.description,
-    highlights: staticContent.highlights,
-    amenities: comodidadesReais ? comodidadesReais.map(comodidade => ({
+    images: packageImages,
+    description: packageDescription?.descripcion || "Cargando descripción...", // Use dynamic description
+    highlights: [
+        transporte === 'Aéreo' ? "Viaje cómodo en avión premium" : "Viaje cómodo en bus premium",
+        "Snack a bordo",
+        "Alojamiento",
+        "Coordinación en viaje y en destino",
+        "Guias locales bilingües",
+        "Kit de viaje",
+        "Asistencia al viajero (ver mayores de 70 años)"
+      ],
+    amenities: hospedagemData?.comodidades?.map((comodidade: any) => ({
       icon: getIconComponent(comodidade.icone),
       name: comodidade.nome
-    })) : [
-      { icon: Wifi, name: "Wi-Fi gratuito" },
-      { icon: Car, name: "Estacionamiento" },
-      { icon: Coffee, name: "Desayuno" },
-      { icon: Utensils, name: "Restaurante" },
-    ],
-    includes: staticContent.includes,
-    condiciones: staticContent.condiciones,
-    checkIn: "15:00",
-    checkOut: "11:00",
+    })) || [],
+    condiciones: packageConditions,
     duration: `${diasNoites.dias} días / ${diasNoites.noites} noches`
   }
 
@@ -547,6 +572,10 @@ export default function DetalhesPage() {
     return value.toLocaleString('pt-BR')
   }
 
+  const formatPriceWithCurrency = (value: number): string => {
+    return `USD ${formatPrice(value)}`;
+  }
+
   // Share functionality
   const handleShare = async () => {
     const shareData = {
@@ -580,10 +609,10 @@ export default function DetalhesPage() {
       <Header />
       
       {/* Hero Section */}
-      <div className="pt-24 lg:pt-28 pb-24 lg:pb-8">
+      <div className="pt-24 lg:pt-28 pb-12 lg:pb-8">
         <div className="container mx-auto px-4 lg:px-[70px]">
-          {/* Back Button */}
-          <div className="mb-6">
+          {/* Back & Share Buttons */}
+          <div className="relative flex items-center justify-between mb-8">
             <button 
               onClick={() => router.back()}
               className="flex items-center gap-2 text-base font-medium text-gray-900 hover:text-[#EE7215] transition-colors duration-200 group"
@@ -591,54 +620,12 @@ export default function DetalhesPage() {
               <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
               <span>Volver</span>
             </button>
-          </div>
-
-          {/* Title & Actions */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-            <div>
-              {/* Badge Paquete */}
-              <div className="mb-2">
-                <span className="inline-block text-xs font-light text-gray-600 uppercase tracking-wide bg-gray-100 border border-gray-200 px-2 py-1 rounded-md">
-                  Paquete
-                </span>
-              </div>
-              
-              {/* Título Principal */}
-              <h1 className="text-lg lg:text-xl font-bold text-gray-900 mb-2">
-                {packageData.name}
-              </h1>
-              
-              {/* Rating e Localização */}
-              <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                {/* Rating */}
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-normal text-gray-900 text-sm">{packageData.rating}</span>
-                  <span className="font-light text-gray-600 text-xs">({packageData.reviewCount} avaliaciones)</span>
-                </div>
-                
-                {/* Localização */}
-                <div className="flex flex-col lg:flex-row lg:items-center lg:gap-1">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4 text-gray-600" />
-                    <span className="font-normal text-gray-900 text-sm">{searchParams.get('destino') || 'Canasvieiras'}</span>
-                  </div>
-                  <span className="font-light text-gray-600 text-xs lg:ml-1">Florianópolis, Santa Catarina</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3 mt-4 lg:mt-0">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-2 font-normal"
+            <button 
                 onClick={handleShare}
+                className="text-gray-700 hover:text-orange-500 transition-colors"
               >
-                <Share className="w-4 h-4" />
-                Compartir
-              </Button>
-            </div>
+                <Share className="w-5 h-5" />
+              </button>
           </div>
 
           {/* Photo Gallery */}
@@ -647,7 +634,7 @@ export default function DetalhesPage() {
             <div className="lg:hidden">
               <div className="relative">
                 <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-2">
-                  {packageData.images.map((image, index) => (
+                  {packageData.images.map((image: string | StaticImageData, index) => (
                     <div 
                       key={index} 
                       className="relative flex-shrink-0 w-full snap-start"
@@ -659,8 +646,8 @@ export default function DetalhesPage() {
                       <Image
                         src={image}
                         alt={`Imagen ${index + 1}`}
-                        width={400}
-                        height={250}
+                        width={800}
+                        height={600}
                         className="w-full h-64 object-cover cursor-pointer rounded-xl"
                       />
                     </div>
@@ -668,7 +655,7 @@ export default function DetalhesPage() {
                 </div>
                 {/* Indicadores de posição */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-                  {packageData.images.map((_: string, index: number) => (
+                  {packageData.images.map((_, index) => (
                     <div 
                       key={index} 
                       className="w-2 h-2 rounded-full bg-white/60"
@@ -687,7 +674,7 @@ export default function DetalhesPage() {
             </div>
 
             {/* Desktop: Grid Original */}
-            <div className="hidden lg:grid lg:grid-cols-4 gap-2 rounded-2xl overflow-hidden">
+            <div className="hidden lg:grid lg:grid-cols-4 lg:grid-rows-2 gap-2 h-[550px] rounded-2xl overflow-hidden">
               {/* Main Image */}
               <div className="lg:col-span-2 lg:row-span-2 relative group">
                 <Image
@@ -701,14 +688,14 @@ export default function DetalhesPage() {
               </div>
               
               {/* Secondary Images */}
-              {packageData.images.slice(1, 5).map((image: string, index: number) => (
-                <div key={index} className="relative group">
+              {packageData.images.slice(1, 5).map((image: string | StaticImageData, index: number) => (
+                <div key={index} className="relative group h-full w-full">
                   <Image
                     src={image}
                     alt={`Imagen ${index + 2}`}
                     width={400}
                     height={300}
-                    className="w-full h-full object-cover cursor-pointer transition-all duration-300 group-hover:brightness-90"
+                    className={`w-full h-full object-cover cursor-pointer transition-all duration-300 group-hover:brightness-90`}
                     onClick={() => setShowAllPhotos(true)}
                   />
                   {index === 3 && packageData.images.length > 5 && (
@@ -728,58 +715,116 @@ export default function DetalhesPage() {
           </div>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Details */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Package Info with Badges */}
-              <div className="pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-normal text-orange-700 bg-gradient-to-r from-orange-100 to-orange-200 px-2.5 py-1 rounded-full border border-orange-300 shadow-sm">
-                    <Sun className="w-3 h-3 text-orange-600" />
-                    {diasNoites.dias} días
+            <div className="lg:col-span-2 space-y-8">
+
+              {/* Title Section - CENTRALIZED */}
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="flex flex-col items-center space-y-2">
+                  <div>
+                    <span className="inline-block text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-100 px-3 py-1 rounded-full">
+                      Paquete
+                    </span>
                   </div>
-                  <div className="inline-flex items-center gap-1.5 text-xs font-normal text-blue-700 bg-gradient-to-r from-blue-100 to-blue-200 px-2.5 py-1 rounded-full border border-blue-300 shadow-sm">
-                    <Bed className="w-3 h-3 text-blue-600" />
-                    {diasNoites.noites} noches
+                  <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">
+                    {packageData.name}
+                  </h1>
+                  <p className="text-lg text-gray-500">{packageData.location}</p>
+                </div>
+                
+                {/* Review Info */}
+                <div className="flex items-center justify-center space-x-4 md:space-x-6">
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="font-bold text-sm text-gray-900">{packageData.rating}</span>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => <Star key={i} className="w-3 h-3 text-yellow-400 fill-yellow-400" />)}
+                    </div>
                   </div>
-                  <div className="inline-flex items-center gap-1.5 text-xs font-normal text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-2.5 py-1 rounded-full border border-green-300 shadow-sm">
-                    <Shield className="w-3 h-3 text-green-600" />
-                    Seguro incluido
+                  <div className="w-px h-10 bg-gray-200"></div>
+                  <div className="text-sm font-medium text-gray-900 text-center w-28">
+                    El destino más deseado
+                  </div>
+                  <div className="w-px h-10 bg-gray-200"></div>
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="font-bold text-sm text-gray-900">{packageData.reviewCount}</span>
+                    <span className="text-xs text-gray-600">avaliaciones</span>
                   </div>
                 </div>
 
+                {/* Duration */}
+                 <div className="flex items-center gap-4 pt-2">
+                  <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
+                    <Sun className="w-5 h-5 text-gray-900" />
+                    <span>{diasNoites.dias} días</span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
+                    <Moon className="w-5 h-5 text-gray-900" />
+                    <span>{diasNoites.noites} noches</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200"></div>
+
+              {hospedagemData?.comodidades && hospedagemData.comodidades.length > 0 && (
+                <>
+                  <div id="comodidades">
+                    <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+                      Qué ofrece este lugar
+                    </h3>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {packageData.amenities.map((amenity: any, index: number) => {
+                        const IconComponent = amenity.icon || Circle;
+                        return (
+                          <div key={index} className="flex items-center gap-2 bg-gray-100 border border-gray-200/80 rounded-full px-4 py-2">
+                            <IconComponent className="w-4 h-4 text-gray-800 flex-shrink-0" />
+                            <span className="text-gray-800 text-sm font-medium">{amenity.name}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200"></div>
+                </>
+              )}
+
+              {/* Package Info with Tabs */}
+              <div className="pb-4">
                 {/* Tabs Navigation */}
-                <div className="flex bg-gray-50 p-0.5 rounded-lg mb-3 max-w-fit">
-                  <button
-                    onClick={() => setActiveTab("descripcion")}
-                    className={`px-3 py-1.5 text-sm font-normal rounded-md transition-all duration-200 ${
-                      activeTab === "descripcion"
-                        ? "bg-white text-[#EE7215] shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
-                    }`}
-                  >
-                    Descripción
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("condiciones")}
-                    className={`px-3 py-1.5 text-sm font-normal rounded-md transition-all duration-200 ${
-                      activeTab === "condiciones"
-                        ? "bg-white text-[#EE7215] shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
-                    }`}
-                  >
-                    Condiciones
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("avaliaciones")}
-                    className={`px-3 py-1.5 text-sm font-normal rounded-md transition-all duration-200 ${
-                      activeTab === "avaliaciones"
-                        ? "bg-white text-[#EE7215] shadow-sm"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
-                    }`}
-                  >
-                    Avaliaciones
-                  </button>
+                <div className="flex justify-center mb-6">
+                  <div className="flex bg-gray-100 p-1 rounded-lg shadow-inner">
+                    <button
+                      onClick={() => setActiveTab("descripcion")}
+                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
+                        activeTab === "descripcion"
+                          ? "bg-white text-orange-600 shadow-md"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      Descripción
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("condiciones")}
+                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
+                        activeTab === "condiciones"
+                          ? "bg-white text-orange-600 shadow-md"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      Condiciones
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("avaliaciones")}
+                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200 ${
+                        activeTab === "avaliaciones"
+                          ? "bg-white text-orange-600 shadow-md"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      Avaliaciones
+                    </button>
+                  </div>
                 </div>
 
                 {/* Tab Content */}
@@ -788,46 +833,17 @@ export default function DetalhesPage() {
                     <div className="space-y-3">
                       <div className="text-gray-700 text-sm font-light leading-relaxed">
                         {packageDescription?.descripcion ? (
-                          // ✅ DESCRIÇÃO DINÂMICA DO SUPABASE (DESCRIPCION_DETALLADA)
                           <div 
                             className="prose prose-sm max-w-none text-gray-700"
                             dangerouslySetInnerHTML={{ 
                               __html: processMarkdownFormatting(packageDescription.descripcion)
                             }} 
                           />
-                        ) : packageDescription === null && (transporte && destino && hotelName) ? (
-                          // ✅ LOADING STATE 
-                          <div className="flex items-center gap-2 py-4">
-                            <div className="w-4 h-4 border-2 border-[#EE7215] border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-gray-500 text-sm">Cargando descripción personalizada...</span>
-                          </div>
                         ) : (
-                          // ✅ FALLBACK ESTÁTICO (SEM USAR packageData.description)
-                          <div className="space-y-3">
-                            <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
-                              <p className="text-sm text-blue-700 font-medium">
-                                📋 Descripción no disponible en base de datos - usando contenido estático
-                              </p>
-                            </div>
-                            <div className="space-y-2">
-                              <p>
-                                {transporte === 'Aéreo' 
-                                  ? `Experimente ${destino} con máximo confort! Nuestro paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación. Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas en solo ${diasNoites.dias} días.`
-                                  : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}. Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`
-                                }
-                              </p>
-                              <p>
-                                Ubicado a solo 50 metros de la playa de {destino}, nuestro hotel socio ofrece comodidad y 
-                                practicidad para su estadía. Con piscina, restaurante y habitaciones espaciosas, tendrá todo lo que necesita 
-                                para relajarse después de un día de playa o excursiones.
-                              </p>
-                              <p>
-                                El paquete incluye traslado de ida y vuelta, desayuno completo todos los días, y dos 
-                                excursiones exclusivas: un city tour por Florianópolis y un paseo en barco por la Bahía Norte con parada 
-                                en la Isla del Francés.
-                              </p>
-                            </div>
-                          </div>
+                          // Fallback
+                          <p>
+                            {`¡Vive la experiencia completa en ${destino}! Nuestro paquete te ofrece días de aventura, incluyendo hospedaje en ${hotelName}. Transporte cómodo, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -842,45 +858,31 @@ export default function DetalhesPage() {
                           <div className="border-b border-gray-100 pb-3">
                             <h4 className="font-normal text-gray-900 text-sm mb-2">Condiciones de cancelación</h4>
                             <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.cancelacion}</p>
-                            {packageConditions.cancelacion_completa && (
-                              <button
-                                onClick={() => openConditionsModal('cancelacion')}
-                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
-                              >
-                                Ver Condiciones Completas
-                              </button>
-                            )}
                           </div>
 
                           {/* Política de Equipaje */}
                           <div className="border-b border-gray-100 pb-3">
                             <h4 className="font-normal text-gray-900 text-sm mb-2">Política de equipaje</h4>
                             <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.equipaje}</p>
-                            {packageConditions.equipaje_completa && (
-                              <button
-                                onClick={() => openConditionsModal('equipaje')}
-                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
-                              >
-                                Ver Condiciones Completas
-                              </button>
-                            )}
                           </div>
 
                           {/* Requisitos */}
-                          <div>
+                          <div className="pt-2">
                             <h4 className="font-normal text-gray-900 text-sm mb-2">Requisitos</h4>
                             <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1 mb-2">
                               <li>{packageConditions.documentos}</li>
                               <li>Vacunas al día (consultar requisitos actuales)</li>
                               <li>Seguro de viaje incluido en el paquete</li>
                             </ul>
-                            {packageConditions.documentos_completa && (
-                              <button
-                                onClick={() => openConditionsModal('documentos')}
-                                className="text-[#EE7215] hover:text-[#E65100] text-xs font-medium underline decoration-1 underline-offset-2 transition-colors"
-                              >
-                                Ver Condiciones Completas
-                              </button>
+                            {(packageConditions.documentos_completa || packageConditions.equipaje_completa || packageConditions.cancelacion_completa) && (
+                              <div className="mt-4">
+                                <button
+                                  onClick={() => openConditionsModal('documentos')}
+                                  className="text-[#EE7215] hover:text-[#E65100] text-sm font-medium underline decoration-1 underline-offset-2 transition-colors"
+                                >
+                                  Ver Condiciones Completas
+                                </button>
+                              </div>
                             )}
                           </div>
                         </>
@@ -983,15 +985,15 @@ export default function DetalhesPage() {
               </div>
 
               {/* O que este pacote oferece - New Section */}
-              <div className="pb-8 border-b border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+              <div className="pb-8">
+                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
                   Qué ofrece este paquete
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                   {packageData.highlights.map((highlight: string, index: number) => (
-                    <div key={index} className="flex items-center gap-3 py-2">
-                      <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                        <div className="w-2 h-2 bg-[#EE7215] rounded-full"></div>
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Check className="w-4 h-4 text-orange-600" />
                       </div>
                       <span className="text-gray-700">{highlight}</span>
                     </div>
@@ -999,223 +1001,204 @@ export default function DetalhesPage() {
                 </div>
               </div>
 
-              {/* Comodidades */}
-              <div className="pb-8 border-b border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  Comodidades
+              <div className="border-t border-gray-200"></div>
+
+              {/* Serviços Adicionais */}
+              <div className="pb-8">
+                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
+                  Servicios Adicionales
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {packageData.amenities.map((amenity, index) => {
-                    // ✅ Mapear string do ícone para componente React
-                    const iconComponents: { [key: string]: any } = {
-                      'Wifi': Wifi,
-                      'AirVent': AirVent,
-                      'Tv': Tv,
-                      'Refrigerator': Refrigerator,
-                      'Waves': Waves,
-                      'Utensils': Utensils,
-                      'Shield': Shield,
-                      'Sparkles': Sparkles,
-                      'Clock': Clock,
-                      'Car': Car,
-                      'ChefHat': ChefHat,
-                      'Bath': Bath,
-                      'Flame': Flame,
-                      'Gamepad2': Gamepad2,
-                      'Circle': Circle
-                    }
-                    const IconComponent = iconComponents[amenity.icon] || Circle
-                    
+                <div className="space-y-3">
+                  {ADDITIONAL_SERVICES.map(service => {
+                    const isSelected = selectedAddons.includes(service.id);
                     return (
-                      <div key={index} className="flex items-center gap-3 py-2">
-                        <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <IconComponent className="w-4 h-4 text-gray-600" />
+                      <div 
+                        key={service.id}
+                        onClick={() => handleAddonToggle(service.id)}
+                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-50 shadow-sm'
+                            : 'border-gray-200 bg-white hover:border-orange-300 shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <PlusCircle className={`w-5 h-5 transition-colors ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
+                          <div className="flex flex-col">
+                            <span className="font-bold text-gray-800 text-sm">{service.name}</span>
+                            <span className="text-xs text-gray-500">{service.description}</span>
+                          </div>
                         </div>
-                        <span className="text-gray-700">{amenity.name}</span>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="font-bold text-gray-900 text-sm">USD {service.price}</span>
+                            <span className="text-xs text-gray-500 block">por persona</span>
+                          </div>
+                          <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 ${
+                            isSelected
+                              ? 'border-orange-500 bg-orange-500'
+                              : 'border-gray-300 bg-white'
+                          }`}>
+                            {isSelected && <Check className="w-4 h-4 text-white" />}
+                          </div>
+                        </div>
                       </div>
                     )
                   })}
                 </div>
+                 <p className="text-center text-xs italic text-gray-500 mt-4">
+                  Todos los adicionales son opcionales y no comisionables
+                </p>
               </div>
 
               {/* Localización */}
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-3">
+                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
                   Ubicación
                 </h3>
-                <div className="bg-gray-100 rounded-xl h-48 flex items-center justify-center mb-3 relative overflow-hidden">
-                  <div className="text-center">
-                    <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 font-light">Mapa interativo em breve</p>
-                    <p className="text-sm text-gray-500 font-light">{searchParams.get('destino') || 'Canasvieiras'}, Florianópolis</p>
-                  </div>
-                  <button 
-                    className="absolute bottom-3 right-3 bg-white px-3 py-1.5 rounded-lg shadow-sm text-sm font-normal text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => {
-                      // Placeholder para abrir no Google Maps
-                      const destino = searchParams.get('destino') || 'Canasvieiras'
-                      const url = `https://www.google.com/maps/search/${encodeURIComponent(destino + ', Florianópolis, Santa Catarina')}`
-                      window.open(url, '_blank')
-                    }}
-                  >
-                    Ver en Maps
-                  </button>
+                <div className="bg-gray-100 rounded-xl h-60 md:h-80 flex items-center justify-center mb-3 relative overflow-hidden">
+                  {hospedagemData?.latitude && hospedagemData?.longitude ? (
+                    <MapDisplay 
+                      latitude={hospedagemData.latitude}
+                      longitude={hospedagemData.longitude}
+                      hotelName={hotelName}
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600 font-light">Mapa interativo em breve</p>
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm text-gray-600 font-light space-y-1">
-                  <p>• A solo 50 metros de la playa</p>
-                  <p>• 2.6 km del centro de Florianópolis</p>
+                  {hospedagemData?.distancia_praia && <p>• A solo {hospedagemData.distancia_praia} metros de la playa</p>}
+                  <p>• {destino}, Santa Catarina</p>
                 </div>
               </div>
             </div>
 
             {/* Right Column - Booking Card */}
             <div className="lg:col-span-1">
-              <div className="sticky top-28">
-                <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-5">
-                  {temMultiplosQuartos ? (
-                    /* Layout para Múltiplos Quartos - IGUAL ao card de resultados */
-                    <>
-                      <div className="mb-4">
-                        <h4 className="text-sm font-bold text-gray-900 mb-3">Desglose por cuarto:</h4>
-                        
-                        {quartosIndividuais.map((quarto: any, quartoIndex: number) => {
-                          const precoQuartoCalculado = calcularPrecoQuarto(quarto)
+              <div className="sticky top-28 bg-[#EEEEEE] border border-gray-200 rounded-3xl p-6 shadow-lg">
+                  {/* Preço Total */}
+                  <div className="text-center mb-6">
+                    <h3 className="text-4xl font-bold text-gray-900 font-manrope">
+                      {formatPriceWithCurrency(basePrice)}
+                    </h3>
+                    <p className="text-sm text-gray-600">Total antes de impuestos</p>
+                  </div>
+                  
+                  {/* Datas e Transporte */}
+                  <div className="mb-6 space-y-3">
+                    <div className="flex justify-between gap-4">
+                       <div className="w-1/2 text-left">
+                        <p className="text-sm text-gray-600 mb-1">Salida</p>
+                        <div className="bg-white rounded-xl p-2">
+                          <p className="font-medium text-gray-900 text-sm">{new Date(packageData.dataViagem).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                      </div>
+                      <div className="w-1/2 text-left">
+                        <p className="text-sm text-gray-600 mb-1">Retorno</p>
+                        <div className="bg-white rounded-xl p-2">
+                          <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(new Date(packageData.dataViagem).getDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        </div>
+                      </div>
+                    </div>
+                     <div className="text-center text-sm text-gray-600 flex items-center justify-center gap-2 pt-2">
+                      {transporte === 'Aéreo' ? <Plane className="w-4 h-4"/> : <Bus className="w-4 h-4" />}
+                      <span className="font-bold">{transporte}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-500">{saida}</span>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-500">{destino}</span>
+                    </div>
+                  </div>
+
+                  {/* Desglose por cuarto */}
+                  <div className="bg-white rounded-2xl p-4 mb-4">
+                    <h4 className="text-sm font-bold text-gray-900 mb-2">Desglose por cuarto</h4>
+                    <div className="space-y-4">
+                      {quartosIndividuais.map((quarto: any, quartoIndex: number) => {
                           const tipoQuarto = determinarTipoQuarto(quarto)
-                          const ocupacao = formatarOcupacaoQuarto(quarto)
-                          
+                          const precoQuarto = calcularPrecoQuarto(quarto);
                           return (
-                            <div key={quartoIndex} className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200/50 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 bg-[#EE7215] rounded-lg flex items-center justify-center">
-                                  <Bed className="w-3 h-3 text-white" />
-                                </div>
-                                <div className="text-left">
-                                  <div className="text-sm font-bold text-gray-800">
-                                    🛏️ Cuarto {quartoIndex + 1}: {ocupacao}
-                                  </div>
-                                  <div className="text-xs text-gray-600 font-medium">
-                                    {tipoQuarto}
-                                  </div>
-                                </div>
+                            <div key={quartoIndex} className="border-t border-gray-100 pt-3">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-bold text-orange-600 flex items-center gap-2"><Bed className="w-4 h-4" />Cuarto {quartoIndex + 1}: <span className="text-gray-800">{tipoQuarto}</span></span>
                               </div>
-                              <div className="text-base font-black text-[#EE7215]">
-                                $ {formatPrice(precoQuartoCalculado)}
+                              <div className="space-y-1 text-sm">
+                                {quarto.adultos > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">{quarto.adultos} Adulto{quarto.adultos > 1 ? 's' : ''}</span>
+                                    <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_adulto)} por persona</span>
+                                  </div>
+                                )}
+                                {quarto.criancas_6 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} (6+ años)</span>
+                                    <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_6_mais)} por persona</span>
+                                  </div>
+                                )}
+                                {quarto.criancas_4_5 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} (4-5 años)</span>
+                                    <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_4_5)}</span>
+                                  </div>
+                                )}
+                                {quarto.criancas_0_3 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} (0-3 años)</span>
+                                    <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_0_3)}</span>
+                                  </div>
+                                )}
+                                 <div className="flex justify-between border-t border-dashed mt-2 pt-2">
+                                  <span className="font-semibold text-gray-700">Total Cuarto {quartoIndex+1}</span>
+                                  <span className="font-bold text-gray-900">{formatPriceWithCurrency(precoQuarto)}</span>
+                                </div>
                               </div>
                             </div>
                           )
                         })}
-                        
-                        {/* Total destacado */}
-                        <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-r from-[#EE7215]/10 to-[#F7931E]/10 rounded-xl border-2 border-[#EE7215]/30 hover:border-[#EE7215]/50 transition-all duration-200">
-                          <div className="flex items-center gap-3">
-                            <div className="w-5 h-5 bg-gradient-to-r from-[#EE7215] to-[#F7931E] rounded-lg flex items-center justify-center">
-                              <span className="text-white text-xs font-black">💰</span>
-                            </div>
-                            <div className="text-base font-black text-gray-900">
-                              Total ({quartos} cuartos)
-                            </div>
-                          </div>
-                          <div className="text-xl font-black text-[#EE7215]">
-                            $ {formatPrice(precoTotalReal)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-sm font-medium text-gray-600 mb-3">
-                        Total para {adultos} Adultos, {totalCriancas} Niños en {quartos} cuartos
-                      </div>
-                    </>
-                  ) : (
-                    /* Layout para Quarto Único */
-                    <>
-                      <div className="mb-4">
-                        <h4 className="text-sm font-normal text-gray-900 mb-2">Habitación</h4>
-                        <div className="flex items-center gap-2 mb-2 p-2 bg-gray-50 rounded-lg">
-                          <div className="w-4 h-4 bg-[#EE7215] rounded flex items-center justify-center">
-                            <Bed className="w-2.5 h-2.5 text-white" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-normal text-gray-800">
-                              {determinarTipoQuarto(quartosIndividuais[0])}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <h4 className="text-sm font-normal text-gray-900 mb-2">Personas</h4>
-                        <div className="text-sm font-light text-gray-700">
-                          {formatarOcupacaoQuarto(quartosIndividuais[0])}
-                        </div>
-                      </div>
-
-                      <div className="text-2xl font-bold text-gray-900 mb-1">
-                        $ {formatPrice(precoTotalReal)}
-                      </div>
-                      <div className="text-xs font-light text-gray-600 mb-3">
-                        Total para {formatarOcupacaoQuarto(quartosIndividuais[0])}
-                      </div>
-                    </>
-                  )}
-
-                  <div className="inline-flex items-center gap-1.5 text-xs font-normal text-green-700 bg-gradient-to-r from-green-100 to-green-200 px-2.5 py-1 rounded-full border border-green-300 shadow-sm mb-3">
-                    <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></div>
-                    Todo incluido • Bus + Hotel
-                  </div>
-
-                  {/* Travel Date */}
-                  <div className="mb-4">
-                    <div className="border border-gray-300 rounded-lg p-2.5">
-                      <label className="text-xs font-light text-gray-600 uppercase">Día de salida</label>
-                      <div className="text-sm font-normal text-gray-900 mt-1">
-                        {new Date(packageData.dataViagem).toLocaleDateString('es-ES', { 
-                          weekday: 'long', 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
-                      </div>
                     </div>
                   </div>
+                  
+                  {/* Taxas */}
+                  <div className="space-y-2 text-sm mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Taxas Administrativas</span>
+                      <span className="text-gray-600">3%</span>
+                    </div>
+                     {transporte === 'Aéreo' && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Impostos e Encargos</span>
+                        <span className="text-gray-600">{formatPriceWithCurrency(200)}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="border-t border-gray-300 my-4"></div>
+
+                  {/* Valor final */}
+                   <div className="space-y-2">
+                     <div className="flex justify-between items-center font-bold">
+                        <span className="text-gray-800">Valor Total</span>
+                        <span className="text-xl text-gray-900">{formatPriceWithCurrency(precoTotalReal)}</span>
+                     </div>
+                     {installments > 1 && (
+                        <div className="text-right text-sm text-green-600 font-semibold">
+                          hasta {installments}x de {formatPriceWithCurrency(installmentValue)}
+                        </div>
+                      )}
+                   </div>
+                  
 
                   {/* Book Button */}
-                  <button className="relative w-full bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-3 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] hover:shadow-[0_8px_25px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-3">
-                    {/* Shine Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                    
-                    <span className="relative flex items-center justify-center gap-2 text-sm">
-                      <span className="font-bold tracking-wide">Reservar</span>
-                    </span>
+                  <button className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+                    <MessageCircle className="w-5 h-5" />
+                    Hablar com Operador
                   </button>
-
-                  <p className="text-center text-xs font-light text-gray-600 mb-3">
+                  <p className="text-center text-xs text-gray-500 mt-2">
                     No se cobrará aún
                   </p>
-
-                  {/* Price Breakdown */}
-                  <div className="space-y-2 text-xs border-t border-gray-200 pt-3">
-                    <div className="flex justify-between">
-                      <span className="font-light text-gray-600">$ {formatPrice(precoTotalReal)} x 1 paquete</span>
-                      <span className="font-normal text-gray-900">$ {formatPrice(precoTotalReal)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-sm border-t border-gray-200 pt-2">
-                      <span>Total</span>
-                      <span>$ {formatPrice(precoTotalReal)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Trust Indicators */}
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <Award className="w-5 h-5 text-blue-600" />
-                    <span>Paquete verificado y aprobado</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                    <Shield className="w-5 h-5 text-green-600" />
-                    <span>Atención personalizada por WhatsApp</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

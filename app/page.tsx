@@ -174,8 +174,9 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-black/40" />
           </div>
 
-          <div className="container mx-auto px-4 lg:px-[70px] pt-24 lg:pt-24 relative z-10">
-            <div className="grid lg:grid-cols-12 gap-8 items-start min-h-[460px] lg:min-h-[560px]">
+          <div className="container mx-auto px-4 lg:px-[70px] pt-24 pb-32 lg:pb-96 relative z-10">
+            {/* Headline Content */}
+            <div className="grid lg:grid-cols-12 gap-8 items-start">
               <div className="text-center lg:text-left lg:col-span-5 lg:pt-14">
                 <div className="inline-block mb-6">
                   <TestimonialBadge />
@@ -214,98 +215,101 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="hidden lg:block relative w-full h-[400px] lg:h-full lg:col-span-7 lg:self-end lg:justify-self-end -mb-12 lg:mb-0">
-                <Image
-                  src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/header_family.png"
-                  alt="Família aproveitando as férias"
-                  fill
-                  className="object-contain object-bottom"
-                  sizes="(max-width: 1024px) 90vw, 55vw"
-                  priority
-                />
+              {/* IMAGE IS MOVED OUT OF THE GRID */}
+            </div>
+
+            {/* Search Filter Section - Hybrid Positioning */}
+            <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-24 lg:left-0 lg:right-0 lg:z-10">
+              <div className="lg:container lg:mx-auto lg:px-[70px]">
+                <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
+                    <div className="mb-5">
+                      <div className="flex bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
+                        <button
+                          onClick={() => setActiveTab("paquetes")}
+                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                            activeTab === "paquetes" 
+                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
+                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
+                          }`}
+                        >
+                          {activeTab === "paquetes" && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                          )}
+                          <Luggage className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                          <span className="relative z-10 truncate">Paquetes</span>
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("habitaciones")}
+                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                            activeTab === "habitaciones"
+                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]"
+                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
+                          }`}
+                        >
+                          {activeTab === "habitaciones" && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                          )}
+                          <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                          <span className="relative z-10 truncate">Habitaciones</span>
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("paseos")}
+                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                            activeTab === "paseos" 
+                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
+                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
+                          }`}
+                        >
+                          {activeTab === "paseos" && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                          )}
+                          <Sun className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                          <span className="relative z-10 truncate">Paseos</span>
+                        </button>
+                      </div>
+                    </div>
+      
+                    {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
+                    
+                    {activeTab === 'habitaciones' && (
+                      <div className="text-center py-8">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Hospedajes</h3>
+                        <p className="text-gray-600 mb-4">Esta función está en desenvolvimento. Mientras tanto, puedes ver nuestras opciones disponibles.</p>
+                        <Button 
+                          onClick={() => router.push('/resultados?categoria=hospedagem')}
+                          className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
+                        >
+                          Ver Hospedajes
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {activeTab === 'paseos' && (
+                      <div className="text-center py-8">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Paseos</h3>
+                        <p className="text-gray-600 mb-4">Esta función está en desarrollo. Mientras tanto, puedes ver nuestras excursiones.</p>
+                        <Button 
+                          onClick={() => router.push('/resultados?categoria=passeio')}
+                          className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
+                        >
+                          Ver Excursiones
+                        </Button>
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* Search Filter Section */}
-        <section className="relative z-20 -mt-36 lg:-mt-36">
-          <div className="container mx-auto px-4 lg:px-[70px]">
-            <div className="bg-black/40 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
-              <div className="mb-5">
-                <div className="flex bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
-                  <button
-                    onClick={() => setActiveTab("paquetes")}
-                    className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                      activeTab === "paquetes" 
-                        ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
-                        : "text-white/80 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
-                    }`}
-                  >
-                    {activeTab === "paquetes" && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                    )}
-                    <Luggage className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                    <span className="relative z-10 truncate">Paquetes</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("habitaciones")}
-                    className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                      activeTab === "habitaciones"
-                        ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]"
-                        : "text-white/80 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
-                    }`}
-                  >
-                    {activeTab === "habitaciones" && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                    )}
-                    <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                    <span className="relative z-10 truncate">Habitaciones</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("paseos")}
-                    className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                      activeTab === "paseos" 
-                        ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
-                        : "text-white/80 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
-                    }`}
-                  >
-                    {activeTab === "paseos" && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                    )}
-                    <Sun className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                    <span className="relative z-10 truncate">Paseos</span>
-                  </button>
-                </div>
-              </div>
-
-              {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
-              
-              {activeTab === 'habitaciones' && (
-                <div className="text-center py-8">
-                  <h3 className="text-lg font-semibold text-white mb-2">Habitaciones</h3>
-                  <p className="text-white/80 mb-4">Búsqueda de hospedajes en desarrollo</p>
-                  <Button 
-                    onClick={() => router.push('/resultados?categoria=hospedagem')}
-                    className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
-                  >
-                    Ver Hospedajes
-                  </Button>
-                </div>
-              )}
-              
-              {activeTab === 'paseos' && (
-                <div className="text-center py-8">
-                  <h3 className="text-lg font-semibold text-white mb-2">Paseos</h3>
-                  <p className="text-white/80 mb-4">Búsqueda de excursiones en desarrollo</p>
-                  <Button 
-                    onClick={() => router.push('/resultados?categoria=passeio')}
-                    className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
-                  >
-                    Ver Excursiones
-                  </Button>
-                </div>
-              )}
+            {/* Family Image - Absolutely Positioned on Desktop */}
+            <div className="hidden lg:block absolute bottom-36 right-[70px] w-[50%] h-[85%] z-0 pointer-events-none">
+              <Image
+                src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/header_family.png"
+                alt="Família aproveitando as férias"
+                fill
+                className="object-contain object-bottom"
+                sizes="50vw"
+                priority
+              />
             </div>
           </div>
         </section>

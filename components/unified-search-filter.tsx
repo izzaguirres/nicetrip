@@ -469,7 +469,7 @@ export function UnifiedSearchFilter({
       <div className={containerClass}>
         {/* Transporte - MOVIDO PARA PRIMEIRO */}
         <div className="space-y-2">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
             Transporte
           </label>
           <Select value={filters.transporte} onValueChange={(value) => setFilters(prev => ({ ...prev, transporte: value }))}>
@@ -499,7 +499,7 @@ export function UnifiedSearchFilter({
 
         {/* Cidade de Saída */}
         <div className="space-y-2">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
             Salida
           </label>
           <Select
@@ -541,7 +541,7 @@ export function UnifiedSearchFilter({
 
         {/* Destino */}
         <div className="space-y-2">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
             Destino
           </label>
           <Select value={filters.destino} onValueChange={(value) => setFilters(prev => ({ ...prev, destino: value }))}>
@@ -563,7 +563,7 @@ export function UnifiedSearchFilter({
 
         {/* Data - Ao lado do destino */}
         <div className="space-y-2">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
             Fecha
           </label>
           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -616,7 +616,7 @@ export function UnifiedSearchFilter({
 
         {/* Quartos e Pessoas - 1 coluna igual aos outros */}
         <div className="space-y-2 col-span-2 lg:col-span-1">
-          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-white' : 'text-gray-800'}`}>
+          <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
             Personas
           </label>
           <Popover open={isRoomsOpen} onOpenChange={setIsRoomsOpen}>
