@@ -20,6 +20,7 @@ import { PartnersSection } from "@/components/partners-section"
 import { Footer } from "@/components/footer"
 import { useRouter } from "next/navigation"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
+import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filter"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
 
 
@@ -221,68 +222,57 @@ export default function HomePage() {
             {/* Search Filter Section - Hybrid Positioning */}
             <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-24 lg:left-0 lg:right-0 lg:z-10">
               <div className="lg:container lg:mx-auto lg:px-[70px]">
+                {/* Tabs moved outside the main content box */}
+                <div className="mb-4 flex justify-center">
+                  <div className="flex bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
+                    <button
+                      onClick={() => setActiveTab("paquetes")}
+                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                        activeTab === "paquetes" 
+                          ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
+                          : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
+                      }`}
+                    >
+                      {activeTab === "paquetes" && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                      )}
+                      <Luggage className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                      <span className="relative z-10 truncate">Paquetes</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("habitaciones")}
+                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                        activeTab === "habitaciones"
+                          ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]"
+                          : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
+                      }`}
+                    >
+                      {activeTab === "habitaciones" && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                      )}
+                      <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                      <span className="relative z-10 truncate">Habitaciones</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("paseos")}
+                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                        activeTab === "paseos" 
+                          ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
+                          : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
+                      }`}
+                    >
+                      {activeTab === "paseos" && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                      )}
+                      <Sun className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
+                      <span className="relative z-10 truncate">Paseos</span>
+                    </button>
+                  </div>
+                </div>
+                
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
-                    <div className="mb-5">
-                      <div className="flex bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
-                        <button
-                          onClick={() => setActiveTab("paquetes")}
-                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                            activeTab === "paquetes" 
-                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
-                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
-                          }`}
-                        >
-                          {activeTab === "paquetes" && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                          )}
-                          <Luggage className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                          <span className="relative z-10 truncate">Paquetes</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("habitaciones")}
-                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                            activeTab === "habitaciones"
-                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]"
-                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
-                          }`}
-                        >
-                          {activeTab === "habitaciones" && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                          )}
-                          <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                          <span className="relative z-10 truncate">Habitaciones</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("paseos")}
-                          className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
-                            activeTab === "paseos" 
-                              ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
-                              : "text-[#222222] hover:text-[#222222] hover:bg-white/10 hover:scale-[1.01]"
-                          }`}
-                        >
-                          {activeTab === "paseos" && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-                          )}
-                          <Sun className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                          <span className="relative z-10 truncate">Paseos</span>
-                        </button>
-                      </div>
-                    </div>
-      
                     {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
-                    
-                    {activeTab === 'habitaciones' && (
-                      <div className="text-center py-8">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Hospedajes</h3>
-                        <p className="text-gray-600 mb-4">Esta función está en desenvolvimento. Mientras tanto, puedes ver nuestras opciones disponibles.</p>
-                        <Button 
-                          onClick={() => router.push('/resultados?categoria=hospedagem')}
-                          className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
-                        >
-                          Ver Hospedajes
-                        </Button>
-                      </div>
-                    )}
+                    {activeTab === 'habitaciones' && <HabitacionesSearchFilter variant="homepage" />}
                     
                     {activeTab === 'paseos' && (
                       <div className="text-center py-8">

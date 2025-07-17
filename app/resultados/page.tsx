@@ -9,10 +9,19 @@ import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
+import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filter"
 import { DisponibilidadeFilter, PrecoPessoas } from "@/lib/supabase"
-import { fetchRealData, SearchFilters } from "@/lib/supabase-service"
+import { fetchRealData, fetchHabitacionesData, SearchFilters, HabitacionSearchFilters } from "@/lib/supabase-service"
 import { getHospedagemData, formatComodidadesForCards, COMODIDADES_GENERICAS } from "@/lib/hospedagens-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils";
+import { 
+  calcularPagantesHospedagem, 
+  validarConfiguracaoHospedagem,
+  quartoAtendeRequisitos,
+  calcularPrecoHospedagem,
+  formatarExplicacaoPagantes,
+  type HospedagemCalculation 
+} from "@/lib/hospedagem-utils";
 import {
   Search,
   MapPin,
@@ -51,6 +60,8 @@ import {
 import Image from "next/image"
 import Link from "next/link"
 import { format } from "date-fns"
+import { es } from "date-fns/locale";
+import { DateRange } from "react-day-picker"
 import { getHotelData } from "@/lib/hotel-data"
 
 interface Room {
@@ -66,12 +77,13 @@ export default function ResultadosPage() {
   
   const [isMobile, setIsMobile] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+
+  const searchType = searchParams.get("tipo") === "habitacion" ? "habitacion" : "paquetes";
   
   useEffect(() => {
     const checkIsMobile = () => {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
-      // ✅ Força o modo grid como padrão para todas as telas
       setViewMode("grid")
     }
     
@@ -82,10 +94,6 @@ export default function ResultadosPage() {
   }, [])
 
   const [sortBy, setSortBy] = useState("relevance")
-  const [sugestoes, setSugestoes] = useState<string[] | null>(null)
-  const [pacotesGPT, setPacotesGPT] = useState<any[] | null>(null)
-  const [loadingGPT, setLoadingGPT] = useState(false)
-  const [useGPTResults, setUseGPTResults] = useState(false)
   const [comodidadesCache, setComodidadesCache] = useState<{[key: string]: Array<{icon: string, label: string}>}>({})
   const [distanciaPraiaCache, setDistanciaPraiaCache] = useState<{[key: string]: number | null}>({})
   
@@ -219,32 +227,32 @@ export default function ResultadosPage() {
     criancas_6_mais: parseInt(searchParams.get("criancas_6") || "0")
   })
 
-  useEffect(() => {
-    const novasPessoas = {
-      adultos: parseInt(searchParams.get("adultos") || "2"),
-      criancas_0_3: parseInt(searchParams.get("criancas_0_3") || "0"),
-      criancas_4_5: parseInt(searchParams.get("criancas_4_5") || "0"),
-      criancas_6_mais: parseInt(searchParams.get("criancas_6") || "0")
-    }
-    setPessoas(novasPessoas)
-  }, [searchParams])
-
-  const [filters, setFilters] = useState<DisponibilidadeFilter>({
-    destino: searchParams.get("destino") || undefined,
-    cidade_saida: searchParams.get("salida") || undefined,
-    transporte: searchParams.get("transporte") || undefined,
-    data_saida: searchParams.get("data") || undefined,
-  })
+  const [filters, setFilters] = useState<any>({})
 
   useEffect(() => {
-    const novosFilters = {
-      destino: searchParams.get("destino") || undefined,
-      cidade_saida: searchParams.get("salida") || undefined,
-      transporte: searchParams.get("transporte") || undefined,
-      data_saida: searchParams.get("data") || undefined,
+    const params = searchParams;
+    if (searchType === 'habitacion') {
+      const dateRange: DateRange | undefined =
+        params.get("checkin") && params.get("checkout")
+          ? {
+              from: new Date(params.get("checkin")! + "T00:00:00"),
+              to: new Date(params.get("checkout")! + "T00:00:00"),
+            }
+          : undefined
+      
+      setFilters({
+        destino: params.get("destino") || undefined,
+        dateRange: dateRange,
+      })
+    } else {
+      setFilters({
+        destino: params.get("destino") || undefined,
+        cidade_saida: params.get("salida") || undefined,
+        transporte: params.get("transporte") || undefined,
+        data_saida: params.get("data") || undefined,
+      })
     }
-    setFilters(novosFilters)
-  }, [searchParams])
+  }, [searchParams, searchType])
 
   const [disponibilidades, setDisponibilidades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -255,12 +263,34 @@ export default function ResultadosPage() {
       try {
         setLoading(true)
         setError(null)
-        const searchFilters: SearchFilters = {
-          destino: filters.destino,
-          transporte: filters.transporte,
-          data_saida: filters.data_saida
+        let data = []
+        if (searchType === 'habitacion') {
+          const checkin = filters.dateRange?.from 
+            ? filters.dateRange.from.toISOString().split('T')[0]
+            : undefined;
+          const checkout = filters.dateRange?.to
+            ? filters.dateRange.to.toISOString().split('T')[0]
+            : undefined;
+
+          const searchFilters: HabitacionSearchFilters = { checkin, checkout }
+          data = await fetchHabitacionesData(searchFilters);
+        } else {
+          const searchFilters: SearchFilters = { ...filters }
+          data = await fetchRealData(searchFilters)
         }
-        const data = await fetchRealData(searchFilters)
+        console.log('📊 Dados recebidos do Supabase:', {
+          searchType,
+          totalItems: data.length,
+          tiposQuartoDisponiveis: [...new Set(data.map(item => item.tipo_quarto))],
+          capacidadesDisponiveis: [...new Set(data.map(item => item.capacidade))],
+          sampleItems: data.slice(0, 5).map(item => ({
+            id: item.id,
+            slug_hospedagem: item.slug_hospedagem,
+            tipo_quarto: item.tipo_quarto,
+            capacidade: item.capacidade,
+            valor_diaria: item.valor_diaria
+          }))
+        });
         setDisponibilidades(data)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro desconhecido')
@@ -268,8 +298,11 @@ export default function ResultadosPage() {
         setLoading(false)
       }
     }
-    loadData()
-  }, [filters.destino, filters.transporte, filters.data_saida])
+    
+    if (Object.values(filters).some(v => v !== undefined)) {
+      loadData()
+    }
+  }, [filters, searchType])
 
   useEffect(() => {
     if (disponibilidades && disponibilidades.length > 0) {
@@ -279,7 +312,6 @@ export default function ResultadosPage() {
         
         for (const disponibilidade of disponibilidades) {
           const hotelName = disponibilidade.hotel;
-          // ✅ Usa a fonte da verdade para obter o nome oficial
           const hotelOficial = getHotelData(hotelName)?.displayName || hotelName;
           
           if (!comodidadesCache[hotelOficial] || distanciaPraiaCache[hotelOficial] === undefined) {
@@ -303,7 +335,6 @@ export default function ResultadosPage() {
     }
   }, [disponibilidades])
 
-  // 💰 VALORES CORRETOS DO SUPABASE (conforme tabela disponibilidades)
   const valoresReaisSupabase = {
     preco_adulto: 490,
     preco_crianca_0_3: 50,
@@ -328,11 +359,22 @@ export default function ResultadosPage() {
 
   const calcularPrecoTotalSeguro = (disponibilidade: any, pessoas: PrecoPessoas): number => {
     const dadosValidados = validarDadosPreco(disponibilidade)
-    const precoAdultos = dadosValidados.preco_adulto * pessoas.adultos
-    const precoCriancas03 = dadosValidados.preco_crianca_0_3 * pessoas.criancas_0_3
+    
+    // Contar crianças de 6+ como adultos pagantes
+    const totalAdultosPagantes = pessoas.adultos + pessoas.criancas_6_mais;
+    
+    // Lógica para crianças de 0-5
+    let criancas0a5Pagam = 0;
+    if (pessoas.criancas_0_3 > 0) {
+      // A primeira é grátis, as demais pagam
+      criancas0a5Pagam = Math.max(0, pessoas.criancas_0_3 - 1);
+    }
+
+    const precoAdultos = dadosValidados.preco_adulto * totalAdultosPagantes
+    const precoCriancas03 = dadosValidados.preco_crianca_0_3 * criancas0a5Pagam
     const precoCriancas45 = dadosValidados.preco_crianca_4_5 * pessoas.criancas_4_5
-    const precoCriancas6mais = dadosValidados.preco_crianca_6_mais * pessoas.criancas_6_mais
-    const total = precoAdultos + precoCriancas03 + precoCriancas45 + precoCriancas6mais
+    
+    const total = precoAdultos + precoCriancas03 + precoCriancas45
     return isNaN(total) ? 0 : total
   }
   
@@ -340,42 +382,110 @@ export default function ResultadosPage() {
     const totalPessoas = quartos.reduce((total, room) => 
       total + room.adults + room.children0to3 + room.children4to5 + room.children6plus, 0
     )
-    const numQuartos = quartos.length
-    if (numQuartos > 1) {
-      const pessoasPorQuarto = Math.ceil(totalPessoas / numQuartos)
-      return disponibilidade.capacidade >= pessoasPorQuarto
-    } else {
-      return disponibilidade.capacidade >= totalPessoas
-    }
+    return disponibilidade.capacidade >= totalPessoas
   }
 
-  const filtrarPacotesValidos = (pacotes: any[], dataSelecionada?: string, quartos?: Room[]) => {
-    if (!pacotes || !Array.isArray(pacotes) || pacotes.length === 0) return []
-    if (!dataSelecionada && (!quartos || quartos.length === 0)) return pacotes
+  const filtrarResultados = (items: any[], quartos: Room[]) => {
+    if (!items || !Array.isArray(items) || items.length === 0) return []
     
-    let pacotesFiltrados = [...pacotes]
-    if (quartos && quartos.length > 0) {
-      pacotesFiltrados = pacotes.filter(pacote => verificarCapacidadeQuartos(pacote, quartos))
+    console.log('🔍 Filtrando resultados:', { searchType, totalItems: items.length, quartos });
+    
+    // Filtrar por capacidade e lógica de pagantes
+    const itemsFiltrados = items.filter(item => {
+      if (searchType === 'habitacion') {
+        // ✅ USAR NOVA LÓGICA DE PAGANTES
+        const adultos = quartos.reduce((sum, q) => sum + q.adults, 0);
+        const criancas_0_3 = quartos.reduce((sum, q) => sum + q.children0to3, 0);
+        const criancas_4_5 = quartos.reduce((sum, q) => sum + q.children4to5, 0);
+        const criancas_6_mais = quartos.reduce((sum, q) => sum + q.children6plus, 0);
+        
+        // Calcular pagantes usando nossa função utilitária
+        const calculoPagantes = calcularPagantesHospedagem(
+          adultos, 
+          criancas_0_3, 
+          criancas_4_5, 
+          criancas_6_mais
+        );
+        
+        console.log('💰 Cálculo de pagantes:', {
+          input: { adultos, criancas_0_3, criancas_4_5, criancas_6_mais },
+          resultado: calculoPagantes
+        });
+        
+        // Validar configuração
+        const validacao = validarConfiguracaoHospedagem(calculoPagantes);
+        if (!validacao.valid) {
+          console.log('❌ Configuração inválida:', validacao.errors);
+          return false;
+        }
+        
+        // Verificar se o quarto atende aos requisitos
+        const quartoAtende = quartoAtendeRequisitos(
+          { tipo_quarto: item.tipo_quarto, capacidade: item.capacidade },
+          calculoPagantes
+        );
+        
+        console.log('🏨 Verificação do quarto:', {
+          hotel: item.slug_hospedagem,
+          tipo_quarto: item.tipo_quarto,
+          capacidade: item.capacidade,
+          requerido: calculoPagantes.tipoQuartoRequerido,
+          totalPessoas: calculoPagantes.totalPessoas,
+          totalPagantes: calculoPagantes.totalPagantes,
+          atende: quartoAtende
+        });
+        
+        return quartoAtende;
+      } else {
+        // Lógica original para pacotes
+        const totalPessoas = quartos.reduce((total, room) => 
+          total + room.adults + room.children0to3 + room.children4to5 + room.children6plus, 0
+        )
+        return item.capacidade >= totalPessoas;
+      }
+    });
+
+    // Se for busca de pacotes, agrupa por hotel para mostrar só o melhor pacote
+    if (searchType === 'paquetes') {
+      const pacotesPorHotel = new Map<string, any[]>()
+      itemsFiltrados.forEach(pacote => {
+        const hotel = pacote.hotel
+        if (!pacotesPorHotel.has(hotel)) pacotesPorHotel.set(hotel, [])
+        pacotesPorHotel.get(hotel)!.push(pacote)
+      })
+      
+      const melhoresPorHotel: any[] = []
+      pacotesPorHotel.forEach((pacotesDoHotel) => {
+        melhoresPorHotel.push(pacotesDoHotel[0])
+      })
+      
+      return melhoresPorHotel
     }
+
+    // Para habitaciones, agrupa as diárias por quarto, soma os preços e verifica a capacidade
+    const quartosAgrupados = new Map<string, any>();
+    itemsFiltrados.forEach(diaria => {
+      const chave = `${diaria.slug_hospedagem}-${diaria.tipo_quarto}`;
+      if (!quartosAgrupados.has(chave)) {
+        quartosAgrupados.set(chave, {
+          ...diaria,
+          valor_total: 0,
+          noites: 0,
+        });
+      }
+      const quarto = quartosAgrupados.get(chave);
+      quarto.valor_total += diaria.valor_diaria;
+      quarto.noites += 1;
+    });
+
+    const resultadosFinais = Array.from(quartosAgrupados.values());
     
-    const pacotesPorHotel = new Map<string, any[]>()
-    pacotesFiltrados.forEach(pacote => {
-      const hotel = pacote.hotel
-      if (!pacotesPorHotel.has(hotel)) pacotesPorHotel.set(hotel, [])
-      pacotesPorHotel.get(hotel)!.push(pacote)
-    })
-    
-    const melhoresPorHotel: any[] = []
-    pacotesPorHotel.forEach((pacotesDoHotel) => {
-      melhoresPorHotel.push(pacotesDoHotel[0])
-    })
-    
-    return melhoresPorHotel
-  }
+    // Os quartos já foram filtrados pela nova lógica de pagantes acima
+    return resultadosFinais;
+}
   
-  const resultados = filtrarPacotesValidos(
+  const resultados = filtrarResultados(
     disponibilidades, 
-    filters.data_saida, 
     parseRoomsFromURL()
   ) || []
 
@@ -396,12 +506,22 @@ export default function ResultadosPage() {
   }
   
   const handleFilterSearch = (searchFilters: any) => {
-    const dataString = searchFilters.data ? format(searchFilters.data, 'yyyy-MM-dd') : undefined
     const params = new URLSearchParams()
-    if (searchFilters.salida) params.set('salida', searchFilters.salida)
-    if (searchFilters.destino) params.set('destino', searchFilters.destino)
-    if (dataString) params.set('data', dataString)
-    if (searchFilters.transporte) params.set('transporte', searchFilters.transporte)
+    
+    if (searchType === 'habitacion') {
+      params.set("tipo", "habitacion")
+      if (searchFilters.destino) params.set("destino", searchFilters.destino)
+      if (searchFilters.dateRange?.from)
+        params.set("checkin", format(searchFilters.dateRange.from, "yyyy-MM-dd"))
+      if (searchFilters.dateRange?.to)
+        params.set("checkout", format(searchFilters.dateRange.to, "yyyy-MM-dd"))
+    } else {
+      if (searchFilters.salida) params.set('salida', searchFilters.salida)
+      if (searchFilters.destino) params.set('destino', searchFilters.destino)
+      const dataString = searchFilters.data ? format(searchFilters.data, 'yyyy-MM-dd') : undefined
+      if (dataString) params.set('data', dataString)
+      if (searchFilters.transporte) params.set('transporte', searchFilters.transporte)
+    }
 
     let roomsToUse: { adults: number; children_0_3: number; children_4_5: number; children_6: number; }[] = []
     if (searchFilters.rooms && searchFilters.rooms.length > 0) {
@@ -436,13 +556,11 @@ export default function ResultadosPage() {
   }
 
   const getHotelImage = (hotelName: string) => {
-    // Primeiro: tentar pegar a imagem via mapeamento mestre utilitário (mais completo)
     const hotelData = getHotelData(hotelName)
     if (hotelData && hotelData.imageFiles && hotelData.imageFiles.length > 0) {
       return hotelData.imageFiles[0]
     }
 
-    // Fallback legacy para manter compatibilidade com nomes antigos/não normalizados
     const hotelImageMap: { [key: string]: string } = {
       "RESIDENCIAL TERRAZAS": "/images/hoteles/Residencial Terrazas/1.png",
       "RESIDENCIAL LEÔNIDAS": "/images/hoteles/Residencial Leônidas/1.jpg", 
@@ -452,7 +570,6 @@ export default function ResultadosPage() {
       "BOMBINHAS PALACE HOTEL": "/images/hoteles/Bombinhas Palace Hotel/1.jpg",
       "CANAS GOLD HOTEL": "/images/hoteles/Canas Gold Hotel/1.png",
       "VERDES PÁSSAROS APART HOTEL": "/images/hoteles/Verdes Pássaros Apart Hotel/1.png",
-      // NOVOS NOMES ADICIONADOS
       "ILHA NORTE APART HOTEL": "/images/hoteles/Ilha Norte Apart Hotel/1.jpg",
       "ILHA NORTE": "/images/hoteles/Ilha Norte/1.jpg",
       "TROPICANAS FLAT": "/images/hoteles/Tropicanas Flat/1.jpg"
@@ -522,21 +639,26 @@ export default function ResultadosPage() {
   
   const gerarUrlDetalhes = (disponibilidade: any, precoCalculado?: number, hotelName?: string) => {
     const params = new URLSearchParams(searchParams.toString())
-    params.set('hotel', hotelName || disponibilidade.hotel)
+    params.set('hotel', hotelName || disponibilidade.slug_hospedagem || disponibilidade.hotel)
     
-    const basePrice = precoCalculado || calcularPrecoTotalSeguro(disponibilidade, pessoas)
+    const basePrice = precoCalculado || 0
     params.set('preco', basePrice.toString())
     
-    // ✅ Passar preços individuais para a página de detalhes
-    params.set('preco_adulto', disponibilidade.preco_adulto.toString());
-    params.set('preco_crianca_0_3', disponibilidade.preco_crianca_0_3.toString());
-    params.set('preco_crianca_4_5', disponibilidade.preco_crianca_4_5.toString());
-    params.set('preco_crianca_6_mais', disponibilidade.preco_crianca_6_mais.toString());
+    if (searchType === 'paquetes') {
+      params.set('preco_adulto', disponibilidade.preco_adulto.toString());
+      params.set('preco_crianca_0_3', disponibilidade.preco_crianca_0_3.toString());
+      params.set('preco_crianca_4_5', disponibilidade.preco_crianca_4_5.toString());
+      params.set('preco_crianca_6_mais', disponibilidade.preco_crianca_6_mais.toString());
+      if (disponibilidade.noites_hotel) params.set('noites_hotel', disponibilidade.noites_hotel.toString())
+      if (disponibilidade.dias_totais) params.set('dias_totais', disponibilidade.dias_totais.toString())
+      if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
+    } else {
+      params.set('valor_diaria', disponibilidade.valor_diaria.toString());
+    }
 
-    if (disponibilidade.noites_hotel) params.set('noites_hotel', disponibilidade.noites_hotel.toString())
-    if (disponibilidade.dias_totais) params.set('dias_totais', disponibilidade.dias_totais.toString())
-    if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
-    if (disponibilidade.quarto_tipo) params.set('quarto_tipo', disponibilidade.quarto_tipo)
+    if (disponibilidade.quarto_tipo || disponibilidade.tipo_quarto) {
+      params.set('quarto_tipo', disponibilidade.tipo_quarto || disponibilidade.quarto_tipo)
+    }
     
     const roomsConfig = quartosIndividuais.map(quarto => ({
       adults: quarto.adults,
@@ -546,10 +668,11 @@ export default function ResultadosPage() {
     }))
     params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
     
-    return `/detalhes?${params.toString()}`
+    const url = searchType === 'habitacion' ? '/detalhes-hospedagem' : '/detalhes';
+    return `${url}?${params.toString()}`
   }
 
-  if (loading || loadingGPT) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
@@ -586,30 +709,55 @@ export default function ResultadosPage() {
       <div className="pt-20">
         <div className="bg-gray-50 border-b">
           <div className="container mx-auto px-4 lg:px-[70px] py-6">
-            <UnifiedSearchFilter 
-              variant="results"
-              initialFilters={{
-                salida: searchParams.get("salida") || "",
-                destino: searchParams.get("destino") || "",
-                data: (() => {
-                  const dataParam = searchParams.get("data")
-                  if (dataParam) {
-                    const [year, month, day] = dataParam.split('-').map(Number)
-                    return new Date(year, month - 1, day)
-                  }
-                  return undefined
-                })(),
-                transporte: searchParams.get("transporte") || "",
-                rooms: parseRoomsFromURL().map((room, index) => ({
-                  id: (index + 1).toString(),
-                  adults: room.adults,
-                  children_0_3: room.children0to3,
-                  children_4_5: room.children4to5,
-                  children_6: room.children6plus
-                }))
-              }}
-              onSearch={handleFilterSearch}
-            />
+            {searchType === 'habitacion' ? (
+              <HabitacionesSearchFilter
+                variant="results"
+                initialFilters={{
+                  destino: searchParams.get("destino") || "Canasvieiras",
+                  dateRange: (() => {
+                    const checkin = searchParams.get("checkin");
+                    const checkout = searchParams.get("checkout");
+                    if (checkin && checkout) {
+                      return { from: new Date(checkin + 'T00:00:00'), to: new Date(checkout + 'T00:00:00') };
+                    }
+                    return undefined;
+                  })(),
+                  rooms: parseRoomsFromURL().map((room, index) => ({
+                    id: (index + 1).toString(),
+                    adults: room.adults,
+                    children_0_3: room.children0to3,
+                    children_4_5: room.children4to5,
+                    children_6: room.children6plus
+                  }))
+                }}
+                onSearch={handleFilterSearch}
+              />
+            ) : (
+              <UnifiedSearchFilter 
+                variant="results"
+                initialFilters={{
+                  salida: searchParams.get("salida") || "",
+                  destino: searchParams.get("destino") || "",
+                  data: (() => {
+                    const dataParam = searchParams.get("data")
+                    if (dataParam) {
+                      const [year, month, day] = dataParam.split('-').map(Number)
+                      return new Date(year, month - 1, day)
+                    }
+                    return undefined
+                  })(),
+                  transporte: searchParams.get("transporte") || "",
+                  rooms: parseRoomsFromURL().map((room, index) => ({
+                    id: (index + 1).toString(),
+                    adults: room.adults,
+                    children_0_3: room.children0to3,
+                    children_4_5: room.children4to5,
+                    children_6: room.children6plus
+                  }))
+                }}
+                onSearch={handleFilterSearch}
+              />
+            )}
           </div>
         </div>
 
@@ -618,10 +766,10 @@ export default function ResultadosPage() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                  🏖️ Paquetes para ti
+                  {searchType === 'habitacion' ? '🏨 Habitaciones para ti' : '🏖️ Paquetes para ti'}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {resultados.length} {resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles'}
+                  {resultados.length} {searchType === 'habitacion' ? (resultados.length === 1 ? 'habitación disponible' : 'habitaciones disponibles') : (resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles')}
                   {filters.destino && ` para ${filters.destino}`}
                 </p>
               </div>
@@ -669,11 +817,24 @@ export default function ResultadosPage() {
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Ninguna disponibilidad encontrada
+                {searchType === 'habitacion' ? 'Ninguna habitación encontrada' : 'Ninguna disponibilidad encontrada'}
               </h3>
-              <p className="text-gray-600 mb-2">
-                Nenhum pacote encontrado com essas opções
+              <p className="text-gray-600 mb-4">
+                {searchType === 'habitacion' 
+                  ? 'No hay habitaciones disponibles que coincidan con tu búsqueda'
+                  : 'Nenhum pacote encontrado com essas opções'
+                }
               </p>
+              {searchType === 'habitacion' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                  <h4 className="font-semibold text-blue-900 mb-2">💡 Dica sobre tipos de habitación:</h4>
+                  <ul className="text-sm text-blue-800 text-left space-y-1">
+                    <li>• 1 criança de 0-5 anos é gratuita a cada 2 adultos</li>
+                    <li>• Crianças 6+ contam como adultos</li>
+                    <li>• O tipo de quarto é baseado no número de pagantes</li>
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             <div className={`grid gap-4 md:gap-6 ${
@@ -682,42 +843,77 @@ export default function ResultadosPage() {
                 : "grid-cols-1"
             }`}>
               {(resultados || []).map((disponibilidade, index) => {
-                const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
-                const finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
-                const totalPessoas = pessoas.adultos + pessoas.criancas_0_3 + pessoas.criancas_4_5 + pessoas.criancas_6_mais;
-                const precoPorPessoa = calcularPrecoPorPessoa(finalPrice, totalPessoas);
-                const { installments, installmentValue } = calculateInstallments(finalPrice, disponibilidade.data_saida);
-                
-                // ✅ PONTO ÚNICO DE VERDADE PARA DADOS DO HOTEL
-                const hotelData = getHotelData(disponibilidade.hotel);
-                const hotelNameForDisplay = hotelData?.displayName || disponibilidade.hotel;
-                const hotelImage = hotelData?.imageFiles?.[0] || "/placeholder.svg";
-
-                const amenidadesRaw = comodidadesCache[hotelNameForDisplay] || [];
-                const maxComodidades = 4;
-                const amenidades = amenidadesRaw.slice(0, maxComodidades);
-                const hasMoreAmenidades = amenidadesRaw.length > maxComodidades;
-                const distanciaPraia = distanciaPraiaCache[hotelNameForDisplay];
-                
                 const quartosIndividuaisCard = parseRoomsFromURL();
                 const temMultiplosQuartosCard = quartosIndividuaisCard.length > 1;
 
+                // Lógica de Preço
+                let finalPrice = 0;
+                let installments = 1;
+                let installmentValue = 0;
+                
+                if (searchType === 'habitacion') {
+                  // ✅ USAR NOVA LÓGICA DE PREÇOS PARA HOSPEDAGEM
+                  const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                  const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                  const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                  const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                  
+                  const calculoPagantes = calcularPagantesHospedagem(
+                    adultos, 
+                    criancas_0_3, 
+                    criancas_4_5, 
+                    criancas_6_mais
+                  );
+                  
+                  const precoHospedagem = calcularPrecoHospedagem(
+                    disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
+                    disponibilidade.noites || 1,
+                    calculoPagantes
+                  );
+                  
+                  finalPrice = precoHospedagem.precoTotal;
+                  
+                  console.log('💰 Preço calculado para hospedagem:', {
+                    valorDiaria: disponibilidade.valor_diaria,
+                    noites: disponibilidade.noites,
+                    pagantes: calculoPagantes.totalPagantes,
+                    precoTotal: finalPrice,
+                    breakdown: precoHospedagem.breakdown
+                  });
+                } else {
+                  const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
+                  finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
+                  const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
+                  installments = inst;
+                  installmentValue = val;
+                }
+                
+                // Dados do Hotel
+                const hotelIdentifier = disponibilidade.slug_hospedagem || disponibilidade.hotel;
+                const hotelData = getHotelData(hotelIdentifier);
+                const hotelNameForDisplay = hotelData?.displayName || hotelIdentifier?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || "Hotel no encontrado";
+                const hotelImage = hotelData?.imageFiles?.[0] || "/placeholder.svg";
+
+                // Comodidades
+                const amenidadesRaw = (hotelNameForDisplay && comodidadesCache[hotelNameForDisplay]) || [];
+                const maxComodidades = 4;
+                const amenidades = amenidadesRaw.slice(0, maxComodidades);
+                const hasMoreAmenidades = amenidadesRaw.length > maxComodidades;
+                const distanciaPraia = hotelNameForDisplay ? distanciaPraiaCache[hotelNameForDisplay] : undefined;
+
                 return (
                   <div key={disponibilidade.id} className={`bg-white border border-gray-100 rounded-3xl shadow-lg p-3 flex flex-col gap-4 hover:shadow-2xl transition-shadow duration-300 ${viewMode === 'list' ? 'md:flex-row md:gap-6' : ''}`}>
-                    {/* Image */}
                     <div className={`relative w-full rounded-2xl overflow-hidden ${viewMode === 'list' ? 'md:w-1/3 h-auto' : 'h-64'}`}>
                       <Image src={hotelImage} alt={`Foto de ${hotelNameForDisplay}`} layout="fill" objectFit="cover" />
                     </div>
 
-                    {/* Content */}
                     <div className={`flex flex-col gap-4 px-2 ${viewMode === 'list' ? 'md:w-2/3 md:px-0' : 'px-4 pb-2'}`}>
-                      {/* Title */}
                       <div className="text-left">
                         <h3 className="font-bold text-2xl text-gray-900 font-manrope">{hotelNameForDisplay}</h3>
-                        <p className="text-sm text-gray-600">{gerarTextoTiposQuartos(disponibilidade)}</p>
+                        <p className="text-sm text-gray-600">{disponibilidade.tipo_quarto || gerarTextoTiposQuartos(disponibilidade)}</p>
                         <div className="flex items-center text-sm text-gray-500 gap-2 mt-1">
                           <MapPin className="w-4 h-4 text-orange-500" />
-                          <span>{disponibilidade.destino}</span>
+                          <span>{filters.destino || 'Canasvieiras'}</span>
                           {distanciaPraia != null && (
                             <>
                               <span className="text-gray-400">•</span>
@@ -727,7 +923,6 @@ export default function ResultadosPage() {
                         </div>
                       </div>
 
-                      {/* Amenities */}
                       <div className="flex flex-wrap gap-2">
                         {amenidades.map((amenidade: any, idx: number) => {
                           const IconComponent = iconComponents[amenidade.icon] || Circle;
@@ -741,15 +936,23 @@ export default function ResultadosPage() {
                         {hasMoreAmenidades && <div className="flex items-center justify-center bg-gray-100 text-gray-700 w-8 h-8 rounded-full text-xs font-bold">+</div>}
                       </div>
                       
-                      {/* Travel Details */}
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
-                        <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
-                        <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
-                        <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                        {searchType === 'paquetes' ? (
+                          <>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
+                            <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-green-500"/><span>Check-in: {filters.dateRange?.from ? formatDate(filters.dateRange.from.toISOString().split('T')[0]) : '-'}</span></div>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-red-500"/><span>Check-out: {filters.dateRange?.to ? formatDate(filters.dateRange.to.toISOString().split('T')[0]) : '-'}</span></div>
+                            <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                          </>
+                        )}
                       </div>
 
-                       {/* Breakdown for multiple rooms */}
                        {temMultiplosQuartosCard && (
                         <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
                           {quartosIndividuaisCard.map((quarto, idx) => {
@@ -768,20 +971,35 @@ export default function ResultadosPage() {
                         </div>
                       )}
 
-
                       <div className="border-t pt-4 mt-2 flex justify-between items-center">
-                        {/* Price */}
                         <div>
                           <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
-                          {installments > 1 && (
+                          {installments > 1 && searchType === 'paquetes' && (
                             <p className="text-sm text-green-600 font-semibold">
                               hasta {installments}x de {formatPrice(installmentValue)}
                             </p>
                           )}
+                          {searchType === 'habitacion' && (() => {
+                            const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                            const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                            const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                            const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                            
+                            const calculoPagantes = calcularPagantesHospedagem(
+                              adultos, criancas_0_3, criancas_4_5, criancas_6_mais
+                            );
+                            
+                            const explicacao = formatarExplicacaoPagantes(calculoPagantes);
+                            
+                            return (
+                              <p className="text-xs text-gray-500 italic">
+                                * {explicacao}
+                              </p>
+                            );
+                          })()}
                           <p className="text-xs text-gray-500">Tasa Inclusas</p>
                         </div>
-                        {/* Button */}
-                        <Link href={gerarUrlDetalhes(disponibilidade, basePrice, hotelNameForDisplay)} passHref>
+                        <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} passHref>
                           <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 py-5 font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all">
                             Ver detalles <ArrowRight className="w-4 h-4 ml-2" />
                           </Button>

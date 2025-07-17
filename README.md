@@ -1,8 +1,17 @@
 # 🌴 Nice Trip v3.0 - Sistema de Pacotes Turísticos Premium
 
-> **Plataforma completa para venda de pacotes turísticos com IA, design premium e sistema multi-quartos inteligente**
+> **Plataforma completa para venda de pacotes turísticos e reserva de hospedagens por diária, com IA, design premium e sistema multi-quartos inteligente**
+
+**Última atualização: 16/07/26**
 
 ## ✨ **Principais Funcionalidades**
+
+### 🏨 **Sistema de Reserva de Hospedagem por Diária (Novo!)**
+- **Busca Flexível por Período:** Permite que o usuário selecione um intervalo de datas (check-in/checkout) para a sua estadia.
+- **Cálculo de Preço por Noite:** O valor final é calculado dinamicamente com base no valor de cada diária e no número total de noites selecionadas.
+- **Lógica de Pagantes Inteligente:** O sistema aplica regras de negócio complexas, como a cortesia para a primeira criança de 0 a 5 anos, para definir o número de hóspedes pagantes e selecionar o tipo de quarto ideal.
+- **Resultados Agrupados:** Apresenta apenas a melhor oferta (a mais barata) para cada tipo de quarto disponível no hotel, evitando duplicatas.
+- **Interface Adaptativa:** A página de resultados e de detalhes se transforma para exibir informações relevantes para a hospedagem, como as datas da estadia, omitindo dados de pacotes como transporte.
 
 ### 🎨 **Design System Premium v3.0**
 - **Apple-style Interface**: Gradientes, micro-interações e shine effects
@@ -90,6 +99,19 @@ OPENAI_API_KEY=your_openai_api_key
 - preco_crianca_4_5: numeric
 - preco_crianca_6_mais: numeric
 - noites_hotel: integer
+- created_at: timestamp
+```
+
+### Tabela `hospedagem_diarias` (Nova)
+```sql
+- id: uuid (primary key)
+- slug_hospedagem: text (foreign key para a tabela `hospedagens`)
+- tipo_quarto: text (Single, Doble, Triple, etc.)
+- capacidade: integer
+- descricao: text
+- valor_diaria: numeric
+- ativo: boolean
+- data: date (a data específica da diária)
 - created_at: timestamp
 ```
 

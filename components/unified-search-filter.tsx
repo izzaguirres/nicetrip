@@ -477,7 +477,7 @@ export function UnifiedSearchFilter({
               <div className="flex items-center">
                 {/* Mostra um ícone laranja default, e deixa o ícone do item selecionado aparecer */}
                 {!filters.transporte && <Bus className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />}
-                <SelectValue placeholder="Seleccionar transporte" />
+                <SelectValue placeholder="Seleccionar" />
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
@@ -511,7 +511,7 @@ export function UnifiedSearchFilter({
               <div className="flex items-center gap-2 w-full min-w-0">
                 <MapPin className="w-4 h-4 text-[#EE7215] flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <SelectValue placeholder={filters.transporte ? "Elegir ciudad" : "Seleccione transporte"} className="truncate" />
+                  <SelectValue placeholder="Seleccionar" className="truncate" />
                 </div>
               </div>
             </SelectTrigger>
@@ -548,7 +548,7 @@ export function UnifiedSearchFilter({
             <SelectTrigger className="w-full h-10 lg:h-12 rounded-2xl border-2 border-gray-200 hover:border-[#EE7215]/50 focus:border-[#EE7215] transition-all duration-200 shadow-sm hover:shadow-md">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#EE7215] mr-2 flex-shrink-0" />
-                <SelectValue placeholder="Elegir destino" />
+                <SelectValue placeholder="Seleccionar" />
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">

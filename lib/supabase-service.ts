@@ -35,6 +35,13 @@ export interface SearchFilters {
   capacidade_min?: number
 }
 
+// ✅ NOVA INTERFACE PARA FILTROS DE HABITACIONES
+export interface HabitacionSearchFilters {
+  destino?: string;
+  checkin?: string;
+  checkout?: string;
+}
+
 // ✅ FUNÇÃO PRINCIPAL: BUSCAR DADOS REAIS
 export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
   try {
@@ -118,6 +125,50 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
     throw error
   }
 }
+
+// ✅ NOVA FUNÇÃO: BUSCAR DADOS DE HABITACIONES
+export async function fetchHabitacionesData(filters?: HabitacionSearchFilters): Promise<any[]> {
+  try {
+    console.log('🏨 SUPABASE SERVICE: Buscando diárias de habitaciones...')
+    console.log('📋 Filtros de Habitación:', filters)
+
+    let query = supabase.from('hospedagem_diarias').select('*').eq('ativo', true)
+
+    if (filters?.checkin) {
+      query = query.gte('data', filters.checkin)
+    }
+    if (filters?.checkout) {
+      // O checkout é o último dia, então buscamos até o dia anterior para contar as noites
+      const checkoutDate = new Date(filters.checkout);
+      checkoutDate.setDate(checkoutDate.getDate() - 1);
+      const checkoutString = checkoutDate.toISOString().split('T')[0];
+      query = query.lte('data', checkoutString)
+    }
+    
+    // TODO: Quando houver múltiplos destinos, filtrar por `slug_hospedagem` que pertencem ao `destino`
+    // Por enquanto, todos os hotéis são de Canasvieiras.
+
+    const { data, error } = await query.order('valor_diaria', { ascending: true })
+
+    if (error) {
+      console.error('❌ SUPABASE ERROR (hospedagem_diarias):', error)
+      throw new Error(`Database error: ${error.message}`)
+    }
+
+    if (!data || data.length === 0) {
+      console.log('⚠️ Nenhuma diária encontrada na tabela `hospedagem_diarias` com os filtros:', filters)
+      return []
+    }
+
+    console.log(`✅ SUPABASE SUCCESS (hospedagem_diarias): ${data.length} diárias encontradas`)
+    return data
+
+  } catch (error) {
+    console.error('💥 FETCH HABITACIONES DATA ERROR:', error)
+    throw error
+  }
+}
+
 
 // ✅ FUNÇÃO ESPECÍFICA PARA SMART FILTER
 export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{

@@ -139,41 +139,52 @@ import vpa6 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/6.png';
 // --- ESTRUTURA DE DADOS MESTRE ---
 export interface HotelData {
   displayName: string;
-  imageFiles: StaticImageData[];
+  imageFiles: (StaticImageData | string)[]; // Permite strings como fallback
 }
 
 const hotelDataMap: Record<string, HotelData> = {
-  "bombinhas palace hotel": { displayName: "Bombinhas Palace Hotel", imageFiles: [bph1, bph2, bph3, bph4, bph5, bph6, bph7] },
-  "canas gold hotel": { displayName: "Canas Gold Hotel", imageFiles: [cgh1, cgh2, cgh3, cgh4, cgh5, cgh6, cgh7, cgh8] },
-  "hotel fenix": { displayName: "Hotel Fênix", imageFiles: [hf1, hf2, hf3, hf4, hf5, hf6, hf7, hf8] },
-  "ilha norte apart hotel": { displayName: "Ilha Norte Apart Hotel", imageFiles: [in1, in2, in3, in4, in5, in6] },
-  "palace i": { displayName: "Palace I", imageFiles: [p1_1, p1_2, p1_3, p1_4, p1_5, p1_6, p1_7, p1_8, p1_9] },
-  "residencial alianza": { displayName: "Residencial Alianza", imageFiles: [ra1, ra2, ra3, ra4, ra5, ra6, ra7, ra8, ra9, ra10, ra11, ra12, ra13, ra14, ra15, ra16] },
-  "hotel residencial canasvieiras": { displayName: "Hotel Residencial Canasvieiras", imageFiles: [rc1, rc2, rc3, rc4, rc5, rc6, rc7, rc8, rc9, rc10] },
-  "residencial furlan": { displayName: "Residencial Furlan", imageFiles: [rf1, rf2, rf3, rf4, rf5, rf6, rf7, rf8, rf9, rf10, rf11, rf12, rf13, rf14, rf15] },
-  "residencial leonidas": { displayName: "Residencial Leônidas", imageFiles: [rl1, rl2, rl3, rl4, rl5, rl6, rl7, rl8] },
-  "residencial terrazas": { displayName: "Residencial Terrazas", imageFiles: [rt1, rt2, rt3, rt4, rt5, rt6, rt7, rt8] },
-  "tropicanas flat": { displayName: "Tropicanas Flat", imageFiles: [tf1, tf2, tf3, tf4, tf5, tf6, tf7, tf8] },
-  "verdes passaros apart hotel": { displayName: "Verdes Pássaros Apart Hotel", imageFiles: [vpa1, vpa2, vpa3, vpa4, vpa5, vpa6] },
+  // Hotéis existentes (convertidos para usar as variáveis importadas)
+  "bombinhas-palace-hotel": { displayName: "Bombinhas Palace Hotel", imageFiles: [bph1, bph2, bph3, bph4, bph5, bph6, bph7] },
+  "canas-gold-hotel": { displayName: "Canas Gold Hotel", imageFiles: [cgh1, cgh2, cgh3, cgh4, cgh5, cgh6, cgh7, cgh8] },
+  "hotel-fenix": { displayName: "Hotel Fênix", imageFiles: [hf1, hf2, hf3, hf4, hf5, hf6, hf7, hf8] },
+  "ilha-norte-apart-hotel": { displayName: "Ilha Norte Apart Hotel", imageFiles: [in1, in2, in3, in4, in5, in6] },
+  "palace-i": { displayName: "Palace I", imageFiles: [p1_1, p1_2, p1_3, p1_4, p1_5, p1_6, p1_7, p1_8, p1_9] },
+  "residencial-alianza": { displayName: "Residencial Alianza", imageFiles: [ra1, ra2, ra3, ra4, ra5, ra6, ra7, ra8, ra9, ra10, ra11, ra12, ra13, ra14, ra15, ra16] },
+  "residencial-canasvieiras": { displayName: "Residencial Canasvieiras", imageFiles: [rc1, rc2, rc3, rc4, rc5, rc6, rc7, rc8, rc9, rc10] },
+  "residencial-furlan": { displayName: "Residencial Furlan", imageFiles: [rf1, rf2, rf3, rf4, rf5, rf6, rf7, rf8, rf9, rf10, rf11, rf12, rf13, rf14, rf15] },
+  "residencial-leonidas": { displayName: "Residencial Leônidas", imageFiles: [rl1, rl2, rl3, rl4, rl5, rl6, rl7, rl8] },
+  "residencial-terrazas": { displayName: "Residencial Terrazas", imageFiles: [rt1, rt2, rt3, rt4, rt5, rt6, rt7, rt8] },
+  "tropicanas-flat": { displayName: "Tropicanas Flat", imageFiles: [tf1, tf2, tf3, tf4, tf5, tf6, tf7, tf8] },
+  "verdes-passaros-apart-hotel": { displayName: "Verdes Pássaros Apart Hotel", imageFiles: [vpa1, vpa2, vpa3, vpa4, vpa5, vpa6] },
+  "fallback": { displayName: "Hotel não encontrado", imageFiles: ["/placeholder.svg"] }
 };
 
 // Função unificada para normalizar e buscar dados do hotel
-export function getHotelData(hotelName: string) {
+export function getHotelData(hotelName: string): HotelData {
     if (!hotelName) {
         return hotelDataMap["fallback"];
     }
 
-    // Normaliza o nome buscado (remove acentos, caixa alta, etc.)
-    const normalize = (str: string) => str.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    // Normaliza o nome buscado para minúsculas e remove acentos/caracteres especiais.
+    // Isso torna a chave de busca (ex: "hotel-fenix") compatível com o mapa.
+    const normalize = (str: string) => 
+        str.toLowerCase()
+           .normalize("NFD")
+           .replace(/[\u0300-\u036f]/g, "")
+           .replace(/[^a-z0-9\s-]/g, '') // Mantém letras, números, espaços e hífens
+           .trim()
+           .replace(/\s+/g, '-'); // Substitui espaços por hífens para criar o slug
+
     const normalizedQueryName = normalize(hotelName);
+    
+    // Tenta encontrar uma correspondência no mapa usando o nome normalizado
+    const hotel = hotelDataMap[normalizedQueryName];
 
-    // Tenta encontrar uma correspondência exata no mapa
-    const matchedKey = Object.keys(hotelDataMap).find(key => normalize(key) === normalizedQueryName);
-
-    if (matchedKey && hotelDataMap[matchedKey]) {
-        return hotelDataMap[matchedKey];
+    if (hotel) {
+        return hotel;
     }
     
     // Se não encontrar, retorna o fallback
+    console.warn(`[getHotelData] Hotel não encontrado para o nome: "${hotelName}" (Normalizado como: "${normalizedQueryName}")`);
     return hotelDataMap["fallback"];
 } 

@@ -73,7 +73,6 @@ export default function DetalhesPage() {
   const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
 
   // Dados dinâmicos da URL (movidos para o topo)
-  const searchType = searchParams.get('tipo') || 'paquetes'
   const hotelName = searchParams.get('hotel') || 'Hotel Premium'
   const displayName = getHotelData(hotelName)?.displayName || hotelName;
   const destino = searchParams.get('destino') || 'Florianópolis'
@@ -107,21 +106,7 @@ export default function DetalhesPage() {
     );
   };
 
-  const addonsPrice = ADDITIONAL_SERVICES
-    .filter(service => selectedAddons.includes(service.id))
-    .reduce((total, service) => {
-        const fullPricePassengers = adultos + criancas_6;
-        let servicePrice = 0;
-
-        if (service.name === 'Butaca Cama') {
-            const butacaCamaPassengers = fullPricePassengers + criancas_4_5;
-            servicePrice = butacaCamaPassengers * service.price;
-        } else {
-            servicePrice = fullPricePassengers * service.price;
-        }
-        
-        return total + servicePrice;
-    }, 0);
+  const addonsPrice = 0; // Adicionais não se aplicam a hospedagem
 
   // ✅ NOVO: Detectar se estamos no cliente (resolver hidratação)
   useEffect(() => {
@@ -150,18 +135,10 @@ export default function DetalhesPage() {
     }
   }, [showAllPhotos])
   
-  // Calcular dias e noites baseado nos dados reais ou fallback do transporte
-  const diasTotaisParam = searchParams.get('dias_totais')
-  const noisesHotelParam = searchParams.get('noites_hotel')
-  
-  const diasNoites = (diasTotaisParam && noisesHotelParam) 
-    ? { 
-        dias: parseInt(diasTotaisParam), 
-        noites: parseInt(noisesHotelParam) 
-      }
-    : transporte === 'Aéreo' 
-      ? { dias: 8, noites: 7 }  // Aéreo: 8 dias, 7 noites (fallback)
-      : { dias: 10, noites: 7 } // Bus: 10 dias, 7 noites (fallback)
+  // Calcular noites a partir do check-in e checkout da URL
+  const noitesCalculadas = (checkin && checkout) 
+    ? Math.max(1, Math.ceil((new Date(checkout).getTime() - new Date(checkin).getTime()) / (1000 * 3600 * 24)))
+    : 0;
   
   const totalCriancas = criancas_0_3 + criancas_4_5 + criancas_6
   const totalPessoas = adultos + totalCriancas
@@ -323,56 +300,11 @@ export default function DetalhesPage() {
     }
   }, [transporte, destino, hotelName])
   
-  // 💰 Obter valores dinâmicos da URL com fallback
-  const dadosPacote = {
-    preco_adulto: parseInt(searchParams.get('preco_adulto') || '490'),
-    preco_crianca_0_3: parseInt(searchParams.get('preco_crianca_0_3') || '50'),
-    preco_crianca_4_5: parseInt(searchParams.get('preco_crianca_4_5') || '350'),
-    preco_crianca_6_mais: parseInt(searchParams.get('preco_crianca_6_mais') || '490')
-  }
-  
-  // 🧮 CALCULAR PREÇO EXATO POR QUARTO baseado nos dados reais do Supabase
-  const calcularPrecoQuarto = (quarto: any) => {
-    return (
-      (quarto.adultos * dadosPacote.preco_adulto) +
-      (quarto.criancas_0_3 * dadosPacote.preco_crianca_0_3) +
-      (quarto.criancas_4_5 * dadosPacote.preco_crianca_4_5) +
-      (quarto.criancas_6 * dadosPacote.preco_crianca_6_mais)
-    )
-  }
-  
-  // 💰 USAR O PREÇO ESPECÍFICO DO CARD CLICADO (via URL)
-  // Se o preço veio da URL (card específico), usar esse preço
-  // Caso contrário, calcular baseado nos quartos configurados
-  const precoCalculadoInterno = quartosIndividuais.reduce((total: number, quarto: any) => {
-    return total + calcularPrecoQuarto(quarto)
-  }, 0)
-  
-  let basePrice = 0;
-  if (searchType === 'habitacion') {
-    if (checkin && checkout) {
-      const noites = Math.max(1, Math.ceil((new Date(checkout).getTime() - new Date(checkin).getTime()) / (1000 * 3600 * 24)));
-      
-      const adultosPagantes = adultos + criancas_6;
-      const criancas0a5 = criancas_0_3 + criancas_4_5;
-      // A primeira criança de 0-5 é grátis, as demais (se houver) pagam
-      const criancas0a5Pagam = criancas0a5 > 1 ? criancas0a5 - 1 : 0;
-      const totalPagantes = adultosPagantes + criancas0a5Pagam;
-
-      basePrice = valorDiaria * totalPagantes * noites;
-    }
-  } else {
-    basePrice = preco || precoCalculadoInterno;
-  }
-  
-  const priceWithTaxes = calculateFinalPrice(basePrice, transporte);
-  const precoTotalReal = priceWithTaxes + addonsPrice;
-  
-  const { installments, installmentValue } = calculateInstallments(precoTotalReal, searchParams.get('data') || new Date());
+  // 💰 O preço total real é o preço que vem da URL, já calculado na página de resultados.
+  const precoTotalReal = preco;
 
   console.log('💰 DEBUG PREÇO DETALHES:')
-  console.log('  - Preço da URL (base):', preco)
-  console.log('  - Preço final com taxas:', precoTotalReal)
+  console.log('  - Preço da URL (Final):', precoTotalReal)
   
   console.log('🚌 DEBUG TRANSPORTE:')
   console.log('  - Transporte da URL:', transporte)
@@ -468,8 +400,8 @@ export default function DetalhesPage() {
     const finalDescription = packageDescription?.descripcion 
       ? packageDescription.descripcion
       : isAereo 
-        ? `Experimente ${destino} com máximo confort! Nosso paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${diasNoites.noites} noches de relajación. Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas.`
-        : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${diasNoites.dias} días de aventura, incluyendo ${diasNoites.noites} noches de hospedaje en ${hotelName}. Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`;
+        ? `Experimente ${destino} com máximo confort! Nosso paquete aéreo premium incluye vuelos directos, hospedaje en ${hotelName} y ${noitesCalculadas} noches de relajación. Desayunos completos, tours exclusivos y todas las comodidades para que vivas unas vacaciones perfectas.`
+        : `¡Vive la experiencia completa en ${destino}! Nuestro paquete en bus te ofrece ${noitesCalculadas} días de aventura, incluyendo ${noitesCalculadas} noches de hospedaje en ${hotelName}. Transporte cómodo con aire acondicionado, desayunos incluidos y tiempo suficiente para explorar cada rincón de esta paradisíaca playa.`;
 
     return {
       description: finalDescription,
@@ -487,14 +419,14 @@ export default function DetalhesPage() {
       includes: isAereo 
         ? [
             `Vuelos ida y vuelta`,
-            `Hospedaje por ${diasNoites.noites} noches`,
+            `Hospedaje por ${noitesCalculadas} noches`,
             "Transfers aeropuerto-hotel",
             "Desayuno completo todos los días",
             "Seguro de viaje incluido"
           ]
         : [
             `Transporte en bus premium`,
-            `Hospedaje por ${diasNoites.noites} noches`,
+            `Hospedaje por ${noitesCalculadas} noches`,
             "Viaje con aire acondicionado",
             "Desayuno completo todos los días",
             "Seguro de viaje incluido"
@@ -543,7 +475,7 @@ export default function DetalhesPage() {
       name: comodidade.nome
     })) || [],
     condiciones: packageConditions,
-    duration: `${diasNoites.dias} días / ${diasNoites.noites} noches`
+    duration: `${noitesCalculadas} noches`
   }
 
   const nextImage = () => {
@@ -586,14 +518,14 @@ export default function DetalhesPage() {
   const formatPrice = (value: number): string => {
     if (!isClient) {
       // No servidor, usar formatação simples
-      return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+      return value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".")
     }
     // No cliente, usar toLocaleString brasileiro
-    return value.toLocaleString('pt-BR')
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
   }
 
   const formatPriceWithCurrency = (value: number): string => {
-    return `USD ${formatPrice(value)}`;
+    return `R$ ${formatPrice(value)}`;
   }
 
   // Share functionality
@@ -744,7 +676,7 @@ export default function DetalhesPage() {
                 <div className="flex flex-col items-center space-y-2">
                   <div>
                     <span className="inline-block text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-100 px-3 py-1 rounded-full">
-                      Paquete
+                      Alojamiento
                     </span>
                   </div>
                   <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">
@@ -763,7 +695,7 @@ export default function DetalhesPage() {
                   </div>
                   <div className="w-px h-10 bg-gray-200"></div>
                   <div className="text-sm font-medium text-gray-900 text-center w-28">
-                    El destino más deseado
+                    Habitaciones completas
                   </div>
                   <div className="w-px h-10 bg-gray-200"></div>
                   <div className="flex flex-col items-center space-y-1">
@@ -775,12 +707,8 @@ export default function DetalhesPage() {
                 {/* Duration */}
                  <div className="flex items-center gap-4 pt-2">
                   <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
-                    <Sun className="w-5 h-5 text-gray-900" />
-                    <span>{diasNoites.dias} días</span>
-                  </div>
-                  <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-900">
                     <Moon className="w-5 h-5 text-gray-900" />
-                    <span>{diasNoites.noites} noches</span>
+                    <span>{noitesCalculadas} noches</span>
                   </div>
                 </div>
               </div>
@@ -1004,72 +932,6 @@ export default function DetalhesPage() {
                 </div>
               </div>
 
-              {/* O que este pacote oferece - New Section */}
-              <div className="pb-8">
-                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
-                  Qué ofrece este paquete
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                  {packageData.highlights.map((highlight: string, index: number) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Check className="w-4 h-4 text-orange-600" />
-                      </div>
-                      <span className="text-gray-700">{highlight}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200"></div>
-
-              {/* Serviços Adicionais */}
-              <div className="pb-8">
-                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
-                  Servicios Adicionales
-                </h3>
-                <div className="space-y-3">
-                  {ADDITIONAL_SERVICES.map(service => {
-                    const isSelected = selectedAddons.includes(service.id);
-                    return (
-                      <div 
-                        key={service.id}
-                        onClick={() => handleAddonToggle(service.id)}
-                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                          isSelected
-                            ? 'border-orange-500 bg-orange-50 shadow-sm'
-                            : 'border-gray-200 bg-white hover:border-orange-300 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <PlusCircle className={`w-5 h-5 transition-colors ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-800 text-sm">{service.name}</span>
-                            <span className="text-xs text-gray-500">{service.description}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="font-bold text-gray-900 text-sm">USD {service.price}</span>
-                            <span className="text-xs text-gray-500 block">por persona</span>
-                          </div>
-                          <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 ${
-                            isSelected
-                              ? 'border-orange-500 bg-orange-500'
-                              : 'border-gray-300 bg-white'
-                          }`}>
-                            {isSelected && <Check className="w-4 h-4 text-white" />}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                 <p className="text-center text-xs italic text-gray-500 mt-4">
-                  Todos los adicionales son opcionales y no comisionables
-                </p>
-              </div>
-
               {/* Localización */}
               <div>
                 <h3 className="text-2xl font-semibold text-gray-900 mb-6">
@@ -1102,52 +964,34 @@ export default function DetalhesPage() {
                   {/* Preço Total */}
                   <div className="text-center mb-6">
                     <h3 className="text-4xl font-bold text-gray-900 font-manrope">
-                      {formatPriceWithCurrency(basePrice)}
+                      {formatPriceWithCurrency(precoTotalReal)}
                     </h3>
-                    <p className="text-sm text-gray-600">Total antes de impuestos</p>
+                    <p className="text-sm text-gray-600">Valor total</p>
                   </div>
                   
                   {/* Detalhes da Reserva (Condicional) */}
                   <div className="mb-6 space-y-3">
-                    {searchType === 'paquetes' ? (
-                      <>
-                        <div className="flex justify-between gap-4">
-                          <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Salida</p>
-                            <div className="bg-white rounded-xl p-2">
-                              <p className="font-medium text-gray-900 text-sm">{new Date(packageData.dataViagem).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                            </div>
-                          </div>
-                          <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Retorno</p>
-                            <div className="bg-white rounded-xl p-2">
-                              <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(new Date(packageData.dataViagem).getDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                            </div>
-                          </div>
+                    <div className="flex justify-between gap-4">
+                      <div className="w-1/2 text-left">
+                        <p className="text-sm text-gray-600 mb-1">Check-in</p>
+                        <div className="bg-white rounded-xl p-2 text-center">
+                          <p className="font-medium text-gray-900 text-sm">{checkin ? new Date(checkin + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</p>
                         </div>
-                        <div className="text-center text-sm text-gray-600 flex items-center justify-center gap-2 pt-2">
-                          {transporte === 'Aéreo' ? <Plane className="w-4 h-4"/> : <Bus className="w-4 h-4" />}
-                          <span className="font-bold">{transporte}</span>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500">{saida}</span>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-500">{destino}</span>
+                      </div>
+                      <div className="w-1/2 text-left">
+                        <p className="text-sm text-gray-600 mb-1">Check-out</p>
+                        <div className="bg-white rounded-xl p-2 text-center">
+                          <p className="font-medium text-gray-900 text-sm">{checkout ? new Date(checkout + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</p>
                         </div>
-                      </>
-                    ) : (
-                      <div className="flex justify-between gap-4">
-                        <div className="w-1/2 text-left">
-                          <p className="text-sm text-gray-600 mb-1">Check-in</p>
-                          <div className="bg-white rounded-xl p-2">
-                            <p className="font-medium text-gray-900 text-sm">{checkin ? new Date(checkin + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</p>
-                          </div>
-                        </div>
-                        <div className="w-1/2 text-left">
-                          <p className="text-sm text-gray-600 mb-1">Check-out</p>
-                          <div className="bg-white rounded-xl p-2">
-                            <p className="font-medium text-gray-900 text-sm">{checkout ? new Date(checkout + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</p>
-                          </div>
-                        </div>
+                      </div>
+                    </div>
+                    
+                    {checkin && checkout && (
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <Bed className="w-5 h-5 text-gray-700" />
+                        <p className="font-medium text-gray-900">
+                          Hospedagem <span className="text-gray-500 font-normal">&gt;</span> {noitesCalculadas} Noches
+                        </p>
                       </div>
                     )}
                   </div>
@@ -1155,75 +999,44 @@ export default function DetalhesPage() {
 
                   {/* Desglose por cuarto */}
                   <div className="bg-white rounded-2xl p-4 mb-4">
-                    <h4 className="text-sm font-bold text-gray-900 mb-2">Desglose por cuarto</h4>
+                    <h4 className="text-sm font-bold text-gray-900 mb-3">Desglose por cuarto</h4>
                     <div className="space-y-4">
                       {quartosIndividuais.map((quarto: any, quartoIndex: number) => {
                           const tipoQuarto = searchParams.get('quarto_tipo') || determinarTipoQuarto(quarto);
-                          const precoQuarto = searchType === 'paquetes' ? calcularPrecoQuarto(quarto) : basePrice / quartosIndividuais.length;
+                          const criancas0a5nesteQuarto = quarto.criancas_0_3 + quarto.criancas_4_5;
+
                           return (
                             <div key={quartoIndex} className="border-t border-gray-100 pt-3">
                               <div className="flex justify-between items-center mb-2">
-                                <span className="text-sm font-bold text-orange-600 flex items-center gap-2"><Bed className="w-4 h-4" />Cuarto {quartoIndex + 1}: <span className="text-gray-800">{tipoQuarto}</span></span>
+                                <span className="text-sm font-bold text-orange-600 flex items-center gap-2">
+                                  <Bed className="w-4 h-4" />
+                                  Cuarto {quartoIndex + 1}: <span className="text-gray-800">{tipoQuarto}</span>
+                                </span>
                               </div>
-                              <div className="space-y-1 text-sm">
-                                {quarto.adultos > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.adultos} Adulto{quarto.adultos > 1 ? 's' : ''}</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_adulto)} por persona</span>}
-                                  </div>
-                                )}
-                                {quarto.criancas_6 > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} (6+ años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_6_mais)} por persona</span>}
-                                  </div>
-                                )}
-                                {quarto.criancas_4_5 > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} (4-5 años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_4_5)}</span>}
-                                  </div>
-                                )}
-                                {quarto.criancas_0_3 > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} (0-3 años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_0_3)}</span>}
-                                  </div>
-                                )}
-                                 <div className="flex justify-between border-t border-dashed mt-2 pt-2">
-                                  <span className="font-semibold text-gray-700">Total Cuarto {quartoIndex+1}</span>
-                                  <span className="font-bold text-gray-900">{formatPriceWithCurrency(precoQuarto)}</span>
+                              <div className="space-y-2 text-sm text-gray-600">
+                                {quarto.adultos > 0 && <span>{quarto.adultos} Adulto{quarto.adultos > 1 ? 's' : ''}</span>}
+                                
+                                {quarto.criancas_6 > 0 && <p>{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} (6+ años)</p>}
+                                {quarto.criancas_4_5 > 0 && <p>{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} (4-5 años)</p>}
+                                {quarto.criancas_0_3 > 0 && <p>{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} (0-3 años)</p>}
+                              </div>
+                               <div className="flex justify-between items-baseline border-t border-dashed mt-3 pt-3">
+                                <span className="font-semibold text-gray-700 text-sm">Total Cuarto {quartoIndex + 1}</span>
+                                <div>
+                                  <span className="font-bold text-gray-900">{formatPriceWithCurrency(valorDiaria)}</span>
+                                  <span className="text-xs text-gray-500"> por noche</span>
                                 </div>
                               </div>
                             </div>
                           )
                         })}
                     </div>
-                    {searchType === 'habitacion' && (
+                    {(criancas_0_3 + criancas_4_5) > 0 && (
                       <p className="text-xs text-gray-500 mt-4 text-center italic">
-                        * La primera criança de 0 a 5 años es gratuita.
+                        *La primera criança de 0 a 5 años es gratuita!
                       </p>
                     )}
                   </div>
-                  
-                  {/* Taxas */}
-                  {searchType === 'paquetes' && (
-                    <>
-                      <div className="space-y-2 text-sm mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Taxas Administrativas</span>
-                          <span className="text-gray-600">3%</span>
-                        </div>
-                        {transporte === 'Aéreo' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Impostos e Encargos</span>
-                            <span className="text-gray-600">{formatPriceWithCurrency(200)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="border-t border-gray-300 my-4"></div>
-                    </>
-                  )}
                   
                   {/* Valor final */}
                    <div className="space-y-2">
@@ -1231,11 +1044,6 @@ export default function DetalhesPage() {
                         <span className="text-gray-800">Valor Total</span>
                         <span className="text-xl text-gray-900">{formatPriceWithCurrency(precoTotalReal)}</span>
                      </div>
-                     {installments > 1 && (
-                        <div className="text-right text-sm text-green-600 font-semibold">
-                          hasta {installments}x de {formatPriceWithCurrency(installmentValue)}
-                        </div>
-                      )}
                    </div>
                   
 
