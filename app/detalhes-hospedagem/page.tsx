@@ -374,22 +374,22 @@ export default function DetalhesPage() {
   const getIconComponent = (icone: string) => {
     const iconMap: { [key: string]: any } = {
       'wifi': Wifi,
-      'aire': Shield, // Usando Shield temporariamente, pode ser atualizado
-      'tv': Bed, // Usando Bed temporariamente
-      'fridge': Coffee, // Usando Coffee temporariamente
-      'pool': Utensils, // Usando Utensils temporariamente
-      'restaurant': Utensils,
+      'aire': AirVent,
+      'tv': Tv,
+      'fridge': Refrigerator,
+      'pool': Waves,
+      'restaurant': ChefHat,
       'safe': Shield,
-      'cleaning': Star,
+      'cleaning': Sparkles,
       'reception': Clock,
       'parking': Car,
-      'kitchen': Coffee,
-      'hot_tub': Coffee,
-      'bbq': Coffee,
-      'gamepad': Coffee
+      'kitchen': Utensils,
+      'hot_tub': Bath,
+      'bbq': Flame,
+      'gamepad': Gamepad2,
     }
     
-    return iconMap[icone] || Coffee // Fallback para Coffee
+    return iconMap[icone] || Circle // Fallback para um círculo genérico
   }
   
   // Conteúdo dinâmico baseado no tipo de transporte e dados reais

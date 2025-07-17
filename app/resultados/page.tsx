@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -78,7 +78,7 @@ export default function ResultadosPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
-  const searchType = searchParams.get("tipo") === "habitacion" ? "habitacion" : "paquetes";
+  const searchType = searchParams.get("categoria") === "hospedagem" ? "habitacion" : "paquetes";
   
   useEffect(() => {
     const checkIsMobile = () => {
@@ -220,6 +220,33 @@ export default function ResultadosPage() {
     return partes.join(', ')
   }
 
+  const filters = useMemo(() => {
+    const currentSearchType = searchParams.get("categoria") === "hospedagem" ? "habitacion" : "paquetes";
+    if (currentSearchType === 'habitacion') {
+      const checkin = searchParams.get("checkin");
+      const checkout = searchParams.get("checkout");
+      const dateRange: DateRange | undefined =
+        checkin && checkout
+          ? {
+              from: new Date(checkin + "T00:00:00"),
+              to: new Date(checkout + "T00:00:00"),
+            }
+          : undefined;
+      
+      return {
+        destino: searchParams.get("destino") || undefined,
+        dateRange: dateRange,
+      };
+    } else {
+      return {
+        destino: searchParams.get("destino") || undefined,
+        cidade_saida: searchParams.get("salida") || undefined,
+        transporte: searchParams.get("transporte") || undefined,
+        data_saida: searchParams.get("data") || undefined,
+      };
+    }
+  }, [searchParams, searchType]);
+
   const [pessoas, setPessoas] = useState<PrecoPessoas>({
     adultos: parseInt(searchParams.get("adultos") || "2"),
     criancas_0_3: parseInt(searchParams.get("criancas_0_3") || "0"),
@@ -227,82 +254,53 @@ export default function ResultadosPage() {
     criancas_6_mais: parseInt(searchParams.get("criancas_6") || "0")
   })
 
-  const [filters, setFilters] = useState<any>({})
-
-  useEffect(() => {
-    const params = searchParams;
-    if (searchType === 'habitacion') {
-      const dateRange: DateRange | undefined =
-        params.get("checkin") && params.get("checkout")
-          ? {
-              from: new Date(params.get("checkin")! + "T00:00:00"),
-              to: new Date(params.get("checkout")! + "T00:00:00"),
-            }
-          : undefined
-      
-      setFilters({
-        destino: params.get("destino") || undefined,
-        dateRange: dateRange,
-      })
-    } else {
-      setFilters({
-        destino: params.get("destino") || undefined,
-        cidade_saida: params.get("salida") || undefined,
-        transporte: params.get("transporte") || undefined,
-        data_saida: params.get("data") || undefined,
-      })
-    }
-  }, [searchParams, searchType])
-
   const [disponibilidades, setDisponibilidades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true)
-        setError(null)
-        let data = []
-        if (searchType === 'habitacion') {
-          const checkin = filters.dateRange?.from 
-            ? filters.dateRange.from.toISOString().split('T')[0]
-            : undefined;
-          const checkout = filters.dateRange?.to
-            ? filters.dateRange.to.toISOString().split('T')[0]
-            : undefined;
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      let data = [];
+      if (searchType === 'habitacion') {
+        const checkin = filters.dateRange?.from
+          ? filters.dateRange.from.toISOString().split('T')[0]
+          : undefined;
+        const checkout = filters.dateRange?.to
+          ? filters.dateRange.to.toISOString().split('T')[0]
+          : undefined;
 
-          const searchFilters: HabitacionSearchFilters = { checkin, checkout }
-          data = await fetchHabitacionesData(searchFilters);
-        } else {
-          const searchFilters: SearchFilters = { ...filters }
-          data = await fetchRealData(searchFilters)
-        }
-        console.log('📊 Dados recebidos do Supabase:', {
-          searchType,
-          totalItems: data.length,
-          tiposQuartoDisponiveis: [...new Set(data.map(item => item.tipo_quarto))],
-          capacidadesDisponiveis: [...new Set(data.map(item => item.capacidade))],
-          sampleItems: data.slice(0, 5).map(item => ({
-            id: item.id,
-            slug_hospedagem: item.slug_hospedagem,
-            tipo_quarto: item.tipo_quarto,
-            capacidade: item.capacidade,
-            valor_diaria: item.valor_diaria
-          }))
-        });
-        setDisponibilidades(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro desconhecido')
-      } finally {
-        setLoading(false)
+        const searchFilters: HabitacionSearchFilters = { checkin, checkout };
+        data = await fetchHabitacionesData(searchFilters);
+      } else {
+        const searchFilters: SearchFilters = { ...filters };
+        data = await fetchRealData(searchFilters);
       }
+      console.log('📊 Dados recebidos do Supabase:', {
+        searchType,
+        totalItems: data.length,
+        tiposQuartoDisponiveis: [...new Set(data.map(item => item.tipo_quarto))],
+        capacidadesDisponiveis: [...new Set(data.map(item => item.capacidade))],
+        sampleItems: data.slice(0, 5).map(item => ({
+          id: item.id,
+          slug_hospedagem: item.slug_hospedagem,
+          tipo_quarto: item.tipo_quarto,
+          capacidade: item.capacidade,
+          valor_diaria: item.valor_diaria
+        }))
+      });
+      setDisponibilidades(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setLoading(false);
     }
-    
-    if (Object.values(filters).some(v => v !== undefined)) {
-      loadData()
-    }
-  }, [filters, searchType])
+  }, [filters, searchType]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (disponibilidades && disponibilidades.length > 0) {
@@ -311,7 +309,7 @@ export default function ResultadosPage() {
         const novoCacheDistancia: {[key: string]: number | null} = {}
         
         for (const disponibilidade of disponibilidades) {
-          const hotelName = disponibilidade.hotel;
+          const hotelName = disponibilidade.slug_hospedagem || disponibilidade.hotel;
           const hotelOficial = getHotelData(hotelName)?.displayName || hotelName;
           
           if (!comodidadesCache[hotelOficial] || distanciaPraiaCache[hotelOficial] === undefined) {
@@ -388,8 +386,6 @@ export default function ResultadosPage() {
   const filtrarResultados = (items: any[], quartos: Room[]) => {
     if (!items || !Array.isArray(items) || items.length === 0) return []
     
-    console.log('🔍 Filtrando resultados:', { searchType, totalItems: items.length, quartos });
-    
     // Filtrar por capacidade e lógica de pagantes
     const itemsFiltrados = items.filter(item => {
       if (searchType === 'habitacion') {
@@ -407,15 +403,9 @@ export default function ResultadosPage() {
           criancas_6_mais
         );
         
-        console.log('💰 Cálculo de pagantes:', {
-          input: { adultos, criancas_0_3, criancas_4_5, criancas_6_mais },
-          resultado: calculoPagantes
-        });
-        
         // Validar configuração
         const validacao = validarConfiguracaoHospedagem(calculoPagantes);
         if (!validacao.valid) {
-          console.log('❌ Configuração inválida:', validacao.errors);
           return false;
         }
         
@@ -424,16 +414,6 @@ export default function ResultadosPage() {
           { tipo_quarto: item.tipo_quarto, capacidade: item.capacidade },
           calculoPagantes
         );
-        
-        console.log('🏨 Verificação do quarto:', {
-          hotel: item.slug_hospedagem,
-          tipo_quarto: item.tipo_quarto,
-          capacidade: item.capacidade,
-          requerido: calculoPagantes.tipoQuartoRequerido,
-          totalPessoas: calculoPagantes.totalPessoas,
-          totalPagantes: calculoPagantes.totalPagantes,
-          atende: quartoAtende
-        });
         
         return quartoAtende;
       } else {
@@ -652,7 +632,7 @@ export default function ResultadosPage() {
       if (disponibilidade.noites_hotel) params.set('noites_hotel', disponibilidade.noites_hotel.toString())
       if (disponibilidade.dias_totais) params.set('dias_totais', disponibilidade.dias_totais.toString())
       if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
-    } else {
+    } else if (disponibilidade.valor_diaria) {
       params.set('valor_diaria', disponibilidade.valor_diaria.toString());
     }
 
@@ -890,6 +870,15 @@ export default function ResultadosPage() {
                 
                 // Dados do Hotel
                 const hotelIdentifier = disponibilidade.slug_hospedagem || disponibilidade.hotel;
+                
+                // --- DEBUG ---
+                if (!hotelIdentifier) {
+                  console.log("HOTEL IDENTIFIER INDEFINIDO:", disponibilidade);
+                } else if (searchType === 'paquetes' && !getHotelData(hotelIdentifier)) {
+                  console.log(`DEBUG: Pacote com hotel não encontrado no mapa -> ${hotelIdentifier}`);
+                }
+                // --- FIM DEBUG ---
+
                 const hotelData = getHotelData(hotelIdentifier);
                 const hotelNameForDisplay = hotelData?.displayName || hotelIdentifier?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || "Hotel no encontrado";
                 const hotelImage = hotelData?.imageFiles?.[0] || "/placeholder.svg";
@@ -923,20 +912,24 @@ export default function ResultadosPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2 mt-4">
                         {amenidades.map((amenidade: any, idx: number) => {
                           const IconComponent = iconComponents[amenidade.icon] || Circle;
                           return(
-                            <div key={idx} className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-xs font-medium">
-                              <IconComponent className="w-4 h-4" />
-                              <span>{amenidade.label}</span>
+                            <div key={idx} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                              <IconComponent className="w-3.5 h-3.5" />
+                              <span className="text-xs font-medium">{amenidade.label}</span>
                             </div>
                           )
                         })}
-                        {hasMoreAmenidades && <div className="flex items-center justify-center bg-gray-100 text-gray-700 w-8 h-8 rounded-full text-xs font-bold">+</div>}
+                        {hasMoreAmenidades && (
+                          <div className="flex items-center justify-center bg-gray-100 text-gray-700 w-7 h-7 rounded-full text-xs font-bold">
+                            +
+                          </div>
+                        )}
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-2 gap-2 text-sm mt-4">
                         {searchType === 'paquetes' ? (
                           <>
                             <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>

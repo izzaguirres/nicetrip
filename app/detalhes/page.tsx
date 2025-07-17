@@ -442,22 +442,23 @@ export default function DetalhesPage() {
   const getIconComponent = (icone: string) => {
     const iconMap: { [key: string]: any } = {
       'wifi': Wifi,
-      'aire': Shield, // Usando Shield temporariamente, pode ser atualizado
-      'tv': Bed, // Usando Bed temporariamente
-      'fridge': Coffee, // Usando Coffee temporariamente
-      'pool': Utensils, // Usando Utensils temporariamente
-      'restaurant': Utensils,
+      'aire': AirVent,
+      'tv': Tv,
+      'fridge': Refrigerator,
+      'pool': Waves,
+      'restaurant': ChefHat,
       'safe': Shield,
-      'cleaning': Star,
+      'cleaning': Sparkles,
       'reception': Clock,
       'parking': Car,
-      'kitchen': Coffee,
-      'hot_tub': Coffee,
-      'bbq': Coffee,
-      'gamepad': Coffee
+      'kitchen': Utensils,
+      'hot_tub': Bath,
+      'bbq': Flame,
+      'gamepad': Gamepad2,
+      'coffee': Coffee
     }
     
-    return iconMap[icone] || Coffee // Fallback para Coffee
+    return iconMap[icone] || Circle // Fallback para um círculo genérico
   }
   
   // Conteúdo dinâmico baseado no tipo de transporte e dados reais
@@ -516,6 +517,10 @@ export default function DetalhesPage() {
 
   // Remove the now-redundant function
   // const staticContent = getStaticPackageContent()
+
+  const dataViagemString = searchParams.get('data') || '2025-10-02';
+  // CORREÇÃO: Tratar a data como UTC para evitar problemas de fuso horário
+  const dataViagem = new Date(dataViagemString + 'T00:00:00');
   
   const packageData = {
     id: searchParams.get('id') || '1',
@@ -526,7 +531,7 @@ export default function DetalhesPage() {
     reviewCount: 127,
     price: preco,
     originalPrice: preco + 350,
-    dataViagem: searchParams.get('data') || '2025-10-02',
+    dataViagem: dataViagem,
     images: packageImages,
     description: packageDescription?.descripcion || "Cargando descripción...", // Use dynamic description
     highlights: [
@@ -1115,13 +1120,13 @@ export default function DetalhesPage() {
                           <div className="w-1/2 text-left">
                             <p className="text-sm text-gray-600 mb-1">Salida</p>
                             <div className="bg-white rounded-xl p-2">
-                              <p className="font-medium text-gray-900 text-sm">{new Date(packageData.dataViagem).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                              <p className="font-medium text-gray-900 text-sm">{packageData.dataViagem.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
                           </div>
                           <div className="w-1/2 text-left">
                             <p className="text-sm text-gray-600 mb-1">Retorno</p>
                             <div className="bg-white rounded-xl p-2">
-                              <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(new Date(packageData.dataViagem).getDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                              <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
                           </div>
                         </div>

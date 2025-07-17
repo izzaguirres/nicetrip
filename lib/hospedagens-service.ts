@@ -11,18 +11,11 @@ interface HospedagemData {
   nome: string
   slug: string
   destino: string
-  inclusos: string[]
   comodidades: Array<{
     nome: string
     icone: string
   }>
-  categoria: string
-  estrelas: number
   distancia_praia: number
-  wifi_gratuito: boolean
-  estacionamento: boolean
-  piscina: boolean
-  restaurante: boolean
   latitude: number
   longitude: number
 }
@@ -36,6 +29,8 @@ const normalizeString = (str: string): string => {
   if (!str) return '';
   return str
     .toLowerCase()
+    // Trata casos como "Palace I" vs "Palace 1"
+    .replace(/\s+i$/, ' 1') 
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 };
@@ -67,7 +62,8 @@ export async function getHospedagemData(hotelOficial: string): Promise<Hospedage
 
     const hospedagem = hospedagensCache?.data.find(h => {
       const normalizedCachedName = normalizeString(h.nome);
-      return normalizedCachedName === normalizedQueryName;
+      // Busca flexível: o nome da query (mais longo) deve conter o nome do cache (mais curto)
+      return normalizedQueryName.includes(normalizedCachedName);
     });
 
     if (hospedagem) {
@@ -94,15 +90,8 @@ async function refreshHospedagensCache(): Promise<void> {
         nome,
         slug,
         destino,
-        inclusos,
         comodidades,
-        categoria,
-        estrelas,
         distancia_praia,
-        wifi_gratuito,
-        estacionamento,
-        piscina,
-        restaurante,
         latitude,
         longitude
       `)

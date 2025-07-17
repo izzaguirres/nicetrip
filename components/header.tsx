@@ -84,24 +84,21 @@ export function Header() {
             >
               Inicio
             </Link>
-            <Link
-              href="/resultados?categoria=paquete"
+            <span
               className={getLinkClasses("/resultados")}
             >
               Paquetes
-            </Link>
-            <Link
-              href="/resultados?categoria=hospedagem"
+            </span>
+            <span
               className={getLinkClasses("/hospedajes")}
             >
               Hospedajes
-            </Link>
-            <Link
-              href="/resultados?categoria=passeio"
+            </span>
+            <span
               className={getLinkClasses("/paseos")}
             >
               Paseos
-            </Link>
+            </span>
             <Link
               href="/condiciones"
               className={getLinkClasses("/condiciones")}
@@ -144,27 +141,24 @@ export function Header() {
               >
                 Inicio
               </Link>
-              <Link 
-                href="/resultados?categoria=paquete" 
+              <span 
                 className={getMobileLinkClasses("/resultados")}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Paquetes
-              </Link>
-              <Link 
-                href="/resultados?categoria=hospedagem" 
+              </span>
+              <span 
                 className={getMobileLinkClasses("/hospedajes")}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Hospedajes
-              </Link>
-              <Link 
-                href="/resultados?categoria=passeio" 
+              </span>
+              <span
                 className={getMobileLinkClasses("/paseos")}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Paseos
-              </Link>
+              </span>
               <Link 
                 href="/condiciones" 
                 className={getMobileLinkClasses("/condiciones")}

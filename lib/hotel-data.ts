@@ -150,7 +150,7 @@ const hotelDataMap: Record<string, HotelData> = {
   "ilha-norte-apart-hotel": { displayName: "Ilha Norte Apart Hotel", imageFiles: [in1, in2, in3, in4, in5, in6] },
   "palace-i": { displayName: "Palace I", imageFiles: [p1_1, p1_2, p1_3, p1_4, p1_5, p1_6, p1_7, p1_8, p1_9] },
   "residencial-alianza": { displayName: "Residencial Alianza", imageFiles: [ra1, ra2, ra3, ra4, ra5, ra6, ra7, ra8, ra9, ra10, ra11, ra12, ra13, ra14, ra15, ra16] },
-  "residencial-canasvieiras": { displayName: "Residencial Canasvieiras", imageFiles: [rc1, rc2, rc3, rc4, rc5, rc6, rc7, rc8, rc9, rc10] },
+  "hotel-residencial-canasvieiras": { displayName: "Hotel Residencial Canasvieiras", imageFiles: [rc1, rc2, rc3, rc4, rc5, rc6, rc7, rc8, rc9, rc10] },
   "residencial-furlan": { displayName: "Residencial Furlan", imageFiles: [rf1, rf2, rf3, rf4, rf5, rf6, rf7, rf8, rf9, rf10, rf11, rf12, rf13, rf14, rf15] },
   "residencial-leonidas": { displayName: "Residencial Leônidas", imageFiles: [rl1, rl2, rl3, rl4, rl5, rl6, rl7, rl8] },
   "residencial-terrazas": { displayName: "Residencial Terrazas", imageFiles: [rt1, rt2, rt3, rt4, rt5, rt6, rt7, rt8] },
@@ -165,23 +165,32 @@ export function getHotelData(hotelName: string): HotelData {
         return hotelDataMap["fallback"];
     }
 
-    // Normaliza o nome buscado para minúsculas e remove acentos/caracteres especiais.
-    // Isso torna a chave de busca (ex: "hotel-fenix") compatível com o mapa.
+    // Normaliza o nome buscado para um formato de busca consistente (minúsculas, sem acentos, etc.)
     const normalize = (str: string) => 
-        str.toLowerCase()
+        (str || '').toLowerCase()
            .normalize("NFD")
            .replace(/[\u0300-\u036f]/g, "")
-           .replace(/[^a-z0-9\s-]/g, '') // Mantém letras, números, espaços e hífens
+           .replace(/[^a-z0-9\s-]/g, '')
            .trim()
-           .replace(/\s+/g, '-'); // Substitui espaços por hífens para criar o slug
+           .replace(/\s+/g, '-');
 
     const normalizedQueryName = normalize(hotelName);
     
-    // Tenta encontrar uma correspondência no mapa usando o nome normalizado
-    const hotel = hotelDataMap[normalizedQueryName];
+    // --- LÓGICA DE BUSCA MELHORADA ---
+    // 1. Tenta correspondência exata primeiro (mais rápido)
+    const exactMatch = hotelDataMap[normalizedQueryName];
+    if (exactMatch) {
+        return exactMatch;
+    }
 
-    if (hotel) {
-        return hotel;
+    // 2. Se falhar, tenta correspondência parcial (mais flexível)
+    // Procura por uma chave no mapa que CONTENHA a string de busca normalizada.
+    const partialMatchKey = Object.keys(hotelDataMap).find(key => 
+      key.includes(normalizedQueryName)
+    );
+
+    if (partialMatchKey && hotelDataMap[partialMatchKey]) {
+        return hotelDataMap[partialMatchKey];
     }
     
     // Se não encontrar, retorna o fallback
