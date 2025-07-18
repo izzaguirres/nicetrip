@@ -56,6 +56,8 @@ import {
   Flame,
   Gamepad2,
   Circle,
+  Luggage,
+  Sun, // Adicionado
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -78,7 +80,11 @@ export default function ResultadosPage() {
   const [isMobile, setIsMobile] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
 
-  const searchType = searchParams.get("categoria") === "hospedagem" ? "habitacion" : "paquetes";
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("categoria") === "hospedagem" ? "habitaciones"
+    : searchParams.get("categoria") === "passeio" ? "paseos"
+    : "paquetes"
+  );
   
   useEffect(() => {
     const checkIsMobile = () => {
@@ -92,6 +98,22 @@ export default function ResultadosPage() {
     
     return () => window.removeEventListener('resize', checkIsMobile)
   }, [])
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    
+    let categoria = 'paquete';
+    if (tab === "habitaciones") categoria = 'hospedagem';
+    if (tab === "paseos") categoria = 'passeio';
+    params.set("categoria", categoria);
+
+    // Simplificando a lógica: apenas muda a categoria e mantém os outros filtros
+    // A página de resultados irá renderizar o filtro certo, que por sua vez
+    // usará os parâmetros relevantes.
+    
+    router.push(`/resultados?${params.toString()}`);
+  };
 
   const [sortBy, setSortBy] = useState("relevance")
   const [comodidadesCache, setComodidadesCache] = useState<{[key: string]: Array<{icon: string, label: string}>}>({})
@@ -245,7 +267,7 @@ export default function ResultadosPage() {
         data_saida: searchParams.get("data") || undefined,
       };
     }
-  }, [searchParams, searchType]);
+  }, [searchParams, activeTab]);
 
   const [pessoas, setPessoas] = useState<PrecoPessoas>({
     adultos: parseInt(searchParams.get("adultos") || "2"),
@@ -263,7 +285,7 @@ export default function ResultadosPage() {
       setLoading(true);
       setError(null);
       let data = [];
-      if (searchType === 'habitacion') {
+      if (activeTab === 'habitaciones') {
         const checkin = filters.dateRange?.from
           ? filters.dateRange.from.toISOString().split('T')[0]
           : undefined;
@@ -273,12 +295,14 @@ export default function ResultadosPage() {
 
         const searchFilters: HabitacionSearchFilters = { checkin, checkout };
         data = await fetchHabitacionesData(searchFilters);
-      } else {
+      } else if (activeTab === 'paquetes') {
         const searchFilters: SearchFilters = { ...filters };
         data = await fetchRealData(searchFilters);
-      }
+      } 
+      // Não fazer nada para "paseos" por enquanto
+      
       console.log('📊 Dados recebidos do Supabase:', {
-        searchType,
+        searchType: activeTab,
         totalItems: data.length,
         tiposQuartoDisponiveis: [...new Set(data.map(item => item.tipo_quarto))],
         capacidadesDisponiveis: [...new Set(data.map(item => item.capacidade))],
@@ -296,7 +320,7 @@ export default function ResultadosPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, searchType]);
+  }, [filters, activeTab]);
 
   useEffect(() => {
     loadData();
@@ -388,7 +412,7 @@ export default function ResultadosPage() {
     
     // Filtrar por capacidade e lógica de pagantes
     const itemsFiltrados = items.filter(item => {
-      if (searchType === 'habitacion') {
+      if (activeTab === 'habitaciones') {
         // ✅ USAR NOVA LÓGICA DE PAGANTES
         const adultos = quartos.reduce((sum, q) => sum + q.adults, 0);
         const criancas_0_3 = quartos.reduce((sum, q) => sum + q.children0to3, 0);
@@ -426,7 +450,7 @@ export default function ResultadosPage() {
     });
 
     // Se for busca de pacotes, agrupa por hotel para mostrar só o melhor pacote
-    if (searchType === 'paquetes') {
+    if (activeTab === 'paquetes') {
       const pacotesPorHotel = new Map<string, any[]>()
       itemsFiltrados.forEach(pacote => {
         const hotel = pacote.hotel
@@ -488,14 +512,15 @@ export default function ResultadosPage() {
   const handleFilterSearch = (searchFilters: any) => {
     const params = new URLSearchParams()
     
-    if (searchType === 'habitacion') {
-      params.set("tipo", "habitacion")
+    if (activeTab === 'habitaciones') {
+      params.set("categoria", "hospedagem")
       if (searchFilters.destino) params.set("destino", searchFilters.destino)
       if (searchFilters.dateRange?.from)
         params.set("checkin", format(searchFilters.dateRange.from, "yyyy-MM-dd"))
       if (searchFilters.dateRange?.to)
         params.set("checkout", format(searchFilters.dateRange.to, "yyyy-MM-dd"))
-    } else {
+    } else if (activeTab === 'paquetes') {
+      params.set('categoria', 'paquete')
       if (searchFilters.salida) params.set('salida', searchFilters.salida)
       if (searchFilters.destino) params.set('destino', searchFilters.destino)
       const dataString = searchFilters.data ? format(searchFilters.data, 'yyyy-MM-dd') : undefined
@@ -624,11 +649,12 @@ export default function ResultadosPage() {
     const basePrice = precoCalculado || 0
     params.set('preco', basePrice.toString())
     
-    if (searchType === 'paquetes') {
-      params.set('preco_adulto', disponibilidade.preco_adulto.toString());
-      params.set('preco_crianca_0_3', disponibilidade.preco_crianca_0_3.toString());
-      params.set('preco_crianca_4_5', disponibilidade.preco_crianca_4_5.toString());
-      params.set('preco_crianca_6_mais', disponibilidade.preco_crianca_6_mais.toString());
+    if (activeTab === 'paquetes') {
+      const dadosValidados = validarDadosPreco(disponibilidade);
+      params.set('preco_adulto', dadosValidados.preco_adulto.toString());
+      params.set('preco_crianca_0_3', dadosValidados.preco_crianca_0_3.toString());
+      params.set('preco_crianca_4_5', dadosValidados.preco_crianca_4_5.toString());
+      params.set('preco_crianca_6_mais', dadosValidados.preco_crianca_6_mais.toString());
       if (disponibilidade.noites_hotel) params.set('noites_hotel', disponibilidade.noites_hotel.toString())
       if (disponibilidade.dias_totais) params.set('dias_totais', disponibilidade.dias_totais.toString())
       if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
@@ -648,7 +674,7 @@ export default function ResultadosPage() {
     }))
     params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
     
-    const url = searchType === 'habitacion' ? '/detalhes-hospedagem' : '/detalhes';
+    const url = activeTab === 'habitaciones' ? '/detalhes-hospedagem' : '/detalhes';
     return `${url}?${params.toString()}`
   }
 
@@ -687,9 +713,48 @@ export default function ResultadosPage() {
       <Header />
       
       <div className="pt-20">
-        <div className="bg-gray-50 border-b">
+        <div className="bg-gray-100 border-b">
           <div className="container mx-auto px-4 lg:px-[70px] py-6">
-            {searchType === 'habitacion' ? (
+            {/* ABAS DE SELEÇÃO */}
+            <div className="mb-6 flex justify-center">
+              <div className="flex bg-white shadow-md rounded-2xl p-1.5 max-w-md mx-auto">
+                <button
+                  onClick={() => handleTabChange("paquetes")}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                    activeTab === "paquetes" 
+                      ? "bg-orange-500 text-white shadow-lg" 
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  <Luggage className="w-4 h-4 mr-2" />
+                  Paquetes
+                </button>
+                <button
+                  onClick={() => handleTabChange("habitaciones")}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                    activeTab === "habitaciones"
+                      ? "bg-orange-500 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  <Bed className="w-4 h-4 mr-2" />
+                  Habitaciones
+                </button>
+                <button
+                  onClick={() => handleTabChange("paseos")}
+                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                    activeTab === "paseos"
+                      ? "bg-orange-500 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  }`}
+                >
+                  <Sun className="w-4 h-4 mr-2" />
+                  Paseos
+                </button>
+              </div>
+            </div>
+          
+            {activeTab === 'habitaciones' ? (
               <HabitacionesSearchFilter
                 variant="results"
                 initialFilters={{
@@ -712,7 +777,7 @@ export default function ResultadosPage() {
                 }}
                 onSearch={handleFilterSearch}
               />
-            ) : (
+            ) : activeTab === 'paquetes' ? (
               <UnifiedSearchFilter 
                 variant="results"
                 initialFilters={{
@@ -737,6 +802,11 @@ export default function ResultadosPage() {
                 }}
                 onSearch={handleFilterSearch}
               />
+            ) : (
+              <div className="text-center py-8 bg-white rounded-2xl shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Paseos</h3>
+                <p className="text-gray-600">Esta función está en desarrollo.</p>
+              </div>
             )}
           </div>
         </div>
@@ -746,10 +816,10 @@ export default function ResultadosPage() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                  {searchType === 'habitacion' ? '🏨 Habitaciones para ti' : '🏖️ Paquetes para ti'}
+                  {activeTab === 'habitaciones' ? '🏨 Habitaciones para ti' : '🏖️ Paquetes para ti'}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {resultados.length} {searchType === 'habitacion' ? (resultados.length === 1 ? 'habitación disponible' : 'habitaciones disponibles') : (resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles')}
+                  {resultados.length} {activeTab === 'habitaciones' ? (resultados.length === 1 ? 'habitación disponible' : 'habitaciones disponibles') : (resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles')}
                   {filters.destino && ` para ${filters.destino}`}
                 </p>
               </div>
@@ -797,15 +867,15 @@ export default function ResultadosPage() {
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {searchType === 'habitacion' ? 'Ninguna habitación encontrada' : 'Ninguna disponibilidad encontrada'}
+                {activeTab === 'habitaciones' ? 'Ninguna habitación encontrada' : 'Ninguna disponibilidad encontrada'}
               </h3>
               <p className="text-gray-600 mb-4">
-                {searchType === 'habitacion' 
+                {activeTab === 'habitaciones' 
                   ? 'No hay habitaciones disponibles que coincidan con tu búsqueda'
                   : 'Nenhum pacote encontrado com essas opções'
                 }
               </p>
-              {searchType === 'habitacion' && (
+              {activeTab === 'habitaciones' && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
                   <h4 className="font-semibold text-blue-900 mb-2">💡 Dica sobre tipos de habitación:</h4>
                   <ul className="text-sm text-blue-800 text-left space-y-1">
@@ -831,7 +901,7 @@ export default function ResultadosPage() {
                 let installments = 1;
                 let installmentValue = 0;
                 
-                if (searchType === 'habitacion') {
+                if (activeTab === 'habitaciones') {
                   // ✅ USAR NOVA LÓGICA DE PREÇOS PARA HOSPEDAGEM
                   const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
                   const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
@@ -874,7 +944,7 @@ export default function ResultadosPage() {
                 // --- DEBUG ---
                 if (!hotelIdentifier) {
                   console.log("HOTEL IDENTIFIER INDEFINIDO:", disponibilidade);
-                } else if (searchType === 'paquetes' && !getHotelData(hotelIdentifier)) {
+                } else if (activeTab === 'paquetes' && !getHotelData(hotelIdentifier)) {
                   console.log(`DEBUG: Pacote com hotel não encontrado no mapa -> ${hotelIdentifier}`);
                 }
                 // --- FIM DEBUG ---
@@ -930,7 +1000,7 @@ export default function ResultadosPage() {
                       </div>
                       
                       <div className="grid grid-cols-2 gap-2 text-sm mt-4">
-                        {searchType === 'paquetes' ? (
+                        {activeTab === 'paquetes' ? (
                           <>
                             <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
                             <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
@@ -967,12 +1037,12 @@ export default function ResultadosPage() {
                       <div className="border-t pt-4 mt-2 flex justify-between items-center">
                         <div>
                           <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
-                          {installments > 1 && searchType === 'paquetes' && (
+                          {installments > 1 && activeTab === 'paquetes' && (
                             <p className="text-sm text-green-600 font-semibold">
                               hasta {installments}x de {formatPrice(installmentValue)}
                             </p>
                           )}
-                          {searchType === 'habitacion' && (() => {
+                          {activeTab === 'habitaciones' && (() => {
                             const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
                             const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
                             const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);

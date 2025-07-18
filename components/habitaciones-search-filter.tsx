@@ -85,6 +85,9 @@ export function HabitacionesSearchFilter({
   const handlePopoverOpenChange = (open: boolean) => {
     if (open) {
       setTempDateRange(filters.dateRange)
+      if (filters.dateRange?.from) {
+        setMonth(filters.dateRange.from)
+      }
     }
     setIsCalendarOpen(open)
   }
@@ -158,7 +161,7 @@ export function HabitacionesSearchFilter({
       onSearch(filters)
     } else {
       const params = new URLSearchParams()
-      params.set("tipo", "habitacion")
+      params.set("categoria", "hospedagem") // ✅ ADICIONADO PARA DIFERENCIAR
       if (filters.destino) params.set("destino", filters.destino)
       if (filters.dateRange?.from)
         params.set("checkin", format(filters.dateRange.from, "yyyy-MM-dd"))
@@ -288,6 +291,9 @@ export function HabitacionesSearchFilter({
                   month={month}
                   onMonthChange={setMonth}
                   disabled={{ before: new Date() }}
+                  classNames={{
+                    day_today: "text-current", // Revertendo para o padrão, ou pode ser "opacity-50"
+                  }}
                 />
               </div>
               <div className="border-t bg-gradient-to-r from-gray-50 to-gray-100 p-3 flex justify-between items-center">
