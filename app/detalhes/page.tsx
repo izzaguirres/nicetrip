@@ -92,11 +92,11 @@ export default function DetalhesPage() {
   const criancas_6 = parseInt(searchParams.get('criancas_6') || '0')
   
   const ADDITIONAL_SERVICES = [
-    { id: 1, name: 'Butaca Cama', description: 'assento reclinável tipo cama', price: 100, icon: Bed },
-    { id: 2, name: 'Butaca Especial Panorámica', description: 'frente al bus, com cafetera', price: 50, icon: Coffee },
-    { id: 3, name: 'Media Pensión', description: 'Cenas restantes en el hotel', price: 90, icon: Utensils },
-    { id: 4, name: 'Pack de 2 Actividades', description: 'experiências extras no destino', price: 70, icon: Waves },
-    { id: 5, name: '6 Cenas + 2 Actividades', description: 'PROMOÇÃO', price: 120, icon: Sparkles },
+    { id: 1, name: 'Butaca Cama', description: 'Asientos más amplios, en 3 posiciones hasta 140°.', price: 100, icon: Bed },
+    { id: 2, name: 'Butacas Especiales', description: 'Frente al bus arriba / espacio cafetera.', price: 50, icon: Coffee },
+    { id: 3, name: 'Media Pensión', description: 'Cenas restantes en diferentes restos.', price: 90, icon: Utensils },
+    { id: 4, name: 'Pack de 2 Actividades', description: 'Barra da Lagoa y Joaquina + Jurerê.', price: 70, icon: Waves },
+    { id: 5, name: 'Promo Pack Full', description: '2 actividades + 6 cenas.', price: 120, icon: Sparkles },
   ];
 
   const handleAddonToggle = (serviceId: number) => {
