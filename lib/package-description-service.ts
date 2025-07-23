@@ -24,46 +24,48 @@ class PackageDescriptionService {
 
     try {
       console.log('🔍 DESCRIPTIONS: Buscando no Supabase para:', { transporte, destino, hotel })
-      console.log('📋 DESCRIPTIONS: Query → SELECT titulo, descripcion_detallada FROM package_descriptions')
       
-      // Buscar descrição mais específica primeiro (hotel específico)
+      // ✅ ATUALIZADO: Buscar da tabela `hospedagens` usando o nome do hotel
+      // Tentar buscar pelo slug primeiro, que deve ser o identificador único
       let { data, error } = await supabase
-        .from('package_descriptions')
-        .select('titulo, descripcion_detallada')
-        .eq('transporte', transporte)
-        .eq('destino', destino)
-        .ilike('hotel', hotel) // Use ilike for case-insensitive matching
+        .from('hospedagens')
+        .select('nome, slug, descricao_completa') // Corrigido para 'slug'
+        .eq('slug', hotel) // Corrigido para 'slug'
         .limit(1)
         .single()
 
-      console.log('📊 DESCRIPTIONS: Resultado específico:', { data, error })
-
-      // Se não encontrou descrição específica do hotel, buscar genérica do destino+transporte
+      // Se não encontrou pelo slug, tentar pelo nome (ilike) como fallback
       if (error || !data) {
-        console.log('🔄 DESCRIPTIONS: Buscando descrição genérica para destino+transporte')
-        
-        const { data: genericData, error: genericError } = await supabase
-          .from('package_descriptions')
-          .select('titulo, descripcion_detallada')
-          .eq('transporte', transporte)
-          .eq('destino', destino)
-          .is('hotel', null) // hotel NULL = genérico
+        console.log(`⚠️ DESCRIPTIONS: Não encontrado pelo slug "${hotel}". Tentando pelo nome...`)
+        const { data: dataByName, error: errorByName } = await supabase
+          .from('hospedagens')
+          .select('nome, slug, descricao_completa') // Corrigido para 'slug'
+          .ilike('nome', `%${hotel.replace(/-/g, ' ')}%`) // Substitui hífens por espaço para abranger mais casos
           .limit(1)
           .single()
-
-        console.log('📊 DESCRIPTIONS: Resultado genérico:', { data: genericData, error: genericError })
-
-        if (genericError || !genericData) {
-          console.log('⚠️ DESCRIPTIONS: Não encontrado, usando fallback')
-          return this.getFallbackDescription(transporte, destino, hotel)
+        
+        // Se encontrou pelo nome, usa esses dados
+        if (dataByName) {
+          data = dataByName
+          error = null // Limpa o erro anterior
+        } else {
+          error = errorByName // Mantém o erro da segunda busca
         }
+      }
 
-        data = genericData
+      console.log('📊 DESCRIPTIONS: Resultado final da busca em hospedagens:', { data, error })
+
+      // Se der erro ou não encontrar, usar fallback
+      if (error || !data || !data.descricao_completa) {
+        console.log('⚠️ DESCRIPTIONS: Descrição não encontrada em `hospedagens` após múltiplas tentativas, usando fallback.')
+        return this.getFallbackDescription(transporte, destino, hotel)
       }
 
       const description: PackageDescription = {
-        titulo: data.titulo || this.getFallbackDescription(transporte, destino, hotel).titulo,
-        descripcion: data.descripcion_detallada || this.getFallbackDescription(transporte, destino, hotel).descripcion
+        // Manter o título dinâmico do fallback, pois a tabela de hospedagens não tem título de pacote
+        titulo: this.getFallbackDescription(transporte, destino, hotel).titulo,
+        // Usar a descrição completa da tabela hospedagens
+        descripcion: data.descricao_completa 
       }
 
       // Cache result

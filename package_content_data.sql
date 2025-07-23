@@ -144,6 +144,98 @@ El paquete incluye traslado de ida y vuelta del aeropuerto, desayuno completo to
   3
 );
 
+-- ==============================================================
+-- TEMPLATE GENÉRICO PARA CONDICIONES DE HOSPEDAJES
+-- Inserido para ser usado na página de detalhes de hospedagem.
+-- ==============================================================
+INSERT INTO package_content_templates (
+  transporte,
+  destino,
+  hotel,
+  titulo,
+  descricao,
+  descricao_detalhada,
+  highlights,
+  includes,
+  condicoes_cancelacao,
+  condicoes_equipaje,
+  condicoes_documentos,
+  condicoes_extras,
+  ativo,
+  prioridade
+) VALUES
+(
+  'Hospedagem',
+  NULL,
+  NULL,
+  'Condiciones Generales de Hospedaje',
+  'Condiciones de reserva, pago y cancelación para estadías.',
+  NULL,
+  '[]',
+  '[]',
+  'Reservas y Pagos
+**Opción A:** 30% del valor total para reservar, más un 20% como refuerzo (con fecha de pago a combinar) y el 50% restante 15 días antes del check-in.
+**Opción B:** 50% del valor total para reservar y el restante al momento del check-in.
+
+Las modalidades de cobro permitidas y aceptadas por la empresa son las siguientes:
+	•	Depósitos y/o transferencias bancarias a las cuentas informadas por la empresa.
+	•	Otros medios, como efectivo y/o transferencias internacionales, debidamente informados por la empresa bajo las condiciones específicas de cada caso.
+
+**Importante:** Cada pago realizado deberá ser informado por el cliente a la empresa a través de los medios vigentes (WhatsApp: +55 48 9860-1754).
+
+⸻
+
+**Cancelaciones**
+**Parcialmente reembolsable:** Permite la cancelación con reembolso parcial. El 10% del valor total del tour es tomado en concepto de reserva y **no es reembolsable.**
+En caso de enfermedad, fuerza mayor o fallecimiento de un familiar directo (siempre con justificativo), el cliente contará con un reconocimiento del importe abonado para aplicarlo en un próximo tour o servicio, así como la posibilidad de transferir su reserva.
+
+
+**Gestión de cancelación y/o modificaciones**
+La cancelación y/o modificación puede gestionarse a través de nuestro canal de atención al cliente.',
+  'Reservas y Pagos
+**Opción A:** 30% del valor total para reservar, más un 20% como refuerzo (con fecha de pago a combinar) y el 50% restante 15 días antes del check-in.
+**Opción B:** 50% del valor total para reservar y el restante al momento del check-in.
+
+Las modalidades de cobro permitidas y aceptadas por la empresa son las siguientes:
+	•	Depósitos y/o transferencias bancarias a las cuentas informadas por la empresa.
+	•	Otros medios, como efectivo y/o transferencias internacionales, debidamente informados por la empresa bajo las condiciones específicas de cada caso.
+
+**Importante:** Cada pago realizado deberá ser informado por el cliente a la empresa a través de los medios vigentes (WhatsApp: +55 48 9860-1754).
+
+⸻
+
+**Cancelaciones**
+**Parcialmente reembolsable:** Permite la cancelación con reembolso parcial. El 10% del valor total del tour es tomado en concepto de reserva y **no es reembolsable.**
+En caso de enfermedad, fuerza mayor o fallecimiento de un familiar directo (siempre con justificativo), el cliente contará con un reconocimiento del importe abonado para aplicarlo en un próximo tour o servicio, así como la posibilidad de transferir su reserva.
+
+
+**Gestión de cancelación y/o modificaciones**
+La cancelación y/o modificación puede gestionarse a través de nuestro canal de atención al cliente.',
+  'Reservas y Pagos
+**Opción A:** 30% del valor total para reservar, más un 20% como refuerzo (con fecha de pago a combinar) y el 50% restante 15 días antes del check-in.
+**Opción B:** 50% del valor total para reservar y el restante al momento del check-in.
+
+Las modalidades de cobro permitidas y aceptadas por la empresa son las siguientes:
+	•	Depósitos y/o transferencias bancarias a las cuentas informadas por la empresa.
+	•	Otros medios, como efectivo y/o transferencias internacionales, debidamente informados por la empresa bajo las condiciones específicas de cada caso.
+
+**Importante:** Cada pago realizado deberá ser informado por el cliente a la empresa a través de los medios vigentes (WhatsApp: +55 48 9860-1754).
+
+⸻
+
+**Cancelaciones**
+**Parcialmente reembolsable:** Permite la cancelación con reembolso parcial. El 10% del valor total del tour es tomado en concepto de reserva y **no es reembolsable.**
+En caso de enfermedad, fuerza mayor o fallecimiento de un familiar directo (siempre con justificativo), el cliente contará con um reconhecimento del importe abonado para aplicarlo en un próximo tour o servicio, así como la posibilidad de transferir su reserva.
+
+
+**Gestión de cancelación y/o modificaciones**
+La cancelación y/o modificación puede gestionarse a través de nuestro canal de atención al cliente.',
+  NULL,
+  true,
+  4
+);
+
+
 -- ====================================
 -- FUNCIÓN PARA APLICAR VARIABLES
 -- ====================================

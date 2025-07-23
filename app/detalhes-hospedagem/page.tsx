@@ -49,6 +49,7 @@ import {
   Bus
 } from "lucide-react"
 import dynamic from 'next/dynamic'
+import { supabase } from "@/lib/supabase" // Importar supabase client
 
 const MapDisplay = dynamic(() => import('@/components/ui/map-display'), {
   ssr: false,
@@ -71,6 +72,7 @@ export default function DetalhesPage() {
   const [showConditionsModal, setShowConditionsModal] = useState(false)
   const [selectedConditionType, setSelectedConditionType] = useState<'cancelacion' | 'equipaje' | 'documentos' | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
+  const [hospedagemConditions, setHospedagemConditions] = useState<string | null>(null);
 
   // Dados dinâmicos da URL (movidos para o topo)
   const hotelName = searchParams.get('hotel') || 'Hotel Premium'
@@ -241,6 +243,36 @@ export default function DetalhesPage() {
     
     carregarHospedagem()
   }, [displayName])
+
+  // ✅ CARREGAR CONDIÇÕES DE HOSPEDAGEM
+  useEffect(() => {
+    const carregarHospedagemCondicoes = async () => {
+      try {
+        console.log('🔍 CONDIÇÕES HOSPEDAGEM: Buscando template com id 15...')
+        const { data, error } = await supabase
+          .from('package_content_templates')
+          .select('condicoes_cancelacao_completa')
+          .eq('id', 15)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setHospedagemConditions(data.condicoes_cancelacao_completa);
+          console.log('✅ CONDIÇÕES HOSPEDAGEM: Conteúdo carregado.');
+        } else {
+          console.log('⚠️ CONDIÇÕES HOSPEDAGEM: Template com id 15 não encontrado.');
+        }
+      } catch (error) {
+        console.error('❌ CONDIÇÕES HOSPEDAGEM: Erro ao buscar condições:', error);
+        setHospedagemConditions('Não foi possível carregar as condições.');
+      }
+    };
+
+    carregarHospedagemCondicoes();
+  }, []);
 
   // ✅ CARREGAR CONDIÇÕES DINÂMICAS DO PACOTE
   useEffect(() => {
@@ -799,92 +831,17 @@ export default function DetalhesPage() {
                   
                   {activeTab === "condiciones" && (
                     <div className="space-y-4">
-                      {packageConditions ? (
-                        // ✅ CONDIÇÕES DINÂMICAS DO SUPABASE
-                        <>
-                          {/* Condiciones de Cancelación */}
-                          <div className="border-b border-gray-100 pb-3">
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Condiciones de cancelación</h4>
-                            <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.cancelacion}</p>
-                          </div>
-
-                          {/* Política de Equipaje */}
-                          <div className="border-b border-gray-100 pb-3">
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Política de equipaje</h4>
-                            <p className="text-gray-700 text-sm font-light mb-2">{packageConditions.equipaje}</p>
-                          </div>
-
-                          {/* Requisitos */}
-                          <div className="pt-2">
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Requisitos</h4>
-                            <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1 mb-2">
-                              <li>{packageConditions.documentos}</li>
-                              <li>Vacunas al día (consultar requisitos actuales)</li>
-                              <li>Seguro de viaje incluido en el paquete</li>
-                            </ul>
-                            {(packageConditions.documentos_completa || packageConditions.equipaje_completa || packageConditions.cancelacion_completa) && (
-                              <div className="mt-4">
-                                <button
-                                  onClick={() => openConditionsModal('documentos')}
-                                  className="text-[#EE7215] hover:text-[#E65100] text-sm font-medium underline decoration-1 underline-offset-2 transition-colors"
-                                >
-                                  Ver Condiciones Completas
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </>
-                      ) : packageConditions === null && transporte ? (
-                        // ✅ LOADING STATE
+                      {hospedagemConditions ? (
+                        <div 
+                          className="prose prose-sm max-w-none text-gray-700"
+                          dangerouslySetInnerHTML={{ 
+                            __html: processMarkdownFormatting(hospedagemConditions)
+                          }} 
+                        />
+                      ) : (
                         <div className="flex items-center gap-2 py-4">
                           <div className="w-4 h-4 border-2 border-[#EE7215] border-t-transparent rounded-full animate-spin"></div>
-                          <span className="text-gray-500 text-sm">Cargando condiciones personalizadas...</span>
-                        </div>
-                      ) : (
-                        // ✅ FALLBACK ESTÁTICO
-                        <div className="space-y-4">
-                          <div className="p-3 bg-blue-50 border-l-4 border-blue-400 rounded mb-4">
-                            <p className="text-sm text-blue-700 font-medium">
-                              📋 Condiciones no disponibles en base de datos - usando contenido estático
-                            </p>
-                          </div>
-                          
-                          {/* Condiciones de Cancelación */}
-                          <div className="border-b border-gray-100 pb-3">
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Condiciones de cancelación</h4>
-                            <p className="text-gray-700 text-sm font-light mb-2">
-                              {transporte === 'Aéreo' 
-                                ? "Cancelación gratuita hasta 72 horas antes del vuelo."
-                                : "Cancelación gratuita hasta 24 horas antes del viaje."
-                              }
-                            </p>
-                          </div>
-
-                          {/* Política de Equipaje */}
-                          <div className="border-b border-gray-100 pb-3">
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Política de equipaje</h4>
-                            <p className="text-gray-700 text-sm font-light mb-2">
-                              {transporte === 'Aéreo' 
-                                ? "Incluye 1 maleta de hasta 23kg por persona en vuelo."
-                                : "Equipaje sin restricciones de peso en bus."
-                              }
-                            </p>
-                          </div>
-
-                          {/* Requisitos */}
-                          <div>
-                            <h4 className="font-normal text-gray-900 text-sm mb-2">Requisitos</h4>
-                            <ul className="list-disc list-inside text-gray-700 text-sm font-light space-y-1 mb-2">
-                              <li>
-                                {transporte === 'Aéreo' 
-                                  ? "Documento de identidad válido y confirmación de vuelo."
-                                  : "Solo documento de identidad válido requerido."
-                                }
-                              </li>
-                              <li>Vacunas al día (consultar requisitos actuales)</li>
-                              <li>Seguro de viaje incluido en el paquete</li>
-                            </ul>
-                          </div>
+                          <span className="text-gray-500 text-sm">Cargando condiciones...</span>
                         </div>
                       )}
                     </div>
