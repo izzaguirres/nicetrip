@@ -154,14 +154,22 @@ export default function DetalhesPage() {
   const diasTotaisParam = searchParams.get('dias_totais')
   const noisesHotelParam = searchParams.get('noites_hotel')
   
-  const diasNoites = (diasTotaisParam && noisesHotelParam) 
-    ? { 
-        dias: parseInt(diasTotaisParam), 
-        noites: parseInt(noisesHotelParam) 
-      }
-    : transporte === 'Aéreo' 
-      ? { dias: 8, noites: 7 }  // Aéreo: 8 dias, 7 noites (fallback)
-      : { dias: 10, noites: 7 } // Bus: 10 dias, 7 noites (fallback)
+  // Lógica para calcular dias e noites com a nova regra para Aéreo
+  const getDiasNoites = () => {
+    // Pega os dados da URL ou usa fallback
+    const baseDias = diasTotaisParam ? parseInt(diasTotaisParam) : (transporte === 'Aéreo' ? 8 : 10);
+    const baseNoites = noisesHotelParam ? parseInt(noisesHotelParam) : 7;
+    
+    if (transporte === 'Aéreo') {
+      // Para Aéreo, a duração em dias é a mesma que em noites, pois a viagem é no mesmo dia.
+      return { dias: baseNoites, noites: baseNoites };
+    }
+    
+    // Para Bus, mantém a lógica original
+    return { dias: baseDias, noites: baseNoites };
+  };
+  
+  const diasNoites = getDiasNoites();
   
   const totalCriancas = criancas_0_3 + criancas_4_5 + criancas_6
   const totalPessoas = adultos + totalCriancas
@@ -1215,10 +1223,12 @@ export default function DetalhesPage() {
                   {searchType === 'paquetes' && (
                     <>
                       <div className="space-y-2 text-sm mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Taxas Administrativas</span>
-                          <span className="text-gray-600">3%</span>
-                        </div>
+                        {transporte !== 'Aéreo' && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Taxas Administrativas</span>
+                            <span className="text-gray-600">3%</span>
+                          </div>
+                        )}
                         {transporte === 'Aéreo' && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Impostos e Encargos</span>

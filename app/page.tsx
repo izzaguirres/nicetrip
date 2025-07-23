@@ -101,7 +101,7 @@ export default function HomePage() {
                 Condiciones
               </Link>
               <Link
-                href="#"
+                href="/contacto"
                 className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border hover:border-gray-300 px-3 py-2 rounded-xl font-medium text-[15px] transition-all duration-300 hover:scale-[1.02]"
               >
                 Contacto
@@ -144,7 +144,7 @@ export default function HomePage() {
                 <Link href="/condiciones" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
                   Condiciones
                 </Link>
-                <Link href="#" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
+                <Link href="/contacto" className="text-gray-600 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-xl font-medium transition-all duration-300">
                   Contacto
                 </Link>
                 <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white rounded-xl w-full py-2.5 font-semibold transition-all duration-300 overflow-hidden group">
@@ -224,10 +224,10 @@ export default function HomePage() {
               <div className="lg:container lg:mx-auto lg:px-[70px]">
                 {/* Tabs moved outside the main content box */}
                 <div className="mb-4 flex justify-center">
-                  <div className="flex bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
+                  <div className="flex gap-[10px] bg-white/15 backdrop-blur-xl border border-white/30 rounded-2xl p-1.5 max-w-[380px] lg:max-w-md mx-auto shadow-[0_8px_32px_rgba(0,0,0,0.2)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all duration-300">
                     <button
                       onClick={() => setActiveTab("paquetes")}
-                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                      className={`relative flex items-center justify-center py-2 px-3 lg:py-2.5 lg:px-4 whitespace-nowrap rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 overflow-hidden group ${
                         activeTab === "paquetes" 
                           ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
                           : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
@@ -237,11 +237,11 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                       )}
                       <Luggage className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                      <span className="relative z-10 truncate">Paquetes</span>
+                      <span className="relative z-10">Paquetes</span>
                     </button>
                     <button
                       onClick={() => setActiveTab("habitaciones")}
-                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                      className={`relative flex items-center justify-center py-2 px-3 lg:py-2.5 lg:px-4 whitespace-nowrap rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 overflow-hidden group ${
                         activeTab === "habitaciones"
                           ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]"
                           : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
@@ -251,11 +251,11 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                       )}
                       <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                      <span className="relative z-10 truncate">Habitaciones</span>
+                      <span className="relative z-10">Habitaciones</span>
                     </button>
                     <button
                       onClick={() => setActiveTab("paseos")}
-                      className={`relative flex-1 py-2 px-2 lg:py-2.5 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center overflow-hidden group ${
+                      className={`relative flex items-center justify-center py-2 px-3 lg:py-2.5 lg:px-4 whitespace-nowrap rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 overflow-hidden group ${
                         activeTab === "paseos" 
                           ? "bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white shadow-[0_4px_16px_rgba(238,114,21,0.4)] transform scale-[1.02]" 
                           : "text-gray-200 hover:text-white hover:bg-white/10 hover:scale-[1.01]"
@@ -265,7 +265,7 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                       )}
                       <Sun className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                      <span className="relative z-10 truncate">Paseos</span>
+                      <span className="relative z-10">Paseos</span>
                     </button>
                   </div>
                 </div>

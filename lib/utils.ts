@@ -10,7 +10,13 @@ export function calculateFinalPrice(basePrice: number, transportType: 'Bus' | 'B
   const adminFeeRate = 0.03;
   const airTransportFee = 200;
 
-  const adminFee = basePrice * adminFeeRate;
+  let adminFee = 0; // Inicia a taxa como zero
+
+  // Apenas calcula a taxa se o transporte NÃO for Aéreo
+  if (transportType !== 'Aéreo') {
+    adminFee = basePrice * adminFeeRate;
+  }
+  
   let finalPrice = basePrice + adminFee;
 
   if (transportType === 'Aéreo') {
