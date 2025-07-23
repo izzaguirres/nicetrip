@@ -177,7 +177,7 @@ export default function CondicionesPage() {
       
       <main className="pt-20">
         <div className="container mx-auto px-4 lg:px-[70px]">
-          <section className="relative w-full h-48 md:h-64 lg:h-80 rounded-2xl overflow-hidden">
+          <section className="relative w-full h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden">
             <Image 
               src="/images/condiciones.jpg"
               alt="Mostrador de check-in de viagens"
@@ -188,79 +188,78 @@ export default function CondicionesPage() {
           </section>
         </div>
 
-        <div className="container mx-auto px-4 lg:px-[70px] max-w-4xl py-12 lg:py-16">
-          <div className="text-center mb-12">
-            <span className="inline-block text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-100 px-3 py-1 rounded-full mb-4">
-              Condiciones
-            </span>
-            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-              Condiciones de Servicio
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Todo lo que necesitás saber antes de viajar con Nice Trip.
-            </p>
-          </div>
+        <section className="pt-16 lg:pt-24">
+          <div className="container mx-auto px-4 lg:px-[70px] max-w-4xl">
+            <div className="text-center mb-12">
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                Condiciones de Servicio
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Todo lo que necesitás saber antes de viajar con Nice Trip.
+              </p>
+            </div>
 
-          {loading ? (
-            <div className="space-y-6">
-              <div className="h-12 w-80 mx-auto bg-gray-200 rounded-2xl animate-pulse" />
-              <div className="h-96 bg-gray-200 rounded-2xl animate-pulse" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-12 border rounded-2xl bg-gray-50">
-              <p className="text-red-600 mb-4">Error al cargar las condiciones</p>
-              <Button 
-                onClick={fetchConditions}
-                className="bg-[#EE7215] hover:bg-[#EE7215]/90"
-              >
-                Intentar Nuevamente
-              </Button>
-            </div>
-          ) : (
-            <div>
-              <div className="flex justify-center mb-10">
-                <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl">
-                  {conditions.map((condition) => (
-                    <button
-                      key={condition.tipo}
-                      onClick={() => setActiveTab(condition.tipo)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                        activeTab === condition.tipo
-                          ? 'bg-white text-orange-600 shadow-sm border border-gray-200'
-                          : 'text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {getTabIcon(condition.tipo)}
-                      <span>{condition.titulo}</span>
-                    </button>
-                  ))}
-                </div>
+            {loading ? (
+              <div className="space-y-6">
+                <div className="h-12 w-80 mx-auto bg-gray-200 rounded-2xl animate-pulse" />
+                <div className="h-96 bg-gray-200 rounded-2xl animate-pulse" />
               </div>
-
-              {activeCondition && (
-                <div className="animate-fade-in bg-gray-50 border border-gray-200 rounded-2xl p-6 lg:p-8">
-                  <h2 className="text-lg font-bold text-gray-800 mb-6 uppercase tracking-wider">
-                    {activeCondition.titulo === 'Generales' ? 'Condiciones Generales' : `Condiciones para ${activeCondition.titulo}`}
-                  </h2>
-                  <div className="space-y-4">
-                    {formatContent(activeCondition.conteudo)}
+            ) : error ? (
+              <div className="text-center py-12 border rounded-2xl bg-gray-50">
+                <p className="text-red-600 mb-4">Error al cargar las condiciones</p>
+                <Button 
+                  onClick={fetchConditions}
+                  className="bg-[#EE7215] hover:bg-[#EE7215]/90"
+                >
+                  Intentar Nuevamente
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex justify-center mb-10">
+                  <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl">
+                    {conditions.map((condition) => (
+                      <button
+                        key={condition.tipo}
+                        onClick={() => setActiveTab(condition.tipo)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                          activeTab === condition.tipo
+                            ? 'bg-white text-orange-600 shadow-sm border border-gray-200'
+                            : 'text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {getTabIcon(condition.tipo)}
+                        <span>{condition.titulo}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          <div className="mt-16 text-center">
-            <Button
-              onClick={() => router.back()}
-              variant="outline"
-              className="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-300 hover:border-[#EE7215] hover:text-[#EE7215] transition-all duration-300 rounded-xl"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Volver
-            </Button>
+                {activeCondition && (
+                  <div className="animate-fade-in bg-gray-50 border border-gray-200 rounded-2xl p-6 lg:p-8">
+                    <h2 className="text-lg font-bold text-gray-800 mb-6 uppercase tracking-wider">
+                      {activeCondition.titulo === 'Generales' ? 'Condiciones Generales' : `Condiciones para ${activeCondition.titulo}`}
+                    </h2>
+                    <div className="space-y-4">
+                      {formatContent(activeCondition.conteudo)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-16 text-center">
+              <Button
+                onClick={() => router.back()}
+                variant="outline"
+                className="inline-flex items-center gap-2 px-6 py-3 border-2 border-gray-300 hover:border-[#EE7215] hover:text-[#EE7215] transition-all duration-300 rounded-xl"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver
+              </Button>
+            </div>
           </div>
-        </div>
+        </section>
       </main>
 
       <Footer />

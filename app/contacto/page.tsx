@@ -35,34 +35,21 @@ export default function ContactoPage() {
       <Header />
       <main className="pt-20">
         {/* Hero Section */}
-        <section className="relative w-full h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden">
-          <Image
-            src="/images/contacto.jpg"
-            alt="Escritório moderno"
-            fill
-            className="object-cover"
-            priority
-          />
-        </section>
+        <div className="container mx-auto px-4 lg:px-[70px]">
+          <section className="relative w-full h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden">
+            <Image
+              src="/images/contacto.jpg"
+              alt="Escritório moderno"
+              fill
+              className="object-cover"
+              priority
+            />
+          </section>
+        </div>
 
         {/* Content Section */}
-        <section className="py-16 lg:py-24">
-          <div className="relative z-10 container mx-auto px-4 lg:px-[70px] h-full flex flex-col justify-center items-center text-center text-white">
-            {/* Text removed from here */}
-          </div>
-        </section>
-
-        {/* Content Section */}
-        <section className="py-16 lg:py-24">
+        <section className="pt-16 lg:pt-24">
           <div className="container mx-auto px-4 lg:px-[70px]">
-            <div className="text-center mb-12">
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900">
-                ¡Ponte en Contacto!
-              </h1>
-              <p className="mt-4 text-lg max-w-2xl mx-auto text-gray-600">
-                Estamos siempre listos para atender tus necesidades y aclarar tus dudas.
-              </p>
-            </div>
             <div className="grid lg:grid-cols-3 gap-12">
               {/* Form Column */}
               <div className="lg:col-span-2">
