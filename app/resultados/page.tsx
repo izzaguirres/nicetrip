@@ -10,6 +10,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
 import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filter"
+import { PaseosSearchFilter } from "@/components/paseos-search-filter"
 import { DisponibilidadeFilter, PrecoPessoas } from "@/lib/supabase"
 import { fetchRealData, fetchHabitacionesData, SearchFilters, HabitacionSearchFilters } from "@/lib/supabase-service"
 import { getHospedagemData, formatComodidadesForCards, COMODIDADES_GENERICAS } from "@/lib/hospedagens-service"
@@ -65,6 +66,32 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale";
 import { DateRange } from "react-day-picker"
 import { getHotelData } from "@/lib/hotel-data"
+import { PaseoCard } from "@/components/ui/paseo-card"
+import type { Paseo } from "@/lib/passeios-service"
+
+// Mock data for Paseos - SERÁ REMOVIDO
+// const mockPaseos: Paseo[] = [
+//   {
+//     id: "1",
+//     nome: "Paseo en Barco Pirata",
+//     imagem: "/images/placeholder.jpg",
+//     local: "Canasvieiras",
+//     duracao: "4 horas",
+//     avaliacao: 4.8,
+//     preco_adulto: 50,
+//     moeda: "USD",
+//   },
+//   {
+//     id: "2",
+//     nome: "Excursión a Bombinhas",
+//     imagem: "/images/placeholder.jpg",
+//     local: "Salida desde Canasvieiras",
+//     duracao: "Día completo",
+//     avaliacao: 4.9,
+//     preco_adulto: 75,
+//     moeda: "USD",
+//   },
+// ]
 
 interface Room {
   adults: number
@@ -298,15 +325,25 @@ export default function ResultadosPage() {
       } else if (activeTab === 'paquetes') {
         const searchFilters: SearchFilters = { ...filters };
         data = await fetchRealData(searchFilters);
-      } 
-      // Não fazer nada para "paseos" por enquanto
+      } else if (activeTab === 'paseos') {
+        const params = new URLSearchParams()
+        if (searchParams.get('mes')) params.set('mes', searchParams.get('mes')!)
+        if (searchParams.get('adultos')) params.set('adultos', searchParams.get('adultos')!)
+        if (searchParams.get('criancas')) params.set('criancas', searchParams.get('criancas')!)
+        
+        const response = await fetch(`/api/sugerir-passeios?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Falha ao buscar passeios');
+        }
+        data = await response.json();
+      }
       
-      console.log('📊 Dados recebidos do Supabase:', {
-        searchType: activeTab,
+      console.log('📊 Dados recebidos:', {
+        tipo: activeTab,
         totalItems: data.length,
-        tiposQuartoDisponiveis: [...new Set(data.map(item => item.tipo_quarto))],
-        capacidadesDisponiveis: [...new Set(data.map(item => item.capacidade))],
-        sampleItems: data.slice(0, 5).map(item => ({
+        tiposQuartoDisponiveis: [...new Set(data.map((item: any) => item.tipo_quarto))],
+        capacidadesDisponiveis: [...new Set(data.map((item: any) => item.capacidade))],
+        sampleItems: data.slice(0, 5).map((item: any) => ({
           id: item.id,
           slug_hospedagem: item.slug_hospedagem,
           tipo_quarto: item.tipo_quarto,
@@ -803,10 +840,10 @@ export default function ResultadosPage() {
                 onSearch={handleFilterSearch}
               />
             ) : (
-              <div className="text-center py-8 bg-white rounded-2xl shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Paseos</h3>
-                <p className="text-gray-600">Esta función está en desarrollo.</p>
-              </div>
+              <PaseosSearchFilter
+                variant="results"
+                onSearch={handleFilterSearch}
+              />
             )}
           </div>
         </div>
@@ -861,220 +898,227 @@ export default function ResultadosPage() {
         </div>
 
         <div className="container mx-auto px-4 lg:px-[70px] py-8">
-          {resultados.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                <Search className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {activeTab === 'habitaciones' ? 'Ninguna habitación encontrada' : 'Ninguna disponibilidad encontrada'}
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {activeTab === 'habitaciones' 
-                  ? 'No hay habitaciones disponibles que coincidan con tu búsqueda'
-                  : 'Nenhum pacote encontrado com essas opções'
-                }
-              </p>
-              {activeTab === 'habitaciones' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                  <h4 className="font-semibold text-blue-900 mb-2">💡 Dica sobre tipos de habitación:</h4>
-                  <ul className="text-sm text-blue-800 text-left space-y-1">
-                    <li>• 1 criança de 0-5 anos é gratuita a cada 2 adultos</li>
-                    <li>• Crianças 6+ contam como adultos</li>
-                    <li>• O tipo de quarto é baseado no número de pagantes</li>
-                  </ul>
+          {(() => {
+            if (activeTab === 'paseos') {
+              if (loading) {
+                return <p>Carregando passeios...</p>
+              }
+              if (error) {
+                return <p>Erro ao carregar passeios: {error}</p>
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                  {(disponibilidades as Paseo[]).map((paseo) => (
+                    <PaseoCard
+                      key={paseo.id}
+                      passeio={paseo}
+                    />
+                  ))}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className={`grid gap-4 md:gap-6 ${
-              viewMode === "grid" 
-                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" 
-                : "grid-cols-1"
-            }`}>
-              {(resultados || []).map((disponibilidade, index) => {
-                const quartosIndividuaisCard = parseRoomsFromURL();
-                const temMultiplosQuartosCard = quartosIndividuaisCard.length > 1;
+              );
+            }
 
-                // Lógica de Preço
-                let finalPrice = 0;
-                let installments = 1;
-                let installmentValue = 0;
-                
-                if (activeTab === 'habitaciones') {
-                  // ✅ USAR NOVA LÓGICA DE PREÇOS PARA HOSPEDAGEM
-                  const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
-                  const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
-                  const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
-                  const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
-                  
-                  const calculoPagantes = calcularPagantesHospedagem(
-                    adultos, 
-                    criancas_0_3, 
-                    criancas_4_5, 
-                    criancas_6_mais
-                  );
-                  
-                  const precoHospedagem = calcularPrecoHospedagem(
-                    disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
-                    disponibilidade.noites || 1,
-                    calculoPagantes
-                  );
-                  
-                  finalPrice = precoHospedagem.precoTotal;
-                  
-                  console.log('💰 Preço calculado para hospedagem:', {
-                    valorDiaria: disponibilidade.valor_diaria,
-                    noites: disponibilidade.noites,
-                    pagantes: calculoPagantes.totalPagantes,
-                    precoTotal: finalPrice,
-                    breakdown: precoHospedagem.breakdown
-                  });
-                } else {
-                  const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
-                  finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
-                  const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
-                  installments = inst;
-                  installmentValue = val;
-                }
-                
-                // Dados do Hotel
-                const hotelIdentifier = disponibilidade.slug_hospedagem || disponibilidade.hotel;
-                
-                // --- DEBUG ---
-                if (!hotelIdentifier) {
-                  console.log("HOTEL IDENTIFIER INDEFINIDO:", disponibilidade);
-                } else if (activeTab === 'paquetes' && !getHotelData(hotelIdentifier)) {
-                  console.log(`DEBUG: Pacote com hotel não encontrado no mapa -> ${hotelIdentifier}`);
-                }
-                // --- FIM DEBUG ---
-
-                const hotelData = getHotelData(hotelIdentifier);
-                const hotelNameForDisplay = hotelData?.displayName || hotelIdentifier?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || "Hotel no encontrado";
-                const hotelImage = hotelData?.imageFiles?.[0] || "/placeholder.svg";
-
-                // Comodidades
-                const amenidadesRaw = (hotelNameForDisplay && comodidadesCache[hotelNameForDisplay]) || [];
-                const maxComodidades = 4;
-                const amenidades = amenidadesRaw.slice(0, maxComodidades);
-                const hasMoreAmenidades = amenidadesRaw.length > maxComodidades;
-                const distanciaPraia = hotelNameForDisplay ? distanciaPraiaCache[hotelNameForDisplay] : undefined;
-
-                return (
-                  <div key={disponibilidade.id} className={`bg-white border border-gray-100 rounded-3xl shadow-lg p-3 flex flex-col gap-4 hover:shadow-2xl transition-shadow duration-300 ${viewMode === 'list' ? 'md:flex-row md:gap-6' : ''}`}>
-                    <div className={`relative w-full rounded-2xl overflow-hidden ${viewMode === 'list' ? 'md:w-1/3 h-auto' : 'h-64'}`}>
-                      <Image src={hotelImage} alt={`Foto de ${hotelNameForDisplay}`} layout="fill" objectFit="cover" />
+            if (resultados.length === 0) {
+              return (
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <Search className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {activeTab === 'habitaciones' ? 'Ninguna habitación encontrada' : 'Ninguna disponibilidad encontrada'}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {activeTab === 'habitaciones' 
+                      ? 'No hay habitaciones disponibles que coincidan con tu búsqueda'
+                      : 'Nenhum pacote encontrado com essas opções'
+                    }
+                  </p>
+                  {activeTab === 'habitaciones' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                      <h4 className="font-semibold text-blue-900 mb-2">💡 Dica sobre tipos de habitación:</h4>
+                      <ul className="text-sm text-blue-800 text-left space-y-1">
+                        <li>• 1 criança de 0-5 anos é gratuita a cada 2 adultos</li>
+                        <li>• Crianças 6+ contam como adultos</li>
+                        <li>• O tipo de quarto é baseado no número de pagantes</li>
+                      </ul>
                     </div>
+                  )}
+                </div>
+              );
+            }
 
-                    <div className={`flex flex-col gap-4 px-2 ${viewMode === 'list' ? 'md:w-2/3 md:px-0' : 'px-4 pb-2'}`}>
-                      <div className="text-left">
-                        <h3 className="font-bold text-2xl text-gray-900 font-manrope">{hotelNameForDisplay}</h3>
-                        <p className="text-sm text-gray-600">{disponibilidade.tipo_quarto || gerarTextoTiposQuartos(disponibilidade)}</p>
-                        <div className="flex items-center text-sm text-gray-500 gap-2 mt-1">
-                          <MapPin className="w-4 h-4 text-orange-500" />
-                          <span>{filters.destino || 'Canasvieiras'}</span>
-                          {distanciaPraia != null && (
-                            <>
-                              <span className="text-gray-400">•</span>
-                              <span>{distanciaPraia}m de la Playa</span>
-                            </>
-                          )}
-                        </div>
+            return (
+              <div className={`grid gap-4 md:gap-6 ${
+                viewMode === "grid" 
+                  ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" 
+                  : "grid-cols-1"
+              }`}>
+                {(resultados || []).map((disponibilidade, index) => {
+                  const quartosIndividuaisCard = parseRoomsFromURL();
+                  const temMultiplosQuartosCard = quartosIndividuaisCard.length > 1;
+
+                  // Lógica de Preço
+                  let finalPrice = 0;
+                  let installments = 1;
+                  let installmentValue = 0;
+                  
+                  if (activeTab === 'habitaciones') {
+                    const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                    const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                    const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                    const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                    
+                    const calculoPagantes = calcularPagantesHospedagem(
+                      adultos, 
+                      criancas_0_3, 
+                      criancas_4_5, 
+                      criancas_6_mais
+                    );
+                    
+                    const precoHospedagem = calcularPrecoHospedagem(
+                      disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
+                      disponibilidade.noites || 1,
+                      calculoPagantes
+                    );
+                    
+                    finalPrice = precoHospedagem.precoTotal;
+                  } else {
+                    const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
+                    finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
+                    const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
+                    installments = inst;
+                    installmentValue = val;
+                  }
+                  
+                  // Dados do Hotel
+                  const hotelIdentifier = disponibilidade.slug_hospedagem || disponibilidade.hotel;
+                  const hotelData = getHotelData(hotelIdentifier);
+                  const hotelNameForDisplay = hotelData?.displayName || hotelIdentifier?.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || "Hotel no encontrado";
+                  const hotelImage = hotelData?.imageFiles?.[0] || "/placeholder.svg";
+
+                  // Comodidades
+                  const amenidadesRaw = (hotelNameForDisplay && comodidadesCache[hotelNameForDisplay]) || [];
+                  const maxComodidades = 4;
+                  const amenidades = amenidadesRaw.slice(0, maxComodidades);
+                  const hasMoreAmenidades = amenidadesRaw.length > maxComodidades;
+                  const distanciaPraia = hotelNameForDisplay ? distanciaPraiaCache[hotelNameForDisplay] : undefined;
+
+                  return (
+                    <div key={disponibilidade.id} className={`bg-white border border-gray-100 rounded-3xl shadow-lg p-3 flex flex-col gap-4 hover:shadow-2xl transition-shadow duration-300 ${viewMode === 'list' ? 'md:flex-row md:gap-6' : ''}`}>
+                      <div className={`relative w-full rounded-2xl overflow-hidden ${viewMode === 'list' ? 'md:w-1/3 h-auto' : 'h-64'}`}>
+                        <Image src={hotelImage} alt={`Foto de ${hotelNameForDisplay}`} layout="fill" objectFit="cover" />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 mt-4">
-                        {amenidades.map((amenidade: any, idx: number) => {
-                          const IconComponent = iconComponents[amenidade.icon] || Circle;
-                          return(
-                            <div key={idx} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-                              <IconComponent className="w-3.5 h-3.5" />
-                              <span className="text-xs font-medium">{amenidade.label}</span>
-                            </div>
-                          )
-                        })}
-                        {hasMoreAmenidades && (
-                          <div className="flex items-center justify-center bg-gray-100 text-gray-700 w-7 h-7 rounded-full text-xs font-bold">
-                            +
+                      <div className={`flex flex-col gap-4 px-2 ${viewMode === 'list' ? 'md:w-2/3 md:px-0' : 'px-4 pb-2'}`}>
+                        <div className="text-left">
+                          <h3 className="font-bold text-2xl text-gray-900 font-manrope">{hotelNameForDisplay}</h3>
+                          <p className="text-sm text-gray-600">{disponibilidade.tipo_quarto || gerarTextoTiposQuartos(disponibilidade)}</p>
+                          <div className="flex items-center text-sm text-gray-500 gap-2 mt-1">
+                            <MapPin className="w-4 h-4 text-orange-500" />
+                            <span>{filters.destino || 'Canasvieiras'}</span>
+                            {distanciaPraia != null && (
+                              <>
+                                <span className="text-gray-400">•</span>
+                                <span>{distanciaPraia}m de la Playa</span>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-sm mt-4">
-                        {activeTab === 'paquetes' ? (
-                          <>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
-                            <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-green-500"/><span>Check-in: {filters.dateRange?.from ? formatDate(filters.dateRange.from.toISOString().split('T')[0]) : '-'}</span></div>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-red-500"/><span>Check-out: {filters.dateRange?.to ? formatDate(filters.dateRange.to.toISOString().split('T')[0]) : '-'}</span></div>
-                            <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
-                          </>
-                        )}
-                      </div>
+                        </div>
 
-                       {temMultiplosQuartosCard && (
-                        <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                          {quartosIndividuaisCard.map((quarto, idx) => {
-                            const precoQuarto = calcularPrecoQuarto(disponibilidade, quarto)
-                            return (
-                              <div key={idx} className="flex justify-between items-center text-sm">
-                                <div>
-                                  <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
-                                  <span className="text-gray-800 ml-1">{determinarTipoQuarto(quarto)}</span>
-                                  <p className="text-xs text-gray-500">{formatarOcupacaoQuarto(quarto)}</p>
-                                </div>
-                                <span className="font-semibold text-gray-700">{formatPrice(precoQuarto)}</span>
+                        <div className="flex flex-wrap items-center gap-2 mt-4">
+                          {amenidades.map((amenidade: any, idx: number) => {
+                            const IconComponent = iconComponents[amenidade.icon] || Circle;
+                            return(
+                              <div key={idx} className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                                <IconComponent className="w-3.5 h-3.5" />
+                                <span className="text-xs font-medium">{amenidade.label}</span>
                               </div>
                             )
                           })}
-                        </div>
-                      )}
-
-                      <div className="border-t pt-4 mt-2 flex justify-between items-center">
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
-                          {installments > 1 && activeTab === 'paquetes' && (
-                            <p className="text-sm text-green-600 font-semibold">
-                              hasta {installments}x de {formatPrice(installmentValue)}
-                            </p>
+                          {hasMoreAmenidades && (
+                            <div className="flex items-center justify-center bg-gray-100 text-gray-700 w-7 h-7 rounded-full text-xs font-bold">
+                              +
+                            </div>
                           )}
-                          {activeTab === 'habitaciones' && (() => {
-                            const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
-                            const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
-                            const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
-                            const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
-                            
-                            const calculoPagantes = calcularPagantesHospedagem(
-                              adultos, criancas_0_3, criancas_4_5, criancas_6_mais
-                            );
-                            
-                            const explicacao = formatarExplicacaoPagantes(calculoPagantes);
-                            
-                            return (
-                              <p className="text-xs text-gray-500 italic">
-                                * {explicacao}
-                              </p>
-                            );
-                          })()}
-                          <p className="text-xs text-gray-500">Tasa Inclusas</p>
                         </div>
-                        <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} passHref>
-                          <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 py-5 font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all">
-                            Ver detalles <ArrowRight className="w-4 h-4 ml-2" />
-                          </Button>
-                        </Link>
-                      </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm mt-4">
+                          {activeTab === 'paquetes' ? (
+                            <>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
+                              <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-green-500"/><span>Check-in: {filters.dateRange?.from ? formatDate(filters.dateRange.from.toISOString().split('T')[0]) : '-'}</span></div>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-red-500"/><span>Check-out: {filters.dateRange?.to ? formatDate(filters.dateRange.to.toISOString().split('T')[0]) : '-'}</span></div>
+                              <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                            </>
+                          )}
+                        </div>
 
+                         {temMultiplosQuartosCard && (
+                          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                            {quartosIndividuaisCard.map((quarto, idx) => {
+                              const precoQuarto = calcularPrecoQuarto(disponibilidade, quarto)
+                              return (
+                                <div key={idx} className="flex justify-between items-center text-sm">
+                                  <div>
+                                    <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
+                                    <span className="text-gray-800 ml-1">{determinarTipoQuarto(quarto)}</span>
+                                    <p className="text-xs text-gray-500">{formatarOcupacaoQuarto(quarto)}</p>
+                                  </div>
+                                  <span className="font-semibold text-gray-700">{formatPrice(precoQuarto)}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        <div className="border-t pt-4 mt-2 flex justify-between items-center">
+                          <div>
+                            <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
+                            {installments > 1 && activeTab === 'paquetes' && (
+                              <p className="text-sm text-green-600 font-semibold">
+                                hasta {installments}x de {formatPrice(installmentValue)}
+                              </p>
+                            )}
+                            {activeTab === 'habitaciones' && (() => {
+                              const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                              const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                              const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                              const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                              
+                              const calculoPagantes = calcularPagantesHospedagem(
+                                adultos, criancas_0_3, criancas_4_5, criancas_6_mais
+                              );
+                              
+                              const explicacao = formatarExplicacaoPagantes(calculoPagantes);
+                              
+                              return (
+                                <p className="text-xs text-gray-500 italic">
+                                  * {explicacao}
+                                </p>
+                              );
+                            })()}
+                            <p className="text-xs text-gray-500">Tasa Inclusas</p>
+                          </div>
+                          <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} passHref>
+                            <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 py-5 font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all">
+                              Ver detalles <ArrowRight className="w-4 h-4 ml-2" />
+                            </Button>
+                          </Link>
+                        </div>
+
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       </div>
       <Footer />

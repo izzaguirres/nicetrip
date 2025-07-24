@@ -21,6 +21,7 @@ import { Footer } from "@/components/footer"
 import { useRouter } from "next/navigation"
 import { UnifiedSearchFilter } from "@/components/unified-search-filter"
 import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filter"
+import { PaseosSearchFilter } from "@/components/paseos-search-filter"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
 
 
@@ -273,19 +274,7 @@ export default function HomePage() {
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
                     {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
                     {activeTab === 'habitaciones' && <HabitacionesSearchFilter variant="homepage" />}
-                    
-                    {activeTab === 'paseos' && (
-                      <div className="text-center py-8">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-2">Búsqueda de Paseos</h3>
-                        <p className="text-gray-600 mb-4">Esta función está en desarrollo. Mientras tanto, puedes ver nuestras excursiones.</p>
-                        <Button 
-                          onClick={() => router.push('/resultados?categoria=passeio')}
-                          className="bg-[#EE7215] hover:bg-[#EE7215]/90 text-white rounded-xl px-6 py-2.5"
-                        >
-                          Ver Excursiones
-                        </Button>
-                      </div>
-                    )}
+                    {activeTab === 'paseos' && <PaseosSearchFilter variant="homepage" />}
                 </div>
               </div>
             </div>
