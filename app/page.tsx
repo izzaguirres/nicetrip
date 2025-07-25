@@ -12,9 +12,10 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { PromotionBanners } from "@/components/promotion-banners"
+
 import { BenefitsSection } from "@/components/benefits-section"
 import { TestimonialsSection } from "@/components/testimonials-section"
+import { QuemSomosSection } from "@/components/quem-somos-section"
 import { FaqSection } from "@/components/faq-section"
 import { PartnersSection } from "@/components/partners-section"
 import { Footer } from "@/components/footer"
@@ -163,7 +164,7 @@ export default function HomePage() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative w-full overflow-hidden bg-gray-900">
+        <section className="relative w-full overflow-hidden bg-gray-900 h-[100vh]">
           <div className="absolute inset-0 z-0">
             <Image
               src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/background header (1).png"
@@ -176,14 +177,14 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-black/40" />
           </div>
 
-          <div className="container mx-auto px-4 lg:px-[70px] pt-24 pb-32 lg:pb-96 relative z-10">
+          <div className="container mx-auto px-4 lg:px-[70px] pt-[170px] lg:pt-24 pb-32 lg:pb-96 relative z-10 h-full flex flex-col justify-center">
             {/* Headline Content */}
             <div className="grid lg:grid-cols-12 gap-8 items-start">
-              <div className="text-center lg:text-left lg:col-span-5 lg:pt-14">
+              <div className="text-center lg:text-left lg:col-span-5">
                 <div className="inline-block mb-6">
                   <TestimonialBadge />
                 </div>
-                <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight text-white font-display">
+                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight leading-tight text-white">
                   <span className="lg:hidden">
                     Las vacaciones<br />perfectas para<br />quienes aman{" "}
                      <span
@@ -211,9 +212,8 @@ export default function HomePage() {
                     </span>
                   </span>
                 </h1>
-                <p className="mt-4 text-base max-w-lg mx-auto lg:mx-0 text-white/90">
-                  Paquetes completos para vos y tu familia.<br />
-                  Elegí el tuyo y viví vacaciones inolvidables.
+                <p className="mt-2 text-sm lg:text-base max-w-lg mx-auto lg:mx-0 text-white/90">
+                  Elegí como querés viajar y empezá a planear
                 </p>
               </div>
 
@@ -272,9 +272,11 @@ export default function HomePage() {
                 </div>
                 
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
+                  <div className="flex flex-col justify-center min-h-[180px] lg:min-h-[110px]">
                     {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
                     {activeTab === 'habitaciones' && <HabitacionesSearchFilter variant="homepage" />}
                     {activeTab === 'paseos' && <PaseosSearchFilter variant="homepage" />}
+                  </div>
                 </div>
               </div>
             </div>
@@ -293,10 +295,9 @@ export default function HomePage() {
           </div>
         </section>
 
-        <PromotionBanners />
-
         <BenefitsSection />
         <TestimonialsSection />
+        <QuemSomosSection />
         <PartnersSection />
         <FaqSection />
 

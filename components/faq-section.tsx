@@ -62,33 +62,15 @@ export function FaqSection() {
       <div className="container mx-auto px-4 lg:px-[70px]">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center space-y-4 mb-12">
-            <div className="flex justify-center">
-              <Badge className="bg-[#EE7215]/10 text-[#EE7215] border-[#EE7215]/20 px-4 py-2">FAQ</Badge>
-            </div>
-            <TextAnimate
-              as="h2"
-              className="text-[24px] lg:text-[24px] font-bold text-gray-900"
-              animation="slideUp"
-              by="word"
-              delay={0.1}
-              duration={0.6}
-              once={true}
-            >
+          <div className="text-center mb-12 lg:mb-16">
+            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
               Preguntas Frecuentes
-            </TextAnimate>
+            </h2>
             
-            <TextAnimate
-              as="p"
-              className="text-[16px] text-gray-600 max-w-lg mx-auto"
-              animation="slideUp"
-              by="word"
-              delay={0.3}
-              duration={0.6}
-              once={true}
-            >
-              Resolvé todas tus dudas sobre nuestros servicios y planificá tu viaje con total tranquilidad.
-            </TextAnimate>
+            <p className="text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
+              <span className="block">Resolvé todas tus dudas sobre nuestros servicios</span>
+              <span className="block">y planificá tu viaje con total tranquilidad.</span>
+            </p>
           </div>
 
           {/* FAQ Items */}

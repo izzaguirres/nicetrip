@@ -11,8 +11,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-manrope)"],
-        display: ["var(--font-albert-sans)"],
+        sans: ["var(--font-rethink-sans)"],
+        display: ["var(--font-rethink-sans)"],
+        secondary: ["var(--font-manrope)"],
       },
       colors: {
         background: "hsl(var(--background))",

@@ -69,43 +69,17 @@ export function TestimonialsSection() {
   return (
     <section className="bg-gray-50 py-16 lg:py-24 relative">
       <div className="container z-10 mx-auto px-4 lg:px-[70px]">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          viewport={{ once: true }}
-          className="flex flex-col items-center justify-center max-w-[540px] mx-auto"
-        >
-          <div className="flex justify-center">
-            <div className="border border-[#EE7215]/20 bg-[#EE7215]/5 text-[#EE7215] py-2 px-4 rounded-full text-sm font-medium">
-              Testimonios
-            </div>
-          </div>
-
-          <TextAnimate
-            as="h2"
-            className="text-[24px] lg:text-[24px] font-bold tracking-tight mt-6 text-center text-gray-900"
-            animation="slideUp"
-            by="word"
-            delay={0.2}
-            duration={0.6}
-            once={true}
-          >
-            Lo que dicen nuestros clientes
-          </TextAnimate>
+        <div className="text-center mb-12 lg:mb-16">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+            <span className="block">Lo que dicen</span>
+            <span className="block">nuestros clientes</span>
+          </h2>
           
-          <TextAnimate
-            as="p"
-            className="text-center mt-4 text-gray-600 text-[16px] max-w-lg mx-auto"
-            animation="slideUp"
-            by="word"
-            delay={0.4}
-            duration={0.6}
-            once={true}
-          >
-            Testimonios reales de quienes ya vivieron experiencias increíbles con nosotros.
-          </TextAnimate>
-        </motion.div>
+          <p className="text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
+            <span className="block">Testimonios reales de quienes ya vivieron</span>
+            <span className="block">experiencias increíbles con nosotros.</span>
+          </p>
+        </div>
 
         {/* Desktop - 3 Columns */}
         <div className="hidden lg:flex justify-center gap-6 mt-12 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] max-h-[740px] overflow-hidden">

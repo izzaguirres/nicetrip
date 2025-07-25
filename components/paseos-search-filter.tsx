@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Select,
   SelectContent,
@@ -58,19 +58,31 @@ const getSpecificMonths = (): { value: string; label: string }[] => {
 interface PaseosSearchFilterProps {
   variant?: "homepage" | "results"
   onSearch?: (filters: PaseosSearchFilters) => void
+  initialFilters?: Partial<PaseosSearchFilters>
 }
 
 export function PaseosSearchFilter({
   variant = "homepage",
   onSearch,
+  initialFilters,
 }: PaseosSearchFilterProps) {
   const router = useRouter()
   const availableMonths = getSpecificMonths()
 
   const [filters, setFilters] = useState<PaseosSearchFilters>({
-    month: availableMonths[0].value,
-    people: { adults: 2, children_0_3: 0, children_4_5: 0, children_6_plus: 0 },
+    month: initialFilters?.month || availableMonths[0].value,
+    people: initialFilters?.people || { adults: 2, children_0_3: 0, children_4_5: 0, children_6_plus: 0 },
   })
+
+  // ✅ NOVO: Manter mês selecionado após busca
+  useEffect(() => {
+    if (initialFilters) {
+      setFilters(prev => ({
+        month: initialFilters.month || prev.month,
+        people: initialFilters.people || prev.people,
+      }))
+    }
+  }, [initialFilters])
 
   const [isPeopleOpen, setIsPeopleOpen] = useState(false)
 

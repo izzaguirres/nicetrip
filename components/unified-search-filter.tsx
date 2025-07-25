@@ -96,7 +96,7 @@ export function UnifiedSearchFilter({
 }: UnifiedSearchFilterProps) {
   const router = useRouter()
   const isInitialMount = useRef(true);
-  const prevTransportRef = useRef<string | undefined>()
+  const prevTransportRef = useRef<string | undefined>(undefined)
   
   // ✅ NOVO: Função para definir data padrão baseada no destino
   const getDefaultDateForDestino = (destino: string, primeiraDataDisponivel?: string): Date => {
@@ -162,24 +162,34 @@ export function UnifiedSearchFilter({
     }
   }, [initialFilters])
 
-  // ✅ NOVO: Detectar mudança de destino/transporte e ajustar data automaticamente (PROTEGER DATA PADRÃO)
+  // ✅ NOVO: Detectar mudança de TRANSPORTE e ajustar data automaticamente
   useEffect(() => {
-    if (datasDisponiveis.length > 0 && !loadingDatas && filters.data) {
-      const dataAtual = format(filters.data, 'yyyy-MM-dd')
+    if (datasDisponiveis.length > 0 && !loadingDatas) {
+      let novaData: Date | undefined = undefined
       
-             // NUNCA mexer na data padrão (19 de outubro 2025)
-       if (dataAtual === '2025-10-19') {
-         return
-       }
+      // 🎯 REGRA: Aéreo vai para Janeiro, Bús vai para Outubro
+      if (filters.transporte === "Aéreo") {
+        // Buscar primeira data disponível do aéreo (deve ser Janeiro)
+        const primeiraDataAereo = datasDisponiveis[0] 
+        if (primeiraDataAereo && primeiraDataAereo.startsWith('2026-01')) {
+          novaData = new Date(primeiraDataAereo + 'T00:00:00')
+          console.log(`✈️ AÉREO selecionado: movendo para primeira data disponível: ${primeiraDataAereo}`)
+        }
+      } else if (filters.transporte === "Bus" || filters.transporte === "Bús") {
+        // Para ônibus, usar 19 de outubro 2025 (primeira data do ônibus)
+        const dataOnibus = '2025-10-19'
+        if (datasDisponiveis.includes(dataOnibus)) {
+          novaData = new Date(dataOnibus + 'T00:00:00')
+          console.log(`🚌 BÚS selecionado: movendo para primeira data disponível: ${dataOnibus}`)
+        }
+      }
       
-      // APENAS ajustar se a data atual NÃO está nas datas disponíveis (não forçar mudança na data padrão válida)
-      if (!datasDisponiveis.includes(dataAtual)) {
-        console.log(`📅 Data atual (${dataAtual}) não está disponível, ajustando para primeira disponível: ${datasDisponiveis[0]}`)
-        const novaData = new Date(datasDisponiveis[0] + 'T00:00:00')
+      // Aplicar mudança apenas se encontrou uma data específica para o transporte
+      if (novaData && filters.data && format(filters.data, 'yyyy-MM-dd') !== format(novaData, 'yyyy-MM-dd')) {
         setFilters(prev => ({ ...prev, data: novaData }))
       }
     }
-  }, [datasDisponiveis, loadingDatas, filters.destino, filters.transporte])
+  }, [filters.transporte, datasDisponiveis, loadingDatas]) // Disparar apenas quando TRANSPORTE muda
 
   // ✅ NOVO: Filtros condicionais - transporte filtra cidades disponíveis
   const cidadesDisponiveis = useMemo(() => {

@@ -1,223 +1,132 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { TextAnimate } from "@/components/ui/text-animate"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import Image from "next/image"
 
 const benefits = [
   {
-    tag: "GUÍA LOCAL",
-    title: "Guía Local",
-    description:
-      "Recorré los destinos con quien realmente los conoce.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/1_guia.png",
+    icon: "/images/guia.png",
+    title: "Guía Local", 
+    description: "Recorré los destinos con quien realmente los conoce.",
   },
   {
-    tag: "ALOJAMIENTO",
-    title: "Alojamiento Propio",
-    description:
-      "Hospedaje en Canasvieiras con gran ubicación y precio justo.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/2_alojamiento.png",
+    icon: "/images/alojamiento.png",
+    title: "Alojamiento",
+    description: "Hospedaje con calidad y precio justo en Canasvieiras.",
   },
   {
-    tag: "ATENCIÓN",
-    title: "Atención Personalizada",
+    icon: "/images/atencion.png",
+    title: "Atención 24/7",
     description: "Te acompañamos antes, durante y después del viaje.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/3_atencion.png",
-  },
-  {
-    tag: "TOURS",
-    title: "Tours Completos",
-    description:
-      "Rutas armadas por los mejores destinos turísticos.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/4_tours.png",
-  },
-  {
-    tag: "TRASLADOS",
-    title: "Traslados Seguros",
-    description: "Cómodos y seguros para tu experiencia completa.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/5_traslados.png",
-  },
-  {
-    tag: "ALQUILER",
-    title: "Alquiler de Autos",
-    description: "Movete con libertad y seguridad por toda la isla.",
-    image: "https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/6_alquiler.png",
   },
 ]
 
 export function BenefitsSection() {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-
-  const scrollToIndex = (index: number) => {
-    if (scrollContainerRef.current) {
-      const cardWidth = scrollContainerRef.current.children[0]?.clientWidth || 0
-      const gap = 24 // 1.5rem gap
-      scrollContainerRef.current.scrollTo({
-        left: index * (cardWidth + gap),
-        behavior: "smooth",
-      })
-    }
-    setCurrentIndex(index)
-  }
-
-  const nextSlide = () => {
-    const newIndex = currentIndex === benefits.length - 1 ? 0 : currentIndex + 1
-    scrollToIndex(newIndex)
-  }
-
-  const prevSlide = () => {
-    const newIndex = currentIndex === 0 ? benefits.length - 1 : currentIndex - 1
-    scrollToIndex(newIndex)
-  }
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (scrollContainerRef.current) {
-        const cardWidth = scrollContainerRef.current.children[0]?.clientWidth || 0
-        const gap = 24
-        const scrollLeft = scrollContainerRef.current.scrollLeft
-        const newIndex = Math.round(scrollLeft / (cardWidth + gap))
-        setCurrentIndex(newIndex)
-      }
-    }
-
-    const container = scrollContainerRef.current
-    if (container) {
-      container.addEventListener("scroll", handleScroll)
-      return () => container.removeEventListener("scroll", handleScroll)
-    }
-  }, [])
-
   return (
-    <section className="py-16 lg:py-24 bg-white">
+    <section className="py-16 lg:py-24 bg-gray-50">
       <div className="container mx-auto px-4 lg:px-[70px]">
-        {/* Header */}
-        <div className="text-center mb-12 lg:mb-16">
-          <TextAnimate
-            as="h2"
-            className="text-[24px] lg:text-[24px] font-bold text-gray-900 mb-2"
-            animation="slideUp"
-            by="word"
-            delay={0.1}
-            duration={0.6}
-            once={true}
-          >
-            Viajar con nosotros es más fácil 🧡
-          </TextAnimate>
+        {/* Header Centralizado APENAS no mobile */}
+        <div className="text-center mb-12 lg:hidden">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <span className="block">Viajar con nosotros</span>
+            <span className="block">es más fácil 🧡</span>
+          </h2>
           
-          <TextAnimate
-            as="p"
-            className="text-[16px] lg:text-[16px] text-gray-600 max-w-2xl mx-auto"
-            animation="slideUp"
-            by="word"
-            delay={0.3}
-            duration={0.6}
-            once={true}
-          >
-            Transformamos el planeamiento de tus vacaciones en algo liviano, seguro e inolvidable.
-          </TextAnimate>
+          <p className="text-base text-gray-600 max-w-2xl mx-auto">
+            <span className="block">Transformamos el planeamiento de tus</span>
+            <span className="block">vacaciones en algo liviano, seguro e</span>
+            <span className="block">inolvidable.</span>
+          </p>
         </div>
 
-        {/* Desktop Grid */}
-        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
-          {benefits.map((benefit, index) => (
-            <div
-              key={index}
-              className="relative overflow-hidden rounded-2xl bg-white shadow-xl hover:shadow-2xl transition-all duration-300 h-[400px] border border-gray-100"
-            >
-              <img
-                src={benefit.image || "/placeholder.svg"}
-                alt={benefit.title}
-                className="absolute inset-0 h-full w-full object-cover"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          
+          {/* Left Side - Content */}
+          <div>
+            {/* Desktop: Títulos à esquerda */}
+            <div className="hidden lg:block mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <span className="block">Viajar con nosotros</span>
+                <span className="block">es más fácil 🧡</span>
+              </h2>
+              
+              <p className="text-lg text-gray-600 max-w-2xl">
+                <span className="block">Transformamos el planeamiento de tus</span>
+                <span className="block">vacaciones en algo liviano, seguro e</span>
+                <span className="block">inolvidable.</span>
+              </p>
+            </div>
+
+            {/* Benefits List */}
+            <div className="space-y-6">
+              {benefits.map((benefit, index) => (
+                <div key={index} className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center">
+                    <img 
+                      src={benefit.icon} 
+                      alt={benefit.title}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      {benefit.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Side - Image */}
+          <div className="relative">
+            <div className="relative h-[500px] lg:h-[600px] rounded-3xl overflow-hidden">
+              <Image
+                src="/images/experiencia.jpg"
+                alt="Família viajando - Nice Trip"
+                fill
+                className="object-cover"
               />
               
-              {/* Badge no canto superior esquerdo */}
-              <div className="absolute top-4 left-4">
-                <span className="inline-block rounded-full bg-black/40 backdrop-blur-sm border border-white/30 px-3 py-1.5 text-xs font-semibold text-white">
-                  {benefit.tag}
-                </span>
-              </div>
+              {/* Overlay com informações */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
               
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                  <h3 className="text-xl font-bold leading-tight text-white mb-2">{benefit.title}</h3>
-                  <p className="text-sm text-white/90 leading-snug">{benefit.description}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Mobile Slider */}
-        <div className="lg:hidden relative">
-          {/* Cards Container */}
-          <div
-            ref={scrollContainerRef}
-            className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4"
-            style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-          >
-            {benefits.map((benefit, index) => (
-              <div
-                key={index}
-                className="relative overflow-hidden rounded-2xl bg-white shadow-xl flex-shrink-0 w-[280px] h-[360px] snap-center border border-gray-100"
-              >
-                <img
-                  src={benefit.image || "/placeholder.svg"}
-                  alt={benefit.title}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                
-                {/* Badge no canto superior esquerdo */}
-                <div className="absolute top-4 left-4">
-                  <span className="inline-block rounded-full bg-black/40 backdrop-blur-sm border border-white/30 px-3 py-1.5 text-xs font-semibold text-white">
-                    {benefit.tag}
-                  </span>
-                </div>
-                
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <div className="bg-black/40 backdrop-blur-md rounded-xl p-4 border border-white/20">
-                    <h3 className="text-lg font-bold leading-tight text-white mb-2">{benefit.title}</h3>
-                    <p className="text-sm text-white/90 leading-snug">{benefit.description}</p>
+              {/* Badge flutuante */}
+              <div className="absolute top-6 left-6">
+                <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">NT</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Nice Trip</p>
+                      <p className="text-xs text-gray-600">13+ años de experiencia</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-          {/* Navigation Buttons */}
-          <div className="flex justify-between items-center mt-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={prevSlide}
-              className="rounded-full w-10 h-10 p-0 border-gray-200 hover:border-[#EE7215] hover:text-[#EE7215]"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
 
-            <div className="flex space-x-2">
-              {benefits.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => scrollToIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                    index === currentIndex ? "bg-[#EE7215] w-6" : "bg-gray-300"
-                  }`}
-                />
-              ))}
+              {/* Stats no bottom */}
+              <div className="absolute bottom-6 left-6 right-6">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+                  <div className="grid grid-cols-2 gap-4 text-white">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold">13+</p>
+                      <p className="text-sm opacity-90">Años de experiencia</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold">5000+</p>
+                      <p className="text-sm opacity-90">Viajeros felices</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={nextSlide}
-              className="rounded-full w-10 h-10 p-0 border-gray-200 hover:border-[#EE7215] hover:text-[#EE7215]"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
           </div>
+          
         </div>
       </div>
     </section>

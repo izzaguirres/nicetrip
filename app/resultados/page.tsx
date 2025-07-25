@@ -754,32 +754,32 @@ export default function ResultadosPage() {
           <div className="container mx-auto px-4 lg:px-[70px] py-6">
             {/* ABAS DE SELEÇÃO */}
             <div className="mb-6 flex justify-center">
-              <div className="flex bg-white shadow-md rounded-2xl p-1.5 max-w-md mx-auto">
+              <div className="flex bg-white shadow-md rounded-2xl p-1.5 w-full max-w-md lg:max-w-md mx-auto">
                 <button
                   onClick={() => handleTabChange("paquetes")}
-                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                  className={`relative flex-1 py-2.5 px-2 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center group ${
                     activeTab === "paquetes" 
                       ? "bg-orange-500 text-white shadow-lg" 
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
-                  <Luggage className="w-4 h-4 mr-2" />
+                  <Luggage className="w-4 h-4 mr-1 lg:mr-2" />
                   Paquetes
                 </button>
                 <button
                   onClick={() => handleTabChange("habitaciones")}
-                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                  className={`relative flex-1 py-2.5 px-2 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center group ${
                     activeTab === "habitaciones"
                       ? "bg-orange-500 text-white shadow-lg"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                   }`}
                 >
-                  <Bed className="w-4 h-4 mr-2" />
+                  <Bed className="w-4 h-4 mr-1 lg:mr-2" />
                   Habitaciones
                 </button>
                 <button
                   onClick={() => handleTabChange("paseos")}
-                  className={`relative flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center group ${
+                  className={`relative flex-1 py-2.5 px-2 lg:px-4 rounded-xl font-semibold text-xs lg:text-sm transition-all duration-300 flex items-center justify-center group ${
                     activeTab === "paseos"
                       ? "bg-orange-500 text-white shadow-lg"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
@@ -839,63 +839,50 @@ export default function ResultadosPage() {
                 }}
                 onSearch={handleFilterSearch}
               />
-            ) : (
+            ) : activeTab === 'paseos' ? (
               <PaseosSearchFilter
                 variant="results"
+                initialFilters={{
+                  month: searchParams.get("mes") || undefined,
+                  people: {
+                    adults: parseInt(searchParams.get("adultos") || "2"),
+                    children_0_3: parseInt(searchParams.get("criancas_0_3") || "0"),
+                    children_4_5: parseInt(searchParams.get("criancas_4_5") || "0"),
+                    children_6_plus: parseInt(searchParams.get("criancas_6_plus") || "0")
+                  }
+                }}
+                onSearch={handleFilterSearch}
+              />
+            ) : (
+              <UnifiedSearchFilter 
+                variant="results"
+                initialFilters={{
+                  salida: searchParams.get("salida") || "",
+                  destino: searchParams.get("destino") || "",
+                  data: (() => {
+                    const dataParam = searchParams.get("data")
+                    if (dataParam) {
+                      const [year, month, day] = dataParam.split('-').map(Number)
+                      return new Date(year, month - 1, day)
+                    }
+                    return undefined
+                  })(),
+                  transporte: searchParams.get("transporte") || "",
+                  rooms: parseRoomsFromURL().map((room, index) => ({
+                    id: (index + 1).toString(),
+                    adults: room.adults,
+                    children_0_3: room.children0to3,
+                    children_4_5: room.children4to5,
+                    children_6: room.children6plus
+                  }))
+                }}
                 onSearch={handleFilterSearch}
               />
             )}
           </div>
         </div>
 
-        <div className="bg-white border-b">
-          <div className="container mx-auto px-4 lg:px-[70px] py-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-                  {activeTab === 'habitaciones' ? '🏨 Habitaciones para ti' : '🏖️ Paquetes para ti'}
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  {resultados.length} {activeTab === 'habitaciones' ? (resultados.length === 1 ? 'habitación disponible' : 'habitaciones disponibles') : (resultados.length === 1 ? 'paquete disponible' : 'paquetes disponibles')}
-                  {filters.destino && ` para ${filters.destino}`}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="relevance">Relevancia</SelectItem>
-                    <SelectItem value="price_low">Menor precio</SelectItem>
-                    <SelectItem value="price_high">Mayor precio</SelectItem>
-                    <SelectItem value="date">Fecha de salida</SelectItem>
-                  </SelectContent>
-                </Select>
 
-                <div className="flex border rounded-lg">
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="rounded-r-none relative"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="rounded-l-none relative"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div className="container mx-auto px-4 lg:px-[70px] py-8">
           {(() => {
@@ -1042,20 +1029,35 @@ export default function ResultadosPage() {
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-2 text-sm mt-4">
+                        <div className="text-sm mt-4">
                           {activeTab === 'paquetes' ? (
-                            <>
+                            <div className="grid grid-cols-2 gap-2">
                               <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
                               <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
                               <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
                               <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
-                            </>
+                            </div>
                           ) : (
-                            <>
-                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-green-500"/><span>Check-in: {filters.dateRange?.from ? formatDate(filters.dateRange.from.toISOString().split('T')[0]) : '-'}</span></div>
-                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-red-500"/><span>Check-out: {filters.dateRange?.to ? formatDate(filters.dateRange.to.toISOString().split('T')[0]) : '-'}</span></div>
+                            <div className="space-y-3">
+                              {/* ✅ NOVO: Títulos fora dos retângulos */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-xs font-medium text-gray-600 mb-1">Check-in</p>
+                                  <div className="border rounded-xl p-2 flex items-center justify-center gap-2">
+                                    <CalendarIcon className="w-4 h-4 text-green-500"/>
+                                    <span className="font-bold">{filters.dateRange?.from ? formatDate(filters.dateRange.from.toISOString().split('T')[0]) : '-'}</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-gray-600 mb-1">Check-out</p>
+                                  <div className="border rounded-xl p-2 flex items-center justify-center gap-2">
+                                    <CalendarIcon className="w-4 h-4 text-red-500"/>
+                                    <span className="font-bold">{filters.dateRange?.to ? formatDate(filters.dateRange.to.toISOString().split('T')[0]) : '-'}</span>
+                                  </div>
+                                </div>
+                              </div>
                               <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
-                            </>
+                            </div>
                           )}
                         </div>
 
@@ -1077,6 +1079,26 @@ export default function ResultadosPage() {
                           </div>
                         )}
 
+                        {/* ✅ NOVO: Explicação de pagantes ACIMA da linha do valor */}
+                        {activeTab === 'habitaciones' && (() => {
+                          const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                          const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                          const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                          const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                          
+                          const calculoPagantes = calcularPagantesHospedagem(
+                            adultos, criancas_0_3, criancas_4_5, criancas_6_mais
+                          );
+                          
+                          const explicacao = formatarExplicacaoPagantes(calculoPagantes);
+                          
+                          return (
+                            <p className="text-xs text-gray-600 font-medium mb-2">
+                              * {explicacao}
+                            </p>
+                          );
+                        })()}
+
                         <div className="border-t pt-4 mt-2 flex justify-between items-center">
                           <div>
                             <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
@@ -1085,25 +1107,6 @@ export default function ResultadosPage() {
                                 hasta {installments}x de {formatPrice(installmentValue)}
                               </p>
                             )}
-                            {activeTab === 'habitaciones' && (() => {
-                              const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
-                              const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
-                              const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
-                              const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
-                              
-                              const calculoPagantes = calcularPagantesHospedagem(
-                                adultos, criancas_0_3, criancas_4_5, criancas_6_mais
-                              );
-                              
-                              const explicacao = formatarExplicacaoPagantes(calculoPagantes);
-                              
-                              return (
-                                <p className="text-xs text-gray-500 italic">
-                                  * {explicacao}
-                                </p>
-                              );
-                            })()}
-                            <p className="text-xs text-gray-500">Tasa Inclusas</p>
                           </div>
                           <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} passHref>
                             <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 py-5 font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all">

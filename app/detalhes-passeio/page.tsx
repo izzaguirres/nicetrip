@@ -38,6 +38,49 @@ function DetalhesPasseioContent() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showAllPhotos, setShowAllPhotos] = useState(false)
 
+  // ✅ NOVO: Capturar dados do filtro do usuário
+  const mesUsuario = searchParams.get('mes') || searchParams.get('month')
+  const adultosFiltro = parseInt(searchParams.get('adultos') || '2')
+  const criancas03Filtro = parseInt(searchParams.get('criancas_0_3') || '0')
+  const criancas45Filtro = parseInt(searchParams.get('criancas_4_5') || '0')
+  const criancas6Filtro = parseInt(searchParams.get('criancas_6_plus') || '0')
+  
+  // ✅ NOVO: Função para formatar mês para exibição
+  const formatarMesExibicao = (mesParam: string | null): string => {
+    console.log('📅 DEBUG: mesParam recebido:', mesParam) // Debug
+    
+    if (!mesParam) return "Fecha a consultar"
+    
+    // Se está no formato "2026-01", converter para "Enero de 2026"
+    if (mesParam.includes('-')) {
+      const [ano, mes] = mesParam.split('-')
+      const meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ]
+      const mesIndex = parseInt(mes) - 1
+      if (mesIndex >= 0 && mesIndex < 12) {
+        return `${meses[mesIndex]} de ${ano}`
+      }
+    }
+    
+    return mesParam // Fallback se já estiver formatado
+  }
+  
+  // ✅ NOVO: Função para formatar pessoas selecionadas
+  const formatarPessoasSelecionadas = (): string => {
+    const totalPessoas = adultosFiltro + criancas03Filtro + criancas45Filtro + criancas6Filtro
+    if (totalPessoas === 0) return "2 Adultos" // Fallback
+    
+    const partes = []
+    if (adultosFiltro > 0) partes.push(`${adultosFiltro} Adulto${adultosFiltro > 1 ? 's' : ''}`)
+    if (criancas03Filtro > 0) partes.push(`${criancas03Filtro} Niño${criancas03Filtro > 1 ? 's' : ''} (0-3)`)
+    if (criancas45Filtro > 0) partes.push(`${criancas45Filtro} Niño${criancas45Filtro > 1 ? 's' : ''} (4-5)`)  
+    if (criancas6Filtro > 0) partes.push(`${criancas6Filtro} Niño${criancas6Filtro > 1 ? 's' : ''} (6+)`)
+    
+    return partes.join(', ')
+  }
+
   // Suporte a swipe no modal de fotos
   const [touchStart, setTouchStart] = useState(0)
   const [touchEnd, setTouchEnd] = useState(0)
@@ -45,13 +88,13 @@ function DetalhesPasseioContent() {
   // Aba ativa (descricao, observaciones, avaliacoes)
   const [activeTab, setActiveTab] = useState<'descripcion' | 'observaciones' | 'avaliacoes'>('descripcion')
 
-  // ✅ Parâmetros da URL
+  // ✅ Parâmetros da URL - Usando os valores corretos do filtro
   const passeioId = searchParams.get('id')
-  const adultos = searchParams.get('adultos') || '2'
-  const criancas_0_3 = searchParams.get('criancas_0_3') || '0'
-  const criancas_4_5 = searchParams.get('criancas_4_5') || '0'
-  const criancas_6_10 = searchParams.get('criancas_6_10') || '0'
-  const totalCriancas = parseInt(criancas_0_3) + parseInt(criancas_4_5) + parseInt(criancas_6_10)
+  const adultos = adultosFiltro.toString() // Usar valor do filtro
+  const criancas_0_3 = criancas03Filtro.toString() // Usar valor do filtro  
+  const criancas_4_5 = criancas45Filtro.toString() // Usar valor do filtro
+  const criancas_6_10 = criancas6Filtro.toString() // Usar valor do filtro (6+)
+  const totalCriancas = criancas03Filtro + criancas45Filtro + criancas6Filtro
 
   // ✅ MOVER useMemo PARA CIMA - Sistema de imagens (deve vir antes das funções que o usam)
   const galleryImages = useMemo(() => {
@@ -436,7 +479,7 @@ function DetalhesPasseioContent() {
               <div className="mb-6 space-y-3">
                  <div className="flex justify-between items-center bg-white p-3 rounded-xl">
                     <span className="font-semibold text-sm text-gray-700">Fecha</span>
-                    <span className="font-bold text-sm text-gray-900">Enero de 2026 (MOCK)</span>
+                    <span className="font-bold text-sm text-gray-900">{formatarMesExibicao(mesUsuario)}</span>
                  </div>
                  <div className="text-center text-sm text-gray-600 flex items-center justify-center gap-2 pt-2">
                      <Bus className="w-4 h-4"/>

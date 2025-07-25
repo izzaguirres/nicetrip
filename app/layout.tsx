@@ -1,18 +1,18 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Albert_Sans, Manrope } from "next/font/google"
+import { Rethink_Sans, Manrope } from "next/font/google"
 import "./globals.css"
+
+const rethinkSans = Rethink_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-rethink-sans",
+})
 
 const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-manrope",
-})
-
-const albertSans = Albert_Sans({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-albert-sans",
 })
 
 export const metadata: Metadata = {
@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head />
-      <body className={`${manrope.variable} ${albertSans.variable} font-sans`} suppressHydrationWarning={true}>
+      <body className={`${rethinkSans.variable} ${manrope.variable} font-sans`} suppressHydrationWarning={true}>
         {children}
       </body>
     </html>
