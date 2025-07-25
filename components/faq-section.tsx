@@ -74,36 +74,75 @@ export function FaqSection() {
           </div>
 
           {/* FAQ Items */}
-          <Accordion type="single" collapsible className="space-y-4">
-            {FAQS.map((item, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className={cn(
-                  "mb-4 rounded-xl",
-                  "bg-white border border-gray-100",
-                  "shadow-sm hover:shadow-md transition-shadow duration-200",
-                )}
-              >
-                <AccordionTrigger
-                  className={cn(
-                    "px-6 py-4 text-left hover:no-underline",
-                    "data-[state=open]:border-b data-[state=open]:border-gray-100",
-                  )}
-                >
-                  <div className="flex flex-col gap-2">
-                    <Badge variant="secondary" className="w-fit text-xs font-normal bg-gray-100 text-gray-600">
-                      {item.category}
-                    </Badge>
-                    <h3 className="text-lg font-semibold text-gray-900 text-left">{item.question}</h3>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pt-2 pb-6">
-                  <p className="text-gray-600 leading-relaxed">{item.answer}</p>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          <div className="lg:grid lg:grid-cols-2 lg:gap-8">
+            {/* Primeira coluna (primeiras 4 perguntas) */}
+            <div className="space-y-4">
+              <Accordion type="single" collapsible className="space-y-4">
+                {FAQS.slice(0, 4).map((item, index) => (
+                  <AccordionItem
+                    key={index}
+                    value={`item-${index}`}
+                    className={cn(
+                      "mb-4 rounded-xl",
+                      "bg-white border border-gray-100",
+                      "shadow-sm hover:shadow-md transition-shadow duration-200",
+                    )}
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        "px-6 py-4 text-left hover:no-underline",
+                        "data-[state=open]:border-b data-[state=open]:border-gray-100",
+                      )}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <Badge variant="secondary" className="w-fit text-xs font-normal bg-gray-100 text-gray-600">
+                          {item.category}
+                        </Badge>
+                        <h3 className="text-lg font-semibold text-gray-900 text-left">{item.question}</h3>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pt-2 pb-6">
+                      <p className="text-gray-600 leading-relaxed">{item.answer}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+
+            {/* Segunda coluna (últimas 4 perguntas) */}
+            <div className="space-y-4 mt-4 lg:mt-0">
+              <Accordion type="single" collapsible className="space-y-4">
+                {FAQS.slice(4, 8).map((item, index) => (
+                  <AccordionItem
+                    key={index + 4}
+                    value={`item-${index + 4}`}
+                    className={cn(
+                      "mb-4 rounded-xl",
+                      "bg-white border border-gray-100",
+                      "shadow-sm hover:shadow-md transition-shadow duration-200",
+                    )}
+                  >
+                    <AccordionTrigger
+                      className={cn(
+                        "px-6 py-4 text-left hover:no-underline",
+                        "data-[state=open]:border-b data-[state=open]:border-gray-100",
+                      )}
+                    >
+                      <div className="flex flex-col gap-2">
+                        <Badge variant="secondary" className="w-fit text-xs font-normal bg-gray-100 text-gray-600">
+                          {item.category}
+                        </Badge>
+                        <h3 className="text-lg font-semibold text-gray-900 text-left">{item.question}</h3>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-6 pt-2 pb-6">
+                      <p className="text-gray-600 leading-relaxed">{item.answer}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </div>
+          </div>
 
           {/* Contact Section */}
           <div className="mt-12 text-center">

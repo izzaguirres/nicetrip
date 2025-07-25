@@ -184,7 +184,7 @@ export default function HomePage() {
                 <div className="inline-block mb-6">
                   <TestimonialBadge />
                 </div>
-                <h1 className="text-3xl lg:text-4xl font-bold tracking-tight leading-tight text-white">
+                <h1 className="text-3xl lg:text-[42px] font-bold tracking-tight leading-tight text-white">
                   <span className="lg:hidden">
                     Las vacaciones<br />perfectas para<br />quienes aman{" "}
                      <span
@@ -212,7 +212,7 @@ export default function HomePage() {
                     </span>
                   </span>
                 </h1>
-                <p className="mt-2 text-sm lg:text-base max-w-lg mx-auto lg:mx-0 text-white/90">
+                <p className="mt-2 text-sm lg:text-[20px] max-w-lg mx-auto lg:mx-0 text-white/90">
                   Elegí como querés viajar y empezá a planear
                 </p>
               </div>
@@ -221,7 +221,7 @@ export default function HomePage() {
             </div>
 
             {/* Search Filter Section - Hybrid Positioning */}
-            <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-24 lg:left-0 lg:right-0 lg:z-10">
+            <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-40 lg:left-0 lg:right-0 lg:z-10">
               <div className="lg:container lg:mx-auto lg:px-[70px]">
                 {/* Tabs moved outside the main content box */}
                 <div className="mb-4 flex justify-center">
@@ -272,7 +272,7 @@ export default function HomePage() {
                 </div>
                 
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/10">
-                  <div className="flex flex-col justify-center min-h-[180px] lg:min-h-[110px]">
+                  <div className="flex flex-col justify-start h-[320px] lg:h-[100px]">
                     {activeTab === 'paquetes' && <UnifiedSearchFilter variant="homepage" />}
                     {activeTab === 'habitaciones' && <HabitacionesSearchFilter variant="homepage" />}
                     {activeTab === 'paseos' && <PaseosSearchFilter variant="homepage" />}
@@ -282,7 +282,7 @@ export default function HomePage() {
             </div>
 
             {/* Family Image - Absolutely Positioned on Desktop */}
-            <div className="hidden lg:block absolute bottom-36 right-[70px] w-[50%] h-[85%] z-0 pointer-events-none">
+            <div className="hidden lg:block absolute bottom-44 right-[70px] w-[50%] h-[85%] z-0 pointer-events-none">
               <Image
                 src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/header_family.png"
                 alt="Família aproveitando as férias"

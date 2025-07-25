@@ -117,15 +117,14 @@ export function UnifiedSearchFilter({
   // Data padrão: 19 de outubro 2025
   const defaultDate = new Date(2025, 9, 19) // 19 de Outubro 2025
 
+  // Estado local para filtros
   const [filters, setFilters] = useState<SearchFilters>({
     salida: initialFilters?.salida || "",
     destino: initialFilters?.destino || "",
-    data: initialFilters?.data || defaultDate,
-    rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }],
     transporte: initialFilters?.transporte || "",
+    data: initialFilters?.data || defaultDate,
+    rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }]
   })
-
-
 
   // Hooks do Supabase com fallback
   const { cidades: supabaseCidades, loading: loadingCidades, error: errorCidades } = useCidadesSaida(filters.transporte)
@@ -152,15 +151,20 @@ export function UnifiedSearchFilter({
   // Atualizar filtros quando initialFilters mudar (importante para página de resultados)
   useEffect(() => {
     if (initialFilters) {
-      setFilters(prev => ({
+      setFilters((prev: SearchFilters) => ({
         salida: initialFilters.salida || prev.salida,
         destino: initialFilters.destino || prev.destino,
-        data: initialFilters.data || prev.data,
+        data: initialFilters.data ? new Date(initialFilters.data) : prev.data,
         rooms: initialFilters.rooms || prev.rooms,
         transporte: initialFilters.transporte || prev.transporte,
       }))
     }
   }, [initialFilters])
+
+  // Função para atualizar filtros
+  const updateFilters = (updates: Partial<SearchFilters>) => {
+    setFilters((prev: SearchFilters) => ({ ...prev, ...updates }))
+  }
 
   // ✅ NOVO: Detectar mudança de TRANSPORTE e ajustar data automaticamente
   useEffect(() => {
@@ -301,21 +305,11 @@ export function UnifiedSearchFilter({
 
   // ✅ MODIFICADO: Função updateRoom com validação de limite
   const updateRoom = (roomId: string, field: keyof Omit<Room, 'id'>, value: number) => {
-    setFilters(prev => ({
+    setFilters((prev: SearchFilters) => ({
       ...prev,
-      rooms: prev.rooms.map(room => {
-        if (room.id !== roomId) return room
-        
-        const newRoom = { ...room, [field]: Math.max(0, value) }
-        const newTotal = getRoomTotalPeople(newRoom)
-        
-        // ✅ LIMITE: Não permitir mais de 5 pessoas por quarto
-        if (newTotal > 5) {
-          return room // Manter valor anterior se exceder limite
-        }
-        
-        return newRoom
-      })
+      rooms: prev.rooms.map(room => 
+        room.id === roomId ? { ...room, [field]: value } : room
+      )
     }))
   }
 
@@ -358,17 +352,21 @@ export function UnifiedSearchFilter({
       
       if (result.success && result.results && result.results.length > 0) {
         // Navegar com os resultados do Smart Filter
-        const bestResult = result.results[0]
-        
         const params = new URLSearchParams()
         
-        if (filters.salida) params.set('salida', filters.salida)
-        if (filters.destino) params.set('destino', filters.destino)
-        if (filters.data) params.set('data', format(filters.data, 'yyyy-MM-dd'))
-        if (filters.transporte) params.set('transporte', filters.transporte)
+        params.set('categoria', 'paquete')
+        params.set('destino', filters.destino)
+        params.set('data', format(filters.data!, 'yyyy-MM-dd'))
         
-        params.set('quartos', filters.rooms.length.toString())
+        if (filters.salida) {
+          params.set('cidade_saida', filters.salida)
+        }
         
+        if (filters.transporte) {
+          params.set('transporte', filters.transporte)
+        }
+        
+        // Calcular pessoas totais
         const totalAdultos = filters.rooms.reduce((sum, room) => sum + room.adults, 0)
         const totalCriancas03 = filters.rooms.reduce((sum, room) => sum + room.children_0_3, 0)
         const totalCriancas45 = filters.rooms.reduce((sum, room) => sum + room.children_4_5, 0)
@@ -378,23 +376,23 @@ export function UnifiedSearchFilter({
         params.set('criancas_0_3', totalCriancas03.toString())
         params.set('criancas_4_5', totalCriancas45.toString())
         params.set('criancas_6', totalCriancas6.toString())
+        params.set('quartos', filters.rooms.length.toString())
+
+        // Adicionar configuração específica por quarto se múltiplos quartos
+        if (filters.rooms.length > 1) {
+          const roomsConfig = filters.rooms.map(room => ({
+            adults: room.adults,
+            children_0_3: room.children_0_3,
+            children_4_5: room.children_4_5,
+            children_6: room.children_6
+          }))
+          
+          params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
+        }
         
-        // Adicionar configuração específica dos quartos
-        params.set('rooms_config', JSON.stringify(roomsConfig))
-        
-        // Adicionar informações do resultado inteligente
-        params.set('smart_suggestion', 'true')
-        params.set('suggested_hotel', bestResult.hotel)
-        params.set('suggested_room_type', bestResult.quarto_tipo)
-        params.set('suggested_price', bestResult.preco_por_pessoa.toString())
-        params.set('suggested_justificativa', bestResult.justificativa || '')
-        params.set('suggested_score', bestResult.score_otimizacao?.toString() || '95')
-        
-        console.log('✅ Smart Filter: Navegando com resultado otimizado')
         router.push(`/resultados?${params.toString()}`)
       } else {
-        // ✅ SEMPRE fazer busca normal quando Smart Filter não retorna resultados
-        console.log('⚠️ Smart Filter sem resultados específicos, fazendo busca normal com dados preservados')
+        // Fazer busca normal como fallback
         handleNormalSearch()
       }
     } catch (error) {
@@ -407,46 +405,46 @@ export function UnifiedSearchFilter({
   }
 
   const handleNormalSearch = () => {
-    if (onSearch) {
-      onSearch(filters)
-    } else {
-      // Navegar para página de resultados com parâmetros URL
-      const params = new URLSearchParams()
-      
-      if (filters.salida) params.set('salida', filters.salida)
-      if (filters.destino) params.set('destino', filters.destino)
-      if (filters.data) params.set('data', format(filters.data, 'yyyy-MM-dd'))
-      if (filters.transporte) params.set('transporte', filters.transporte)
-      
-      // Adicionar informações dos quartos
-      params.set('quartos', filters.rooms.length.toString())
-      
-      // Somar totais de pessoas
-      const totalAdultos = filters.rooms.reduce((sum, room) => sum + room.adults, 0)
-      const totalCriancas03 = filters.rooms.reduce((sum, room) => sum + room.children_0_3, 0)
-      const totalCriancas45 = filters.rooms.reduce((sum, room) => sum + room.children_4_5, 0)
-      const totalCriancas6 = filters.rooms.reduce((sum, room) => sum + room.children_6, 0)
-      
-      params.set('adultos', totalAdultos.toString())
-      params.set('criancas_0_3', totalCriancas03.toString())
-      params.set('criancas_4_5', totalCriancas45.toString())
-      params.set('criancas_6', totalCriancas6.toString())
-      
-      // ✅ NOVO: Adicionar configuração específica por quarto se múltiplos quartos
-      if (filters.rooms.length > 1) {
-        const roomsConfig = filters.rooms.map(room => ({
-          adults: room.adults,
-          children_0_3: room.children_0_3,
-          children_4_5: room.children_4_5,
-          children_6: room.children_6
-        }))
-        
-        params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
-        console.log('🎯 FORMULÁRIO: ADICIONANDO CONFIGURAÇÃO ESPECÍFICA:', roomsConfig)
-      }
-      
-      router.push(`/resultados?${params.toString()}`)
+    const params = new URLSearchParams()
+    
+    // Parâmetros básicos
+    params.set('categoria', 'paquete')
+    params.set('destino', filters.destino)
+    params.set('data', format(filters.data!, 'yyyy-MM-dd'))
+    
+    if (filters.salida) {
+      params.set('cidade_saida', filters.salida)
     }
+    
+    if (filters.transporte) {
+      params.set('transporte', filters.transporte)
+    }
+    
+    // Calcular pessoas totais
+    const totalAdultos = filters.rooms.reduce((sum, room) => sum + room.adults, 0)
+    const totalCriancas03 = filters.rooms.reduce((sum, room) => sum + room.children_0_3, 0)
+    const totalCriancas45 = filters.rooms.reduce((sum, room) => sum + room.children_4_5, 0)
+    const totalCriancas6 = filters.rooms.reduce((sum, room) => sum + room.children_6, 0)
+    
+    params.set('adultos', totalAdultos.toString())
+    params.set('criancas_0_3', totalCriancas03.toString())
+    params.set('criancas_4_5', totalCriancas45.toString())
+    params.set('criancas_6', totalCriancas6.toString())
+    params.set('quartos', filters.rooms.length.toString())
+
+    // Adicionar configuração específica por quarto se múltiplos quartos
+    if (filters.rooms.length > 1) {
+      const roomsConfig = filters.rooms.map(room => ({
+        adults: room.adults,
+        children_0_3: room.children_0_3,
+        children_4_5: room.children_4_5,
+        children_6: room.children_6
+      }))
+      
+      params.set('rooms_config', encodeURIComponent(JSON.stringify(roomsConfig)))
+    }
+    
+    router.push(`/resultados?${params.toString()}`)
   }
 
   // Agora o handleSearch sempre usa Smart Filter
