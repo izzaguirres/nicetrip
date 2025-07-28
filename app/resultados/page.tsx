@@ -488,8 +488,22 @@ export default function ResultadosPage() {
 
     // Se for busca de pacotes, agrupa por hotel para mostrar só o melhor pacote
     if (activeTab === 'paquetes') {
+      // ✅ CORREÇÃO: Primeiro filtrar por data exata se especificada
+      let pacotesFiltradosPorData = itemsFiltrados
+      
+      // Extrair a data da busca dos searchParams
+      const dataBusca = searchParams.get("data")
+      if (dataBusca) {
+        console.log(`🗓️ Filtrando pacotes por data específica: ${dataBusca}`)
+        pacotesFiltradosPorData = itemsFiltrados.filter(pacote => 
+          pacote.data_saida === dataBusca
+        )
+        console.log(`📊 Pacotes após filtro por data: ${pacotesFiltradosPorData.length}`)
+      }
+      
+      // ✅ DEPOIS agrupar por hotel 
       const pacotesPorHotel = new Map<string, any[]>()
-      itemsFiltrados.forEach(pacote => {
+      pacotesFiltradosPorData.forEach(pacote => {
         const hotel = pacote.hotel
         if (!pacotesPorHotel.has(hotel)) pacotesPorHotel.set(hotel, [])
         pacotesPorHotel.get(hotel)!.push(pacote)
@@ -497,8 +511,15 @@ export default function ResultadosPage() {
       
       const melhoresPorHotel: any[] = []
       pacotesPorHotel.forEach((pacotesDoHotel) => {
-        melhoresPorHotel.push(pacotesDoHotel[0])
+        // ✅ ORDENAR por preço para pegar o melhor (menor preço)
+        const melhorPacote = pacotesDoHotel.sort((a, b) => 
+          (a.preco_adulto || 0) - (b.preco_adulto || 0)
+        )[0]
+        melhoresPorHotel.push(melhorPacote)
       })
+      
+      console.log(`🏨 Hotéis únicos encontrados para data ${dataBusca}: ${melhoresPorHotel.length}`)
+      console.log(`🏨 Hotéis: ${melhoresPorHotel.map(p => p.hotel).join(', ')}`)
       
       return melhoresPorHotel
     }

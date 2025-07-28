@@ -97,33 +97,55 @@ export function UnifiedSearchFilter({
   const router = useRouter()
   const isInitialMount = useRef(true);
   const prevTransportRef = useRef<string | undefined>(undefined)
+  const isInitializedRef = useRef(false); // ✅ NOVO: Controle de inicialização
   
-  // ✅ NOVO: Função para definir data padrão baseada no destino
-  const getDefaultDateForDestino = (destino: string, primeiraDataDisponivel?: string): Date => {
+  // ✅ MELHORADO: Função para definir data padrão baseada no destino + transporte
+  const getSmartDefaultDate = (
+    destino: string = "", 
+    transporte: string = "", 
+    primeiraDataDisponivel?: string
+  ): Date => {
     // Se temos a primeira data disponível real, usar ela
     if (primeiraDataDisponivel) {
       return new Date(primeiraDataDisponivel + 'T00:00:00')
     }
     
-    // Fallback para quando não temos dados ainda
-    if (destino === "Bombinhas") {
-      // Para Bombinhas: janeiro 2026 (quando tem disponibilidade)
-      return new Date(2026, 0, 4) // 04 de Janeiro 2026
+    // ✅ LÓGICA INTELIGENTE baseada em transporte + destino
+    if (transporte === "Aéreo") {
+      // Aéreo sempre Janeiro
+      return new Date(2026, 0, 8) // 08 de Janeiro 2026
+    } else if (transporte === "Bus" || transporte === "Bús") {
+      if (destino === "Bombinhas") {
+        // Bús + Bombinhas = Janeiro
+        return new Date(2026, 0, 4) // 04 de Janeiro 2026
+      } else {
+        // Bús + outros destinos = Outubro
+        return new Date(2025, 9, 19) // 19 de Outubro 2025
+      }
     }
-    // Para outros destinos: 19 de outubro 2025 (primeira data disponível)
+    
+    // Fallback padrão
     return new Date(2025, 9, 19) // 19 de Outubro 2025
   }
 
-  // Data padrão: 19 de outubro 2025
+  // Data padrão: 19 de outubro 2025 (fallback)
   const defaultDate = new Date(2025, 9, 19) // 19 de Outubro 2025
 
   // Estado local para filtros
-  const [filters, setFilters] = useState<SearchFilters>({
-    salida: initialFilters?.salida || "",
-    destino: initialFilters?.destino || "",
-    transporte: initialFilters?.transporte || "",
-    data: initialFilters?.data || defaultDate,
-    rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }]
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    const initialState = {
+      salida: initialFilters?.salida || "",
+      destino: initialFilters?.destino || "",
+      transporte: initialFilters?.transporte || "",
+      // ✅ CORREÇÃO: Usar data inteligente apenas na HOME, preservar URL nos RESULTS
+      data: initialFilters?.data || (
+        variant === "homepage" 
+          ? getSmartDefaultDate(initialFilters?.destino, initialFilters?.transporte) 
+          : defaultDate
+      ),
+      rooms: initialFilters?.rooms || [{ id: "1", adults: 2, children_0_3: 0, children_4_5: 0, children_6: 0 }]
+    }
+    return initialState
   })
 
   // Hooks do Supabase com fallback
@@ -148,78 +170,118 @@ export function UnifiedSearchFilter({
     ? FALLBACK_TRANSPORTS 
     : supabaseTransportes.map((t: any) => typeof t === 'string' ? { id: Math.random(), transporte: t } : { id: t.id || Math.random(), transporte: t.transporte || t })
 
-  // Atualizar filtros quando initialFilters mudar (importante para página de resultados)
+  // ✅ SOLUÇÃO ELEGANTE: Inicialização controlada
   useEffect(() => {
-    if (initialFilters) {
-      setFilters((prev: SearchFilters) => ({
-        salida: initialFilters.salida || prev.salida,
-        destino: initialFilters.destino || prev.destino,
-        data: initialFilters.data ? new Date(initialFilters.data) : prev.data,
-        rooms: initialFilters.rooms || prev.rooms,
-        transporte: initialFilters.transporte || prev.transporte,
-      }))
+    if (initialFilters && !isInitializedRef.current) {
+      // ✅ Caso 1: Página de resultados com initialFilters
+      isInitializedRef.current = true
+      prevTransportRef.current = initialFilters.transporte || ""
+      
+      setFilters((prev: SearchFilters) => {
+        const newState = {
+          salida: initialFilters.salida || prev.salida,
+          destino: initialFilters.destino || prev.destino,
+          data: initialFilters.data ? new Date(initialFilters.data) : prev.data,
+          rooms: initialFilters.rooms || prev.rooms,
+          transporte: initialFilters.transporte || prev.transporte,
+        }
+        return newState
+      })
+    } else if (!initialFilters && !isInitializedRef.current) {
+      // ✅ Caso 2: Homepage sem initialFilters
+      isInitializedRef.current = true
+      prevTransportRef.current = filters.transporte || ""
     }
-  }, [initialFilters])
+  }, [initialFilters, filters.transporte])
 
   // Função para atualizar filtros
   const updateFilters = (updates: Partial<SearchFilters>) => {
     setFilters((prev: SearchFilters) => ({ ...prev, ...updates }))
   }
 
-  // ✅ NOVO: Detectar mudança de TRANSPORTE e ajustar data automaticamente
+  // ✅ CORREÇÃO: Detectar mudança de TRANSPORTE + DESTINO e ajustar data automaticamente
+  // 🎯 INTELIGENTE: Home ajusta sempre, Resultados ajusta apenas em mudanças manuais
   useEffect(() => {
-    if (datasDisponiveis.length > 0 && !loadingDatas) {
-      let novaData: Date | undefined = undefined
+    // ✅ SKIP se ainda não foi inicializado
+    if (!isInitializedRef.current) {
+      return
+    }
+    
+    // ✅ SKIP se não temos transporte e destino válidos
+    if (!filters.destino || !filters.transporte) {
+      return
+    }
+
+    // ✅ CORREÇÃO: Na página de resultados, só ajustar em mudanças manuais
+    if (variant === "results") {
+      // Verificar se a combinação atual é diferente da inicial da URL
+      const transporteInicial = initialFilters?.transporte || ""
+      const destinoInicial = initialFilters?.destino || ""
       
-      // 🎯 REGRA: Aéreo vai para Janeiro, Bús vai para Outubro
-      if (filters.transporte === "Aéreo") {
-        // Buscar primeira data disponível do aéreo (deve ser Janeiro)
-        const primeiraDataAereo = datasDisponiveis[0] 
-        if (primeiraDataAereo && primeiraDataAereo.startsWith('2026-01')) {
-          novaData = new Date(primeiraDataAereo + 'T00:00:00')
-          console.log(`✈️ AÉREO selecionado: movendo para primeira data disponível: ${primeiraDataAereo}`)
-        }
-      } else if (filters.transporte === "Bus" || filters.transporte === "Bús") {
-        // Para ônibus, usar 19 de outubro 2025 (primeira data do ônibus)
-        const dataOnibus = '2025-10-19'
-        if (datasDisponiveis.includes(dataOnibus)) {
-          novaData = new Date(dataOnibus + 'T00:00:00')
-          console.log(`🚌 BÚS selecionado: movendo para primeira data disponível: ${dataOnibus}`)
-        }
+      // Se não mudou nada desde a URL, não ajustar
+      if (filters.transporte === transporteInicial && filters.destino === destinoInicial) {
+        return // ← Preservar data da URL se não houve mudança manual
       }
-      
-      // Aplicar mudança apenas se encontrou uma data específica para o transporte
-      if (novaData && filters.data && format(filters.data, 'yyyy-MM-dd') !== format(novaData, 'yyyy-MM-dd')) {
-        setFilters(prev => ({ ...prev, data: novaData }))
+      // Se chegou aqui, houve mudança manual → permitir ajuste
+    }
+
+    let novaData: Date | undefined = undefined
+    
+    // 🎯 REGRAS ESPECÍFICAS baseadas na combinação transporte + destino
+    if (filters.transporte === "Aéreo") {
+      // ✈️ AÉREO: Sempre Janeiro (independente do destino)
+      if (datasDisponiveis.length > 0) {
+        const primeiraDataAereo = datasDisponiveis.find(data => data.startsWith('2026-01'))
+        if (primeiraDataAereo) {
+          novaData = new Date(primeiraDataAereo + 'T00:00:00')
+        }
+      } else {
+        // ✅ FALLBACK: Usar data padrão enquanto carrega
+        novaData = new Date(2026, 0, 8) // 08 de Janeiro 2026
+      }
+    } else if (filters.transporte === "Bus" || filters.transporte === "Bús") {
+      // 🚌 ÔNIBUS: Depende do destino
+      if (filters.destino === "Bombinhas") {
+        // Bús + Bombinhas = 04 de Janeiro
+        if (datasDisponiveis.length > 0) {
+          const dataBombinhas = datasDisponiveis.find(data => data.startsWith('2026-01'))
+          if (dataBombinhas) {
+            novaData = new Date(dataBombinhas + 'T00:00:00')
+          }
+        } else {
+          // ✅ FALLBACK: Usar data padrão enquanto carrega
+          novaData = new Date(2026, 0, 4) // 04 de Janeiro 2026
+        }
+      } else {
+        // Bús + outros destinos = 19 de Outubro  
+        if (datasDisponiveis.length > 0) {
+          const dataOnibus = '2025-10-19'
+          if (datasDisponiveis.includes(dataOnibus)) {
+            novaData = new Date(dataOnibus + 'T00:00:00')
+          }
+        } else {
+          // ✅ FALLBACK: Usar data padrão enquanto carrega
+          novaData = new Date(2025, 9, 19) // 19 de Outubro 2025
+        }
       }
     }
-  }, [filters.transporte, datasDisponiveis, loadingDatas]) // Disparar apenas quando TRANSPORTE muda
+    
+    // Aplicar mudança apenas se encontrou uma data específica E é diferente da atual
+    if (novaData && filters.data && format(filters.data, 'yyyy-MM-dd') !== format(novaData, 'yyyy-MM-dd')) {
+      setFilters(prev => ({ ...prev, data: novaData }))
+    }
+  }, [filters.transporte, filters.destino, datasDisponiveis, loadingDatas, variant, initialFilters])
 
-  // ✅ NOVO: Filtros condicionais - transporte filtra cidades disponíveis
+  // ✅ CORREÇÃO: Filtros condicionais - transporte filtra cidades disponíveis
   const cidadesDisponiveis = useMemo(() => {
     if (!filters.transporte) return []
     const tNorm = normalizeTransport(filters.transporte)
-    let lista = cidades.filter(cidade => normalizeTransport(cidade.transporte) === tNorm)
+    const lista = cidades.filter(cidade => normalizeTransport(cidade.transporte) === tNorm)
 
-    // Garantir que a cidade atualmente selecionada esteja presente
-    if (
-      filters.salida &&
-      !lista.some(c => c.cidade === filters.salida)
-    ) {
-      lista = [
-        {
-          id: -1,
-          cidade: filters.salida,
-          provincia: "",
-          pais: "",
-          transporte: filters.transporte,
-        } as any,
-        ...lista,
-      ]
-    }
-
+    // ✅ REMOVIDO: Não adicionar cidade anterior que não pertence ao transporte
+    // A cidade selecionada deve ser resetada quando o transporte muda
     return lista
-  }, [cidades, filters.transporte, filters.salida])
+  }, [cidades, filters.transporte])
 
   // ✅ NOVO: Agrupar cidades por província
   const groupedCities = useMemo(() => {
@@ -235,8 +297,15 @@ export function UnifiedSearchFilter({
     }, {} as Record<string, typeof cidadesDisponiveis>)
   }, [cidadesDisponiveis])
 
-  // Resetar saída somente quando o transporte efetivamente muda
+  // ✅ SOLUÇÃO ELEGANTE: Reset de salida apenas em mudanças reais (não na inicialização)
   useEffect(() => {
+    
+    // Pular completamente durante a inicialização
+    if (!isInitializedRef.current) {
+      return
+    }
+
+    // Verificar se houve mudança real no transporte
     if (prevTransportRef.current === undefined) {
       prevTransportRef.current = filters.transporte
       return
@@ -344,11 +413,7 @@ export function UnifiedSearchFilter({
         quartos: filters.rooms.length.toString()
       }
       
-      console.log('🤖 Executando Smart Filter...', { smartFilters, roomsConfig })
-      
       const result = await executeSmartFilter(smartFilters, roomsConfig)
-      
-      console.log('🔍 Resultado do Smart Filter:', result)
       
       if (result.success && result.results && result.results.length > 0) {
         // Navegar com os resultados do Smart Filter
@@ -359,7 +424,7 @@ export function UnifiedSearchFilter({
         params.set('data', format(filters.data!, 'yyyy-MM-dd'))
         
         if (filters.salida) {
-          params.set('cidade_saida', filters.salida)
+          params.set('salida', filters.salida)  // ✅ CORREÇÃO: usar 'salida' em vez de 'cidade_saida'
         }
         
         if (filters.transporte) {
@@ -396,7 +461,6 @@ export function UnifiedSearchFilter({
         handleNormalSearch()
       }
     } catch (error) {
-      console.error('❌ Erro no Smart Filter:', error)
       // Em caso de erro, fazer busca normal como fallback
       handleNormalSearch()
     } finally {
@@ -413,7 +477,7 @@ export function UnifiedSearchFilter({
     params.set('data', format(filters.data!, 'yyyy-MM-dd'))
     
     if (filters.salida) {
-      params.set('cidade_saida', filters.salida)
+      params.set('salida', filters.salida)
     }
     
     if (filters.transporte) {
