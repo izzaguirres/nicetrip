@@ -5,6 +5,101 @@ export interface PaseoImageData {
 
 // Mapeamento centralizado de passeios para suas imagens reais
 const paseoDataMap: Record<string, PaseoImageData> = {
+  // ✅ NOVOS PASSEIOS ATUALIZADOS
+  "bombinhas": {
+    displayName: "Bombinhas",
+    imageFiles: [
+      "/images/paseos/Bombinhas/1.jpeg",
+      "/images/paseos/Bombinhas/2.jpg", 
+      "/images/paseos/Bombinhas/3.jpg",
+      "/images/paseos/Bombinhas/4.png",
+      "/images/paseos/Bombinhas/5.jpg"
+    ]
+  },
+  "city-tour-florianopolis": {
+    displayName: "City Tour – Florianópolis",
+    imageFiles: [
+      "/images/paseos/City Tour – Florianópolis/1.jpg",
+      "/images/paseos/City Tour – Florianópolis/2.jpg",
+      "/images/paseos/City Tour – Florianópolis/3.jpg",
+      "/images/paseos/City Tour – Florianópolis/4.jpg",
+      "/images/paseos/City Tour – Florianópolis/5.jpg",
+      "/images/paseos/City Tour – Florianópolis/6.jpg"
+    ]
+  },
+  "city-tour": {
+    displayName: "City Tour – Florianópolis",
+    imageFiles: [
+      "/images/paseos/City Tour – Florianópolis/1.jpg",
+      "/images/paseos/City Tour – Florianópolis/2.jpg",
+      "/images/paseos/City Tour – Florianópolis/3.jpg",
+      "/images/paseos/City Tour – Florianópolis/4.jpg",
+      "/images/paseos/City Tour – Florianópolis/5.jpg",
+      "/images/paseos/City Tour – Florianópolis/6.jpg"
+    ]
+  },
+  "florianopolis": {
+    displayName: "City Tour – Florianópolis",
+    imageFiles: [
+      "/images/paseos/City Tour – Florianópolis/1.jpg",
+      "/images/paseos/City Tour – Florianópolis/2.jpg",
+      "/images/paseos/City Tour – Florianópolis/3.jpg",
+      "/images/paseos/City Tour – Florianópolis/4.jpg",
+      "/images/paseos/City Tour – Florianópolis/5.jpg",
+      "/images/paseos/City Tour – Florianópolis/6.jpg"
+    ]
+  },
+  "guarda-do-embau": {
+    displayName: "Guarda do Embaú",
+    imageFiles: [
+      "/images/paseos/Guarda do Embaú/1.jpeg",
+      "/images/paseos/Guarda do Embaú/2.jpeg",
+      "/images/paseos/Guarda do Embaú/3.jpg",
+      "/images/paseos/Guarda do Embaú/4.jpg"
+    ]
+  },
+  "guarda-embau": {
+    displayName: "Guarda do Embaú",
+    imageFiles: [
+      "/images/paseos/Guarda do Embaú/1.jpeg",
+      "/images/paseos/Guarda do Embaú/2.jpeg",
+      "/images/paseos/Guarda do Embaú/3.jpg",
+      "/images/paseos/Guarda do Embaú/4.jpg"
+    ]
+  },
+  "mergulho": {
+    displayName: "Mergulho",
+    imageFiles: [
+      "/images/paseos/Mergulho/1.jpeg",
+      "/images/paseos/Mergulho/2.jpeg",
+      "/images/paseos/Mergulho/3.jpg",
+      "/images/paseos/Mergulho/4.jpg",
+      "/images/paseos/Mergulho/5.jpeg"
+    ]
+  },
+  "aqua-show-park": {
+    displayName: "Aqua Show Park",
+    imageFiles: [
+      "/images/paseos/Aqua Show Park/1.jpg",
+      "/images/paseos/Aqua Show Park/2.webp",
+      "/images/paseos/Aqua Show Park/3.webp",
+      "/images/paseos/Aqua Show Park/4.jpg",
+      "/images/paseos/Aqua Show Park/5.jpg",
+      "/images/paseos/Aqua Show Park/6.jpg"
+    ]
+  },
+  "aqua-show": {
+    displayName: "Aqua Show Park",
+    imageFiles: [
+      "/images/paseos/Aqua Show Park/1.jpg",
+      "/images/paseos/Aqua Show Park/2.webp",
+      "/images/paseos/Aqua Show Park/3.webp",
+      "/images/paseos/Aqua Show Park/4.jpg",
+      "/images/paseos/Aqua Show Park/5.jpg",
+      "/images/paseos/Aqua Show Park/6.jpg"
+    ]
+  },
+  // ✅ PASSEIOS ANTIGOS (mantidos para compatibilidade se ainda existirem)
   "balneario-camboriu": {
     displayName: "Balneário Camboriú",
     imageFiles: [
