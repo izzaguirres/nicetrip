@@ -22,10 +22,16 @@ export function PaseoCard({ passeio }: PaseoCardProps) {
   }
 
   const getCoverImage = () => {
-    // Prioriza imagem do Supabase se existir
+    // ✅ NOVOS PASSEIOS: Força uso do sistema local (funciona no deploy)
+    const novosPasseios = ['Bombinhas', 'City Tour – Florianópolis', 'Guarda do Embaú', 'Mergulho', 'Aqua Show Park'];
+    if (novosPasseios.includes(passeio.nome || '')) {
+      return getPaseoCoverImage(passeio.nome || 'fallback');
+    }
+
+    // ✅ PASSEIOS ANTIGOS: Prioriza imagem do Supabase se existir
     if (passeio.imagem_url) return passeio.imagem_url;
 
-    // Caso contrário, usa o sistema centralizado de imagens
+    // ✅ FALLBACK: Usa o sistema centralizado de imagens
     return getPaseoCoverImage(passeio.nome || 'fallback');
   };
 
