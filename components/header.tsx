@@ -6,6 +6,7 @@ import { Globe, Menu, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import Script from "next/script"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -65,63 +66,60 @@ export function Header() {
     >
       <div className="container mx-auto px-4 lg:px-[70px]">
         <div className="flex items-center justify-between h-16 lg:h-20 py-4">
-          {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0">
-            <Image
-              src="/images/nicetrip-logo-1.png"
-              alt="Nice Trip"
-              width={120}
-              height={30}
-              className="h-8 lg:h-10 w-auto flex-shrink-0"
-            />
-          </Link>
+          {/* Logo + Dólar Hoje */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <Link href="/" className="flex items-center flex-shrink-0">
+              <Image
+                src="/images/nicetrip-logo-1.png"
+                alt="Nice Trip"
+                width={120}
+                height={30}
+                className="h-8 lg:h-10 w-auto flex-shrink-0"
+              />
+            </Link>
+            {/* Badge: Dólar Hoje */}
+            <div className="flex items-center">
+              <a
+                href="https://dolarhoje.com/"
+                className="dolar-hoje-button text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-700"
+                data-currency="dolar"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Cotação do Dólar Hoje"
+              >
+                Dólar Hoje
+              </a>
+              <Script src="https://dolarhoje.com/widgets/button/v1.js" strategy="afterInteractive" />
+            </div>
+          </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            <Link
-              href="/"
-              className={getLinkClasses("/")}
-            >
-              Inicio
-            </Link>
-            <span
-              className={getLinkClasses("/resultados")}
-            >
-              Paquetes
-            </span>
-            <span
-              className={getLinkClasses("/hospedajes")}
-            >
-              Hospedajes
-            </span>
-            <span
-              className={getLinkClasses("/paseos")}
-            >
-              Paseos
-            </span>
-            <Link
-              href="/condiciones"
-              className={getLinkClasses("/condiciones")}
-            >
-              Condiciones
-            </Link>
-            <Link
-              href="/contacto"
-              className={getLinkClasses("/contacto")}
-            >
-              Contacto
-            </Link>
-          </nav>
+          {/* Right: Links essenciais + CTA */}
+          <div className="hidden lg:flex items-center gap-2">
+            <nav className="flex items-center space-x-1 mr-2">
+              <Link
+                href="/condiciones"
+                className={getLinkClasses("/condiciones")}
+              >
+                Condiciones
+              </Link>
+              <Link
+                href="/contacto"
+                className={getLinkClasses("/contacto")}
+              >
+                Contacto
+              </Link>
+            </nav>
 
-          {/* CTA Button */}
-          <div className="hidden lg:block flex-shrink-0">
-            <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white rounded-xl px-4 py-2 font-semibold text-[14px] shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.02] overflow-hidden group whitespace-nowrap">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-              <div className="relative z-10 flex items-center">
-                <Globe className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span className="flex-shrink-0">Acceso Agencias</span>
-              </div>
-            </button>
+            {/* CTA Button */}
+            <div className="flex-shrink-0">
+              <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white rounded-xl px-4 py-2 font-semibold text-[14px] shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.02] overflow-hidden group whitespace-nowrap">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+                <div className="relative z-10 flex items-center">
+                  <Globe className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="flex-shrink-0">Acceso Agencias</span>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -134,31 +132,6 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t border-gray-100">
             <nav className="flex flex-col space-y-3">
-              <Link 
-                href="/" 
-                className={getMobileLinkClasses("/")}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Inicio
-              </Link>
-              <span 
-                className={getMobileLinkClasses("/resultados")}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Paquetes
-              </span>
-              <span 
-                className={getMobileLinkClasses("/hospedajes")}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Hospedajes
-              </span>
-              <span
-                className={getMobileLinkClasses("/paseos")}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Paseos
-              </span>
               <Link 
                 href="/condiciones" 
                 className={getMobileLinkClasses("/condiciones")}
