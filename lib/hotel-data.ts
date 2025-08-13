@@ -135,21 +135,20 @@ import vpa4 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/4.png';
 import vpa5 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/5.png';
 import vpa6 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/6.png';
 
-// Hotel Gracher Camboriú (novo)
-// Observação: a pasta possui nome com acento, manter o caminho exatamente como está no diretório
-import hgc1 from '@/public/images/hoteles/Hotel Gracher Camboriú/1.png';
-import hgc2 from '@/public/images/hoteles/Hotel Gracher Camboriú/2.png';
-import hgc3 from '@/public/images/hoteles/Hotel Gracher Camboriú/3.png';
-import hgc4 from '@/public/images/hoteles/Hotel Gracher Camboriú/4.png';
-import hgc5 from '@/public/images/hoteles/Hotel Gracher Camboriú/5.png';
-import hgc6 from '@/public/images/hoteles/Hotel Gracher Camboriú/6.png';
-import hgc7 from '@/public/images/hoteles/Hotel Gracher Camboriú/7.png';
-import hgc9 from '@/public/images/hoteles/Hotel Gracher Camboriú/9.png';
-import hgc10 from '@/public/images/hoteles/Hotel Gracher Camboriú/10.png';
-import hgc11 from '@/public/images/hoteles/Hotel Gracher Camboriú/11.png';
-import hgc12 from '@/public/images/hoteles/Hotel Gracher Camboriú/12.png';
-import hgc13 from '@/public/images/hoteles/Hotel Gracher Camboriú/13.png';
-import hgc14 from '@/public/images/hoteles/Hotel Gracher Camboriú/14.png';
+// Hotel Gracher Camboriú (novo) - usar caminho ASCII para evitar problemas de normalização em produção
+import hgc1 from '@/public/images/hoteles/hotel-gracher-camboriu/1.png';
+import hgc2 from '@/public/images/hoteles/hotel-gracher-camboriu/2.png';
+import hgc3 from '@/public/images/hoteles/hotel-gracher-camboriu/3.png';
+import hgc4 from '@/public/images/hoteles/hotel-gracher-camboriu/4.png';
+import hgc5 from '@/public/images/hoteles/hotel-gracher-camboriu/5.png';
+import hgc6 from '@/public/images/hoteles/hotel-gracher-camboriu/6.png';
+import hgc7 from '@/public/images/hoteles/hotel-gracher-camboriu/7.png';
+import hgc9 from '@/public/images/hoteles/hotel-gracher-camboriu/9.png';
+import hgc10 from '@/public/images/hoteles/hotel-gracher-camboriu/10.png';
+import hgc11 from '@/public/images/hoteles/hotel-gracher-camboriu/11.png';
+import hgc12 from '@/public/images/hoteles/hotel-gracher-camboriu/12.png';
+import hgc13 from '@/public/images/hoteles/hotel-gracher-camboriu/13.png';
+import hgc14 from '@/public/images/hoteles/hotel-gracher-camboriu/14.png';
 
 
 // --- ESTRUTURA DE DADOS MESTRE ---
