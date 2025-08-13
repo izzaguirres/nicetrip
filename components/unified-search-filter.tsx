@@ -36,6 +36,7 @@ import { useSmartFilter } from "@/hooks/use-smart-filter"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Dados de fallback para quando o Supabase não estiver configurado
+const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
 const FALLBACK_CITIES = [
   // ✅ CIDADES ARGENTINAS ATUALIZADAS (conforme Supabase)
   { id: 1, cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina", transporte: "Bus" },
@@ -162,11 +163,11 @@ export function UnifiedSearchFilter({
 
 
   // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
-  const cidades = errorCidades || supabaseCidades.length === 0 ? FALLBACK_CITIES : supabaseCidades
-  const destinos = errorDestinos || supabaseDestinos.length === 0 
+  const cidades = (ENABLE_FALLBACK && (errorCidades || supabaseCidades.length === 0)) ? FALLBACK_CITIES : supabaseCidades
+  const destinos = (ENABLE_FALLBACK && (errorDestinos || supabaseDestinos.length === 0))
     ? FALLBACK_DESTINATIONS 
     : supabaseDestinos.map((d: any) => typeof d === 'string' ? { id: Math.random(), destino: d } : { id: d.id || Math.random(), destino: d.destino || d })
-  const transportes = errorTransportes || supabaseTransportes.length === 0 
+  const transportes = (ENABLE_FALLBACK && (errorTransportes || supabaseTransportes.length === 0))
     ? FALLBACK_TRANSPORTS 
     : supabaseTransportes.map((t: any) => typeof t === 'string' ? { id: Math.random(), transporte: t } : { id: t.id || Math.random(), transporte: t.transporte || t })
 
@@ -383,6 +384,8 @@ export function UnifiedSearchFilter({
   }
 
   const getTotalPeople = () => {
+    // Para Aéreo, as faixas serão 0-2, 2-5 e 6+, mas a UI ainda usa 0-3/4-5/6.
+    // Mantemos a soma genérica; o mapeamento por faixa é feito no cálculo.
     return filters.rooms.reduce((total, room) => 
       total + room.adults + room.children_0_3 + room.children_4_5 + room.children_6, 0
     )
@@ -715,6 +718,10 @@ export function UnifiedSearchFilter({
                   const roomTotal = getRoomTotalPeople(room)
                   const isNearLimit = roomTotal >= 4
                   const isAtLimit = roomTotal >= 5
+                  const isAereo = filters.transporte === 'Aéreo'
+                  const label03 = isAereo ? 'Niños (0-2 años)' : 'Niños (0-3 años)'
+                  const label45 = isAereo ? 'Niños (2-5 años)' : 'Niños (4-5 años)'
+                  const label6p = 'Niños (6+ años)'
                   
                   return (
                   <div key={room.id} className={`border rounded-xl p-3 space-y-2 transition-all duration-200 ${
@@ -764,7 +771,7 @@ export function UnifiedSearchFilter({
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-700">Niños (0-3 años)</span>
+                        <span className="text-xs font-semibold text-gray-700">{label03}</span>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateRoom(room.id, 'children_0_3', room.children_0_3 - 1)}
@@ -785,7 +792,7 @@ export function UnifiedSearchFilter({
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-700">Niños (4-5 años)</span>
+                        <span className="text-xs font-semibold text-gray-700">{label45}</span>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateRoom(room.id, 'children_4_5', room.children_4_5 - 1)}
@@ -806,7 +813,7 @@ export function UnifiedSearchFilter({
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-700">Niños (6+ años)</span>
+                        <span className="text-xs font-semibold text-gray-700">{label6p}</span>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateRoom(room.id, 'children_6', room.children_6 - 1)}
@@ -876,7 +883,7 @@ export function UnifiedSearchFilter({
         </div>
 
         {/* Indicador de dados de fallback */}
-        {(errorCidades || errorDestinos || errorTransportes) && variant === "homepage" && (
+        {ENABLE_FALLBACK && (errorCidades || errorDestinos || errorTransportes) && variant === "homepage" && (
           <div className="col-span-2 lg:col-span-6 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
               ⚠️ Usando datos de demostración. Configure las variables de entorno de Supabase para datos reales.

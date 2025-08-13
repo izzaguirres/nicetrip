@@ -19,9 +19,11 @@ interface SmartFilterResult {
   score_otimizacao: number
 }
 
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
+
 export async function POST(request: NextRequest) {
   try {
-    console.log('🧠 Smart Filter iniciando...')
+    if (DEBUG) console.log('🧠 Smart Filter iniciando...')
     
     const body = await request.json()
     
@@ -29,9 +31,9 @@ export async function POST(request: NextRequest) {
     const filters = body.filters || body
     const roomsConfig = body.roomsConfig || []
     
-    console.log('📋 Filtros recebidos:', filters)
-    console.log('🏠 Configuração de quartos:', roomsConfig)
-    console.log('🔍 Debug detalhado:', {
+    if (DEBUG) console.log('📋 Filtros recebidos:', filters)
+    if (DEBUG) console.log('🏠 Configuração de quartos:', roomsConfig)
+    if (DEBUG) console.log('🔍 Debug detalhado:', {
       destino: filters.destino,
       transporte: filters.transporte,
       data_saida: filters.data_saida,
@@ -45,10 +47,10 @@ export async function POST(request: NextRequest) {
     const totalCriancas = (filters.criancas0a3 || 0) + (filters.criancas4a5 || 0) + (filters.criancas6mais || 0)
     const totalPessoas = totalAdultos + totalCriancas
     
-    console.log(`👥 Total: ${totalPessoas} pessoas (${totalAdultos} adultos, ${totalCriancas} crianças)`)
+    if (DEBUG) console.log(`👥 Total: ${totalPessoas} pessoas (${totalAdultos} adultos, ${totalCriancas} crianças)`)    
 
     // ✅ USAR NOVO SERVIÇO LIMPO DE DADOS
-    console.log('🔄 USANDO NOVO SERVIÇO DE DADOS SUPABASE...')
+    if (DEBUG) console.log('🔄 USANDO NOVO SERVIÇO DE DADOS SUPABASE...')
     
     const searchFilters: SearchFilters = {
       destino: filters.destino,
@@ -58,17 +60,17 @@ export async function POST(request: NextRequest) {
     
     const { allData, filteredData, uniqueHotels } = await fetchDataForSmartFilter(searchFilters)
     
-    console.log(`🔍 Dados após filtros: ${filteredData.length} registros`)
+    if (DEBUG) console.log(`🔍 Dados após filtros: ${filteredData.length} registros`)
     
     // ✅ SE TEMOS DADOS REAIS APÓS FILTROS, USAR ELES!
     if (filteredData && filteredData.length > 0) {
-      console.log(`🎯 USANDO DADOS REAIS DO SUPABASE: ${filteredData.length} registros encontrados`)
+      if (DEBUG) console.log(`🎯 USANDO DADOS REAIS DO SUPABASE: ${filteredData.length} registros encontrados`)
       
       // Filtrar por data específica se fornecida
       let dadosFiltradosPorData = filteredData
       if (filters.data_saida) {
         dadosFiltradosPorData = filteredData.filter((item: any) => item.data_saida === filters.data_saida)
-        console.log(`📅 Filtrados por data ${filters.data_saida}: ${dadosFiltradosPorData.length} registros`)
+        if (DEBUG) console.log(`📅 Filtrados por data ${filters.data_saida}: ${dadosFiltradosPorData.length} registros`)
       }
       
       // Agrupar por hotel para obter hotéis únicos NA DATA ESPECÍFICA
@@ -81,8 +83,10 @@ export async function POST(request: NextRequest) {
         }
       })
       
-      console.log(`🏨 Hotéis únicos encontrados na data: ${hoteisUnicos.size}`)
-      console.log(`📋 Hotéis:`, Array.from(hoteisUnicos.keys()))
+      if (DEBUG) {
+        console.log(`🏨 Hotéis únicos encontrados na data: ${hoteisUnicos.size}`)
+        console.log(`📋 Hotéis:`, Array.from(hoteisUnicos.keys()))
+      }
       
       // Processar dados reais - todos os hotéis únicos
       const resultados = Array.from(hoteisUnicos.values()).map((item: any, index: number) => ({
@@ -115,7 +119,11 @@ export async function POST(request: NextRequest) {
     
     // ✅ USAR FALLBACK APENAS se não há dados reais
     if (!filteredData || filteredData.length === 0) {
-      console.log('Usando dados de fallback...')
+      if (DEBUG) console.log('Usando dados de fallback...')
+      const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
+      if (!ENABLE_FALLBACK) {
+        return NextResponse.json({ success: true, analysis: { resultados: [], resumo_analise: 'Nenhum resultado encontrado' } })
+      }
       
       // ✅ DADOS DE FALLBACK baseados EXCLUSIVAMENTE em hotéis REAIS do Supabase
       const FALLBACK_DATA = [
@@ -295,13 +303,16 @@ export async function POST(request: NextRequest) {
       })
       
       if (dadosFallback.length > 0) {
-        console.log(`📊 Usando ${dadosFallback.length} registros de fallback`)
-        console.log(`🎯 Hotéis fallback encontrados:`, dadosFallback.map(item => `${item.hotel} (${item.destino} - ${item.transporte})`))
-        // Use dadosFallback directly for processing
-        console.log('✅ Fallback data ready for processing')
+        if (DEBUG) {
+          console.log(`📊 Usando ${dadosFallback.length} registros de fallback`)
+          console.log(`🎯 Hotéis fallback encontrados:`, dadosFallback.map(item => `${item.hotel} (${item.destino} - ${item.transporte})`))
+          console.log('✅ Fallback data ready for processing')
+        }
       } else {
-        console.log(`❌ ERRO: Nenhum dado de fallback encontrado para destino="${filters.destino}" transporte="${filters.transporte}"`)
-        console.log(`🔍 Dados de fallback disponíveis:`, FALLBACK_DATA.map(item => `${item.destino}-${item.transporte}`))
+        if (DEBUG) {
+          console.log(`❌ ERRO: Nenhum dado de fallback encontrado para destino="${filters.destino}" transporte="${filters.transporte}"`)
+          console.log(`🔍 Dados de fallback disponíveis:`, FALLBACK_DATA.map(item => `${item.destino}-${item.transporte}`))
+        }
         return NextResponse.json({ 
           success: false,
           error: `Nenhum dado encontrado para ${filters.destino} + ${filters.transporte}`,
@@ -327,7 +338,7 @@ export async function POST(request: NextRequest) {
       filteredData.filter((item: any) => item.data_saida === filters.data_saida) : 
       filteredData
       
-    console.log(`📊 Processando ${dadosParaProcessar.length} registros (filtrados por data: ${filters.data_saida || 'todas'})`)
+    if (DEBUG) console.log(`📊 Processando ${dadosParaProcessar.length} registros (filtrados por data: ${filters.data_saida || 'todas'})`)
     
     const hoteisPorTipo = dadosParaProcessar.reduce((acc: Record<string, Record<string, any>>, item: any) => {
       const hotelKey = item.hotel
@@ -338,8 +349,10 @@ export async function POST(request: NextRequest) {
       return acc
     }, {} as Record<string, Record<string, any>>)
 
-    console.log(`🏨 Hotéis disponíveis: ${Object.keys(hoteisPorTipo).length}`)
-    console.log(`📋 Lista de hotéis:`, Object.keys(hoteisPorTipo))
+    if (DEBUG) {
+      console.log(`🏨 Hotéis disponíveis: ${Object.keys(hoteisPorTipo).length}`)
+      console.log(`📋 Lista de hotéis:`, Object.keys(hoteisPorTipo))
+    }
 
     // 4. ALGORITMO INTELIGENTE DE OTIMIZAÇÃO
     const resultadosOtimizados: SmartFilterResult[] = []
@@ -356,7 +369,7 @@ export async function POST(request: NextRequest) {
         const ocupacaoExata = (capacidadeQuarto === pessoasPorQuarto)
         const ocupacaoProxima = (capacidadeQuarto === pessoasPorQuarto + 1)
         
-        console.log(`🛏️ Analisando ${hotelNome} - ${tipoQuarto}: capacidade ${capacidadeQuarto}, necessário ${pessoasPorQuarto}, suficiente: ${capacidadeSuficiente}`)
+        if (DEBUG) console.log(`🛏️ Analisando ${hotelNome} - ${tipoQuarto}: capacidade ${capacidadeQuarto}, necessário ${pessoasPorQuarto}, suficiente: ${capacidadeSuficiente}`)
         
         // Se a capacidade é suficiente
         if (capacidadeSuficiente) {
@@ -449,7 +462,7 @@ export async function POST(request: NextRequest) {
       .sort((a, b) => b.score_otimizacao - a.score_otimizacao)
       .slice(0, 5)
 
-    console.log(`🎯 Resultados otimizados: ${melhoresResultados.length}`)
+    if (DEBUG) console.log(`🎯 Resultados otimizados: ${melhoresResultados.length}`)
 
     // 6. Análise resumida com foco econômico
     const melhorOpcao = melhoresResultados[0]
@@ -477,7 +490,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('💥 Erro no Smart Filter:', error)
+    if (DEBUG) console.error('💥 Erro no Smart Filter:', error)
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       success: false

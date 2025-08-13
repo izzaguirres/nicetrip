@@ -3,6 +3,7 @@ import { supabase, Disponibilidade, CidadeSaida, DisponibilidadeFilter, PrecoPes
 import { fetchRealData, SearchFilters } from '@/lib/supabase-service'
 
 // Dados de fallback para quando o Supabase não estiver configurado
+const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
 const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
   {
     id: 1,
@@ -170,7 +171,7 @@ export function useDisponibilidades(filters?: DisponibilidadeFilter) {
         .select('*')
 
       // Se há erro do Supabase (não configurado), usar dados de fallback
-      if (supabaseError && supabaseError.message.includes('Supabase não configurado')) {
+      if (ENABLE_FALLBACK && supabaseError && supabaseError.message.includes('Supabase não configurado')) {
         console.log('Supabase não configurado, usando dados de fallback')
         
         // Aplicar filtros nos dados de fallback
@@ -207,6 +208,10 @@ export function useDisponibilidades(filters?: DisponibilidadeFilter) {
       console.log(`✅ Supabase retornou ${allData?.length || 0} registros totais`)
       
       if (!allData || allData.length === 0) {
+        if (!ENABLE_FALLBACK) {
+          setDisponibilidades([])
+          return
+        }
         console.log('⚠️ Supabase realmente vazio - usando dados de fallback apenas se necessário')
         // ✅ SÓ USAR FALLBACK quando realmente não há dados
         let dadosFiltrados = FALLBACK_DISPONIBILIDADES
@@ -379,11 +384,16 @@ export function useDisponibilidades(filters?: DisponibilidadeFilter) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao buscar disponibilidades'
       console.error('Erro completo:', err)
-      
-      // Em caso de erro, usar dados de fallback
-      console.log('Erro na busca, usando dados de fallback como último recurso')
-      setDisponibilidades(FALLBACK_DISPONIBILIDADES)
-      setError(null) // Não mostrar erro, apenas usar fallback
+
+      // Em caso de erro, usar dados de fallback apenas se habilitado
+      if (ENABLE_FALLBACK) {
+        console.log('Erro na busca, usando dados de fallback como último recurso (habilitado)')
+        setDisponibilidades(FALLBACK_DISPONIBILIDADES)
+        setError(null)
+      } else {
+        setDisponibilidades([])
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
@@ -465,7 +475,7 @@ export function useCidadesSaida(transporte?: string) {
 
       const { data, error } = await query
 
-      if (error && error.message.includes('Supabase não configurado')) {
+      if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
         console.log('Supabase não configurado, usando cidades de fallback')
         let cidadesFiltradas = FALLBACK_CIDADES
         if (transporte) {
@@ -485,8 +495,13 @@ export function useCidadesSaida(transporte?: string) {
       setCidades(data || [])
     } catch (err) {
       console.error('Erro ao buscar cidades, usando fallback:', err)
-      setCidades(FALLBACK_CIDADES)
-      setError(null)
+      if (ENABLE_FALLBACK) {
+        setCidades(FALLBACK_CIDADES)
+        setError(null)
+      } else {
+        setCidades([])
+        setError(err instanceof Error ? err.message : 'Erro ao buscar cidades')
+      }
     } finally {
       setLoading(false)
     }
@@ -513,7 +528,7 @@ export function useDestinos() {
           .select('destino')
           .order('destino')
 
-        if (error && error.message.includes('Supabase não configurado')) {
+        if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
           console.log('Supabase não configurado, usando destinos de fallback')
           const destinosFallback = [...new Set(FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.destino))]
           setDestinos(destinosFallback)
@@ -528,9 +543,14 @@ export function useDestinos() {
         setDestinos(destinosUnicos)
       } catch (err) {
         console.error('Erro ao carregar destinos, usando fallback:', err)
-        const destinosFallback = [...new Set(FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.destino))]
-        setDestinos(destinosFallback)
-        setError(null)
+        if (ENABLE_FALLBACK) {
+          const destinosFallback = [...new Set(FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.destino))]
+          setDestinos(destinosFallback)
+          setError(null)
+        } else {
+          setDestinos([])
+          setError(err instanceof Error ? err.message : 'Erro ao carregar destinos')
+        }
       } finally {
         setLoading(false)
       }
@@ -565,6 +585,10 @@ export function useDatasDisponiveis(destino?: string, transporte?: string) {
         const data = await fetchRealData(filters)
         
         if (!data || data.length === 0) {
+          if (!ENABLE_FALLBACK) {
+            setDatas([])
+            return
+          }
           console.log('⚠️ SEM DADOS - Usando fallback para datas')
           let datasFiltradas = FALLBACK_DISPONIBILIDADES
           if (destino) {
@@ -588,17 +612,22 @@ export function useDatasDisponiveis(destino?: string, transporte?: string) {
         
       } catch (err) {
         console.error('❌ Erro ao carregar datas, usando fallback:', err)
-        let datasFiltradas = FALLBACK_DISPONIBILIDADES
-        if (destino) {
-          datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
+        if (ENABLE_FALLBACK) {
+          let datasFiltradas = FALLBACK_DISPONIBILIDADES
+          if (destino) {
+            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
+          }
+          if (transporte) {
+            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
+          }
+          const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
+          const datasUnicas = [...new Set(datasFallback)]
+          setDatas(datasUnicas)
+          setError(null)
+        } else {
+          setDatas([])
+          setError(err instanceof Error ? err.message : 'Erro ao carregar datas')
         }
-        if (transporte) {
-          datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
-        }
-        const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
-        const datasUnicas = [...new Set(datasFallback)]
-        setDatas(datasUnicas)
-        setError(null)
       } finally {
         setLoading(false)
       }
@@ -633,7 +662,7 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
 
         const { data, error } = await query
 
-        if (error && error.message.includes('Supabase não configurado')) {
+        if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
           console.log('Supabase não configurado, usando transportes de fallback')
           let transportesFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.transporte)
           if (destino) {
@@ -659,20 +688,25 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
         setTransportes(transportesUnicos)
       } catch (err) {
         console.error('Erro ao carregar transportes, usando fallback:', err)
-        let transportesFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.transporte)
-        if (destino) {
-          transportesFallback = FALLBACK_DISPONIBILIDADES
-            .filter((item: Disponibilidade) => item.destino === destino)
-            .map((item: Disponibilidade) => item.transporte)
+        if (ENABLE_FALLBACK) {
+          let transportesFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.transporte)
+          if (destino) {
+            transportesFallback = FALLBACK_DISPONIBILIDADES
+              .filter((item: Disponibilidade) => item.destino === destino)
+              .map((item: Disponibilidade) => item.transporte)
+          }
+          if (dataSaida) {
+            transportesFallback = FALLBACK_DISPONIBILIDADES
+              .filter((item: Disponibilidade) => item.data_saida === dataSaida)
+              .map((item: Disponibilidade) => item.transporte)
+          }
+          const transportesUnicos = [...new Set(transportesFallback)]
+          setTransportes(transportesUnicos)
+          setError(null)
+        } else {
+          setTransportes([])
+          setError(err instanceof Error ? err.message : 'Erro ao carregar transportes')
         }
-        if (dataSaida) {
-          transportesFallback = FALLBACK_DISPONIBILIDADES
-            .filter((item: Disponibilidade) => item.data_saida === dataSaida)
-            .map((item: Disponibilidade) => item.transporte)
-        }
-        const transportesUnicos = [...new Set(transportesFallback)]
-        setTransportes(transportesUnicos)
-        setError(null)
       } finally {
         setLoading(false)
       }

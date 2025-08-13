@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { getHospedagemData } from "@/lib/hospedagens-service"
+import { getVoosPorCidadeEData, formatHora } from "@/lib/voos-service"
 import { packageConditionsService } from "@/lib/package-conditions-service"
 import { packageDescriptionService } from "@/lib/package-description-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils"
@@ -71,6 +72,7 @@ export default function DetalhesPage() {
   const [showConditionsModal, setShowConditionsModal] = useState(false)
   const [selectedConditionType, setSelectedConditionType] = useState<'cancelacion' | 'equipaje' | 'documentos' | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
+  const [voosInfo, setVoosInfo] = useState<{ ida: any[]; volta: any[]; bagagem?: { carry: number | null; despachada: number | null } } | null>(null)
 
   // Dados dinâmicos da URL (movidos para o topo)
   const searchType = searchParams.get('tipo') || 'paquetes'
@@ -83,6 +85,23 @@ export default function DetalhesPage() {
   const valorDiaria = parseFloat(searchParams.get('valor_diaria') || '0');
   const checkin = searchParams.get('checkin');
   const checkout = searchParams.get('checkout');
+  const dataFiltro = (searchParams.get('data') || '').split('T')[0] || null
+  
+  // Breakdown detalhado enviado a partir da página de resultados (um item por quarto)
+  const roomsBreakdownParam = searchParams.get('rooms_breakdown');
+  let roomsBreakdown: Array<{
+    preco_adulto?: number;
+    preco_crianca_0_3?: number;
+    preco_crianca_4_5?: number;
+    preco_crianca_6_mais?: number;
+    subtotal?: number;
+  }> | null = null;
+  if (roomsBreakdownParam) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(roomsBreakdownParam));
+      if (Array.isArray(parsed)) roomsBreakdown = parsed as any[];
+    } catch {}
+  }
   
   // Dados de quartos e pessoas (movidos para o topo)
   const quartos = parseInt(searchParams.get('quartos') || '1')
@@ -91,13 +110,20 @@ export default function DetalhesPage() {
   const criancas_4_5 = parseInt(searchParams.get('criancas_4_5') || '0')
   const criancas_6 = parseInt(searchParams.get('criancas_6') || '0')
   
-  const ADDITIONAL_SERVICES = [
-    { id: 1, name: 'Butaca Cama', description: 'Asientos más amplios, en 3 posiciones hasta 140°.', price: 100, icon: Bed },
-    { id: 2, name: 'Butacas Especiales', description: 'Frente al bus arriba / espacio cafetera.', price: 50, icon: Coffee },
-    { id: 3, name: 'Media Pensión', description: 'Cenas restantes en diferentes restos.', price: 90, icon: Utensils },
-    { id: 4, name: 'Pack de 2 Actividades', description: 'Barra da Lagoa y Joaquina + Jurerê.', price: 70, icon: Waves },
-    { id: 5, name: 'Promo Pack Full', description: '2 actividades + 6 cenas.', price: 120, icon: Sparkles },
-  ];
+  const isAereo = transporte === 'Aéreo'
+  const ADDITIONAL_SERVICES = isAereo
+    ? [
+        { id: 3, name: 'Media Pensión', description: 'Cenas restantes en diferentes restos.', price: 100, icon: Utensils },
+        { id: 4, name: 'Pack de 2 Actividades', description: 'Barra da Lagoa y Joaquina + Jurerê.', price: 70, icon: Waves },
+        { id: 5, name: 'Promo Pack Full', description: '2 actividades + 6 cenas.', price: 135, icon: Sparkles },
+      ]
+    : [
+        { id: 1, name: 'Butaca Cama', description: 'Asientos más amplios, en 3 posiciones hasta 140°.', price: 100, icon: Bed },
+        { id: 2, name: 'Butacas Especiales', description: 'Frente al bus arriba / espacio cafetera.', price: 50, icon: Coffee },
+        { id: 3, name: 'Media Pensión', description: 'Cenas restantes en diferentes restos.', price: 90, icon: Utensils },
+        { id: 4, name: 'Pack de 2 Actividades', description: 'Barra da Lagoa y Joaquina + Jurerê.', price: 70, icon: Waves },
+        { id: 5, name: 'Promo Pack Full', description: '2 actividades + 6 cenas.', price: 120, icon: Sparkles },
+      ];
 
   const handleAddonToggle = (serviceId: number) => {
     setSelectedAddons(prev => 
@@ -273,6 +299,26 @@ export default function DetalhesPage() {
     carregarHospedagem()
   }, [displayName])
 
+  // ✅ Carregar voos dinâmicos para Aéreo
+  useEffect(() => {
+    const carregarVoos = async () => {
+      try {
+        if (transporte !== 'Aéreo') {
+          setVoosInfo(null)
+          return
+        }
+        const origem = saida
+        const dataISO = dataFiltro
+        const info = await getVoosPorCidadeEData(origem, dataISO)
+        setVoosInfo(info)
+      } catch (e) {
+        console.error('Erro ao carregar voos:', e)
+        setVoosInfo(null)
+      }
+    }
+    carregarVoos()
+  }, [transporte, saida, dataFiltro])
+
   // ✅ CARREGAR CONDIÇÕES DINÂMICAS DO PACOTE
   useEffect(() => {
     const carregarCondicoes = async () => {
@@ -360,21 +406,29 @@ export default function DetalhesPage() {
   if (searchType === 'habitacion') {
     if (checkin && checkout) {
       const noites = Math.max(1, Math.ceil((new Date(checkout).getTime() - new Date(checkin).getTime()) / (1000 * 3600 * 24)));
-      
-      const adultosPagantes = adultos + criancas_6;
-      const criancas0a5 = criancas_0_3 + criancas_4_5;
-      // A primeira criança de 0-5 é grátis, as demais (se houver) pagam
-      const criancas0a5Pagam = criancas0a5 > 1 ? criancas0a5 - 1 : 0;
-      const totalPagantes = adultosPagantes + criancas0a5Pagam;
-
-      basePrice = valorDiaria * totalPagantes * noites;
+      // Para hospedagem, o preço é por quarto/diária. O número de pagantes
+      // define o tipo do quarto, mas não multiplica o valor da diária.
+      basePrice = valorDiaria * noites;
     }
   } else {
-    basePrice = preco || precoCalculadoInterno;
+    // Paquetes: se veio breakdown composto dos cards, recompor o total base sem taxas
+    if (roomsBreakdown && roomsBreakdown.length > 0) {
+      const somaSubtotais = roomsBreakdown.reduce((acc: number, info: any) => acc + (Number(info.subtotal) || 0), 0)
+      basePrice = somaSubtotais
+    } else {
+      basePrice = preco || precoCalculadoInterno;
+    }
   }
   
-  const priceWithTaxes = calculateFinalPrice(basePrice, transporte);
-  const precoTotalReal = priceWithTaxes + addonsPrice;
+  // Aéreo: +200 por pessoa (adultos, 6+, 2-5). 0-2 não paga taxa.
+  let precoTotalReal = basePrice + addonsPrice;
+  if (transporte === 'Aéreo') {
+    const taxaPorPessoa = 200;
+    const pessoasTaxadas = adultos + criancas_6 + criancas_4_5; // 2-5 paga taxa, 0-2 não
+    precoTotalReal += taxaPorPessoa * pessoasTaxadas;
+  } else {
+    precoTotalReal = calculateFinalPrice(basePrice, transporte) + addonsPrice;
+  }
   
   const { installments, installmentValue } = calculateInstallments(precoTotalReal, searchParams.get('data') || new Date());
 
@@ -471,7 +525,7 @@ export default function DetalhesPage() {
   
   // Conteúdo dinâmico baseado no tipo de transporte e dados reais
   const getStaticPackageContent = () => {
-    const isAereo = transporte === 'Aéreo'
+    const isAereoLocal = transporte === 'Aéreo'
     
     // Prioriza a descrição dinâmica do Supabase
     const finalDescription = packageDescription?.descripcion 
@@ -483,21 +537,33 @@ export default function DetalhesPage() {
     return {
       description: finalDescription,
       
-      highlights: [
-        transporte === 'Aéreo' ? "Viaje cómodo en avión premium" : "Viaje cómodo en bus premium",
-        "Snack a bordo",
-        "Alojamiento",
-        "Coordinación en viaje y en destino",
-        "Guias locales bilingües",
-        "Kit de viaje",
-        "Asistencia al viajero (ver mayores de 70 años)"
-      ],
+      highlights: (
+        isAereoLocal
+          ? [
+              "Viaje cómodo en avión premium",
+              "Transfer In/Out",
+              "Alojamiento",
+              "Coordinación en viaje y en destino",
+              "Guias locales bilingües",
+              "Kit de viaje",
+              "Asistencia al viajero (ver mayores de 70 años)",
+            ]
+          : [
+              "Viaje cómodo en bus premium",
+              "Snack a bordo",
+              "Alojamiento",
+              "Coordinación en viaje y en destino",
+              "Guias locales bilingües",
+              "Kit de viaje",
+              "Asistencia al viajero (ver mayores de 70 años)",
+            ]
+      ),
       
-      includes: isAereo 
+       includes: isAereoLocal 
         ? [
             `Vuelos ida y vuelta`,
             `Hospedaje por ${diasNoites.noites} noches`,
-            "Transfers aeropuerto-hotel",
+            "Transfer In/Out",
             "Desayuno completo todos los días",
             "Seguro de viaje incluido"
           ]
@@ -509,7 +575,7 @@ export default function DetalhesPage() {
             "Seguro de viaje incluido"
           ],
 
-      condiciones: packageConditions || (isAereo 
+       condiciones: packageConditions || (isAereoLocal 
         ? {
             cancelacion: "Cancelación gratuita hasta 72 horas antes del vuelo.",
             equipaje: "Incluye 1 maleta de hasta 23kg por persona en vuelo.",
@@ -523,8 +589,8 @@ export default function DetalhesPage() {
     }
   }
 
-  // Remove the now-redundant function
-  // const staticContent = getStaticPackageContent()
+  // Conteúdo estático/dinâmico consolidado
+  const staticContent = getStaticPackageContent()
 
   const dataViagemString = searchParams.get('data') || '2025-10-02';
   // CORREÇÃO: Tratar a data como UTC para evitar problemas de fuso horário
@@ -542,15 +608,7 @@ export default function DetalhesPage() {
     dataViagem: dataViagem,
     images: packageImages,
     description: packageDescription?.descripcion || "Cargando descripción...", // Use dynamic description
-    highlights: [
-        transporte === 'Aéreo' ? "Viaje cómodo en avión premium" : "Viaje cómodo en bus premium",
-        "Snack a bordo",
-        "Alojamiento",
-        "Coordinación en viaje y en destino",
-        "Guias locales bilingües",
-        "Kit de viaje",
-        "Asistencia al viajero (ver mayores de 70 años)"
-      ],
+    highlights: staticContent.highlights,
     amenities: hospedagemData?.comodidades?.map((comodidade: any) => ({
       icon: getIconComponent(comodidade.icone),
       name: comodidade.nome
@@ -1036,52 +1094,175 @@ export default function DetalhesPage() {
 
               <div className="border-t border-gray-200"></div>
 
-              {/* Serviços Adicionais */}
-              <div className="pb-8">
-                <h3 className="text-2xl font-semibold text-gray-900 mb-6">
-                  Servicios Adicionales
-                </h3>
-                <div className="space-y-3">
-                  {ADDITIONAL_SERVICES.map(service => {
-                    const isSelected = selectedAddons.includes(service.id);
-                    return (
-                      <div 
-                        key={service.id}
-                        onClick={() => handleAddonToggle(service.id)}
-                        className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
-                          isSelected
-                            ? 'border-orange-500 bg-orange-50 shadow-sm'
-                            : 'border-gray-200 bg-white hover:border-orange-300 shadow-sm'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <PlusCircle className={`w-5 h-5 transition-colors ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
-                          <div className="flex flex-col">
-                            <span className="font-bold text-gray-800 text-sm">{service.name}</span>
-                            <span className="text-xs text-gray-500">{service.description}</span>
+              {/* Flights + Addons side-by-side on desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Información de Vuelos (Aéreo) - dinámico por ciudad y fecha */}
+                {transporte === 'Aéreo' && (
+                  <div className="pb-8">
+                    <h3 className="text-2xl font-semibold text-gray-900 mb-6">
+                      Información de Vuelos
+                    </h3>
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                      {!voosInfo && (
+                        <div className="text-sm text-gray-600">Cargando horarios...</div>
+                      )}
+
+                      {voosInfo && (
+                        <div className="space-y-4">
+                          {/* Subtítulo con origen dinámico */}
+                          <div className="flex items-center gap-2">
+                            <Plane className="w-4 h-4 text-orange-500" />
+                            <h4 className="text-base font-bold text-gray-900">{saida} – Florianópolis</h4>
                           </div>
+
+                          {/* Bloques de ida y vuelta */}
+                        {voosInfo.ida.length > 0 && (
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900 mb-2">Ida</p>
+                            <div className="space-y-2">
+                              {voosInfo.ida.map((v, idx) => {
+                                const dataDisplay = v.data
+                                  ? new Date(v.data + 'T00:00:00').toLocaleDateString('es-AR')
+                                  : packageData.dataViagem.toLocaleDateString('es-AR')
+                                const from = v.aeroporto_saida || v.origem_iata || v.origem
+                                const to = v.aeroporto_chegada || v.destino_iata || v.destino
+                                return (
+                                  <div key={`ida-${idx}`} className="flex flex-col gap-2 p-3 w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition shadow-sm hover:shadow-md overflow-hidden">
+                                    <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-[11px] font-medium text-sky-700 whitespace-nowrap">
+                                        <Calendar className="w-3 h-3 text-gray-500" />
+                                        {dataDisplay}
+                                      </span>
+                                      <div className="hidden md:block w-px h-5 bg-gray-200"></div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700 whitespace-nowrap">{from}</span>
+                                        <ArrowRight className="w-4 h-4 text-violet-400" />
+                                        <span className="px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700 whitespace-nowrap">{to}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-gray-900">
+                                      <Clock className="w-4 h-4 text-gray-500" />
+                                      <span className="font-medium">{formatHora(v.saida_hora)}</span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="font-medium">{formatHora(v.chegada_hora)}</span>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {voosInfo.volta.length > 0 && (
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900 mb-2">Vuelta</p>
+                            <div className="space-y-2">
+                              {voosInfo.volta.map((v, idx) => {
+                                const dataDisplay = v.data
+                                  ? new Date(v.data + 'T00:00:00').toLocaleDateString('es-AR')
+                                  : new Date(new Date(packageData.dataViagem).setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)).toLocaleDateString('es-AR')
+                                const from = v.aeroporto_saida || v.origem_iata || v.origem
+                                const to = v.aeroporto_chegada || v.destino_iata || v.destino
+                                return (
+                                  <div key={`volta-${idx}`} className="flex flex-col gap-2 p-3 w-full rounded-xl border border-gray-200 bg-gray-50 hover:bg-white transition shadow-sm hover:shadow-md overflow-hidden">
+                                    <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200 text-[11px] font-medium text-sky-700 whitespace-nowrap">
+                                        <Calendar className="w-3 h-3 text-gray-500" />
+                                        {dataDisplay}
+                                      </span>
+                                      <div className="hidden md:block w-px h-5 bg-gray-200"></div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700 whitespace-nowrap">{from}</span>
+                                        <ArrowRight className="w-4 h-4 text-violet-400" />
+                                        <span className="px-2.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-[11px] font-semibold text-violet-700 whitespace-nowrap">{to}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-gray-900">
+                                      <Clock className="w-4 h-4 text-gray-500" />
+                                      <span className="font-medium">{formatHora(v.saida_hora)}</span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="font-medium">{formatHora(v.chegada_hora)}</span>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {voosInfo.ida.length === 0 && voosInfo.volta.length === 0 && (
+                          <p className="text-sm text-gray-600">No hay vuelos para la fecha seleccionada.</p>
+                        )}
+
+                        {/* Equipaje */}
+                        
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="font-bold text-gray-900 text-sm">USD {service.price}</span>
-                            <span className="text-xs text-gray-500 block">por persona</span>
-                          </div>
-                          <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 ${
-                            isSelected
-                              ? 'border-orange-500 bg-orange-500'
-                              : 'border-gray-300 bg-white'
-                          }`}>
-                            {isSelected && <Check className="w-4 h-4 text-white" />}
-                          </div>
-                        </div>
+                      )}
+                    </div>
+                    {voosInfo?.bagagem && (
+                      <div className="mt-3">
+                        <p className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                          <span className="inline-block w-5 h-5 bg-amber-100 text-amber-700 rounded-md text-center leading-5">📦</span>
+                          Equipaje permitido
+                        </p>
+                        <ul className="mt-2 list-disc list-inside text-sm text-gray-700 space-y-1">
+                          <li>Carry-on + artículo personal: hasta {voosInfo.bagagem.carry ?? '-'} kg</li>
+                          <li>Maleta despachada: hasta {voosInfo.bagagem.despachada ?? '-'} kg</li>
+                        </ul>
                       </div>
-                    )
-                  })}
+                    )}
+                  </div>
+                )}
+
+                {/* Servicios Adicionales */}
+                <div className="pb-8">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-6">
+                    Servicios Adicionales
+                  </h3>
+                  <div className="space-y-3">
+                    {ADDITIONAL_SERVICES.map(service => {
+                      const isSelected = selectedAddons.includes(service.id);
+                      return (
+                        <div 
+                          key={service.id}
+                          onClick={() => handleAddonToggle(service.id)}
+                          className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                            isSelected
+                              ? 'border-orange-500 bg-orange-50 shadow-sm'
+                              : 'border-gray-200 bg-white hover:border-orange-300 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <PlusCircle className={`w-5 h-5 transition-colors ${isSelected ? 'text-orange-500' : 'text-gray-400'}`} />
+                            <div className="flex flex-col">
+                              <span className="font-bold text-gray-800 text-sm">{service.name}</span>
+                              <span className="text-xs text-gray-500">{service.description}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className="font-bold text-gray-900 text-sm">USD {service.price}</span>
+                              <span className="text-xs text-gray-500 block">por persona</span>
+                            </div>
+                            <div className={`w-6 h-6 flex items-center justify-center rounded-full border-2 ${
+                              isSelected
+                                ? 'border-orange-500 bg-orange-500'
+                                : 'border-gray-300 bg-white'
+                            }`}>
+                              {isSelected && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-center text-xs italic text-gray-500 mt-4">
+                    Todos los adicionales son opcionales y no comisionables
+                  </p>
                 </div>
-                 <p className="text-center text-xs italic text-gray-500 mt-4">
-                  Todos los adicionales son opcionales y no comisionables
-                </p>
               </div>
+
+              
 
               {/* Localización */}
               <div>
@@ -1132,7 +1313,7 @@ export default function DetalhesPage() {
                             </div>
                           </div>
                           <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Retorno</p>
+                            <p className="text-sm text-gray-600 mb-1">Chegada</p>
                             <div className="bg-white rounded-xl p-2">
                               <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
@@ -1172,7 +1353,15 @@ export default function DetalhesPage() {
                     <div className="space-y-4">
                       {quartosIndividuais.map((quarto: any, quartoIndex: number) => {
                           const tipoQuarto = searchParams.get('quarto_tipo') || determinarTipoQuarto(quarto);
-                          const precoQuarto = searchType === 'paquetes' ? calcularPrecoQuarto(quarto) : basePrice / quartosIndividuais.length;
+                          // Preços unitários por quarto vindos do breakdown quando disponível
+                          const rb = roomsBreakdown && roomsBreakdown[quartoIndex] ? roomsBreakdown[quartoIndex] : null;
+                          const unitAdult = rb?.preco_adulto ?? dadosPacote.preco_adulto;
+                          const unitC0_3 = rb?.preco_crianca_0_3 ?? dadosPacote.preco_crianca_0_3;
+                          const unitC4_5 = rb?.preco_crianca_4_5 ?? dadosPacote.preco_crianca_4_5;
+                          const unitC6   = rb?.preco_crianca_6_mais ?? dadosPacote.preco_crianca_6_mais;
+                          const precoQuarto = searchType === 'paquetes'
+                            ? ((quarto.adultos * unitAdult) + (quarto.criancas_6 * unitC6) + (quarto.criancas_4_5 * unitC4_5) + (quarto.criancas_0_3 * unitC0_3))
+                            : (valorDiaria * diasNoites.noites);
                           return (
                             <div key={quartoIndex} className="border-t border-gray-100 pt-3">
                               <div className="flex justify-between items-center mb-2">
@@ -1182,25 +1371,25 @@ export default function DetalhesPage() {
                                 {quarto.adultos > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">{quarto.adultos} Adulto{quarto.adultos > 1 ? 's' : ''}</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_adulto)} por persona</span>}
+                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitAdult)} por persona</span>}
                                   </div>
                                 )}
                                 {quarto.criancas_6 > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} (6+ años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_6_mais)} por persona</span>}
+                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC6)} por persona</span>}
                                   </div>
                                 )}
                                 {quarto.criancas_4_5 > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} (4-5 años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_4_5)}</span>}
+                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC4_5)}</span>}
                                   </div>
                                 )}
                                 {quarto.criancas_0_3 > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} (0-3 años)</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(dadosPacote.preco_crianca_0_3)}</span>}
+                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC0_3)}</span>}
                                   </div>
                                 )}
                                  <div className="flex justify-between border-t border-dashed mt-2 pt-2">
@@ -1223,15 +1412,9 @@ export default function DetalhesPage() {
                   {searchType === 'paquetes' && (
                     <>
                       <div className="space-y-2 text-sm mb-4">
-                        {transporte !== 'Aéreo' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Taxas Administrativas</span>
-                            <span className="text-gray-600">3%</span>
-                          </div>
-                        )}
                         {transporte === 'Aéreo' && (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Impostos e Encargos</span>
+                            <span className="text-gray-600">Impuestos y Cargos</span>
                             <span className="text-gray-600">{formatPriceWithCurrency(200)}</span>
                           </div>
                         )}

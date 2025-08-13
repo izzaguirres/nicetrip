@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Trash2,
   Search,
+  Info,
 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -58,7 +59,8 @@ export function HabitacionesSearchFilter({
 }: HabitacionesSearchFilterProps) {
   const router = useRouter()
 
-  const [month, setMonth] = useState<Date>(new Date(2025, 6));
+  // Calendário deve iniciar no mês atual
+  const [month, setMonth] = useState<Date>(new Date());
 
   const [filters, setFilters] = useState<SearchFilters>({
     destino: initialFilters?.destino || "Canasvieiras", // Default to Canasvieiras
@@ -87,6 +89,9 @@ export function HabitacionesSearchFilter({
       setTempDateRange(filters.dateRange)
       if (filters.dateRange?.from) {
         setMonth(filters.dateRange.from)
+      } else {
+        // Se não há seleção, abrir no mês corrente
+        setMonth(new Date())
       }
     }
     setIsCalendarOpen(open)
@@ -364,6 +369,24 @@ export function HabitacionesSearchFilter({
                         <h4 className="font-bold text-sm text-gray-800">
                           Habitación {index + 1}
                         </h4>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 text-[11px] text-gray-600 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded-full"
+                            >
+                              <Info className="w-3 h-3" />
+                              <span>Reglas</span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 text-xs" side="top" align="start">
+                            <ul className="list-disc pl-4 space-y-1">
+                              <li>1 niño 0–5 gratis cada 2 adultos</li>
+                              <li>Niños 6+ pagan como adulto</li>
+                              <li>Máx 5 personas por habitación</li>
+                            </ul>
+                          </PopoverContent>
+                        </Popover>
                         {isAtLimit && (
                           <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
                             Máx 5 personas
@@ -532,6 +555,10 @@ export function HabitacionesSearchFilter({
                 <Plus className="w-4 h-4" />
                 Agregar Habitación
               </button>
+            </div>
+            <div className="flex justify-between items-center mt-3">
+              <span className="text-xs text-gray-600">Total: {getTotalPeople()} personas</span>
+              <Button size="sm" onClick={() => setIsRoomsOpen(false)} className="bg-orange-500 hover:bg-orange-600 text-white">Aplicar</Button>
             </div>
           </PopoverContent>
         </Popover>

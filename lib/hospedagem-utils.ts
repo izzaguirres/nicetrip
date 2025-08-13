@@ -279,7 +279,9 @@ export function formatarExplicacaoPagantes(calculation: HospedagemCalculation): 
   }
 
   if (calculation.criancasGratuitas > 0) {
-    texto += ` + ${calculation.criancasGratuitas} niño${calculation.criancasGratuitas > 1 ? 's' : ''} gratis`;
+    // Deixar explícito a faixa etária do(s) gratuito(s)
+    const faixaGratis = calculation.criancas_0_3 > 0 ? '0–3 años' : '0–5 años';
+    texto += ` + ${calculation.criancasGratuitas} niño${calculation.criancasGratuitas > 1 ? 's' : ''} (${faixaGratis}) gratis`;
   }
 
   return texto;

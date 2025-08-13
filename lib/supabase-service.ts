@@ -10,9 +10,12 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-console.log('🎯 SUPABASE SERVICE: Inicializado com conexão real')
-console.log('🔗 URL:', supabaseUrl)
-console.log('🔑 Key exists:', !!supabaseKey)
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
+if (DEBUG) {
+  console.log('🎯 SUPABASE SERVICE: Inicializado com conexão real')
+  console.log('🔗 URL configured?', !!supabaseUrl)
+  console.log('🔑 Key exists?', !!supabaseKey)
+}
 
 // ✅ CACHE INTELIGENTE (5 minutos)
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
@@ -45,20 +48,22 @@ export interface HabitacionSearchFilters {
 // ✅ FUNÇÃO PRINCIPAL: BUSCAR DADOS REAIS
 export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
   try {
-    console.log('🔍 SUPABASE SERVICE: Buscando dados reais...')
-    console.log('📋 Filtros:', filters)
+    if (DEBUG) {
+      console.log('🔍 SUPABASE SERVICE: Buscando dados reais...')
+      console.log('📋 Filtros:', filters)
+    }
 
     // ✅ VERIFICAR CACHE PRIMEIRO
     const now = Date.now()
     const cacheValid = dataCache.data && (now - dataCache.timestamp) < CACHE_DURATION
     
     if (cacheValid && !filters) {
-      console.log('⚡ CACHE HIT: Usando dados em cache')
+      if (DEBUG) console.log('⚡ CACHE HIT: Usando dados em cache')
       return dataCache.data!
     }
 
     // ✅ BUSCAR DADOS FRESCOS DO SUPABASE
-    console.log('🔄 CACHE MISS: Buscando dados frescos do Supabase...')
+    if (DEBUG) console.log('🔄 CACHE MISS: Buscando dados frescos do Supabase...')
     
     let query = supabase
       .from('disponibilidades')
@@ -97,17 +102,19 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
     const { data, error } = await query.order('data_saida', { ascending: true })
 
     if (error) {
-      console.error('❌ SUPABASE ERROR:', error)
+      if (DEBUG) console.error('❌ SUPABASE ERROR:', error)
       throw new Error(`Database error: ${error.message}`)
     }
 
     if (!data || data.length === 0) {
-      console.log('⚠️ NO DATA FOUND in Supabase with filters:', filters)
+      if (DEBUG) console.log('⚠️ NO DATA FOUND in Supabase with filters:', filters)
       return []
     }
 
-    console.log(`✅ SUPABASE SUCCESS: ${data.length} records found`)
-    console.log('📊 Sample data:', data.slice(0, 2))
+    if (DEBUG) {
+      console.log(`✅ SUPABASE SUCCESS: ${data.length} records found`)
+      console.log('📊 Sample data:', data.slice(0, 2))
+    }
 
     // ✅ ATUALIZAR CACHE (só para consultas sem filtros)
     if (!filters) {
@@ -115,13 +122,13 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
         data: data,
         timestamp: now
       }
-      console.log('💾 CACHE UPDATED')
+      if (DEBUG) console.log('💾 CACHE UPDATED')
     }
 
     return data
 
   } catch (error) {
-    console.error('💥 SUPABASE SERVICE ERROR:', error)
+    if (DEBUG) console.error('💥 SUPABASE SERVICE ERROR:', error)
     throw error
   }
 }
@@ -129,8 +136,10 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
 // ✅ NOVA FUNÇÃO: BUSCAR DADOS DE HABITACIONES
 export async function fetchHabitacionesData(filters?: HabitacionSearchFilters): Promise<any[]> {
   try {
-    console.log('🏨 SUPABASE SERVICE: Buscando diárias de habitaciones...')
-    console.log('📋 Filtros de Habitación:', filters)
+    if (DEBUG) {
+      console.log('🏨 SUPABASE SERVICE: Buscando diárias de habitaciones...')
+      console.log('📋 Filtros de Habitación:', filters)
+    }
 
     let query = supabase.from('hospedagem_diarias').select('*').eq('ativo', true)
 
@@ -151,20 +160,20 @@ export async function fetchHabitacionesData(filters?: HabitacionSearchFilters): 
     const { data, error } = await query.order('valor_diaria', { ascending: true })
 
     if (error) {
-      console.error('❌ SUPABASE ERROR (hospedagem_diarias):', error)
+      if (DEBUG) console.error('❌ SUPABASE ERROR (hospedagem_diarias):', error)
       throw new Error(`Database error: ${error.message}`)
     }
 
     if (!data || data.length === 0) {
-      console.log('⚠️ Nenhuma diária encontrada na tabela `hospedagem_diarias` com os filtros:', filters)
+      if (DEBUG) console.log('⚠️ Nenhuma diária encontrada na tabela `hospedagem_diarias` com os filtros:', filters)
       return []
     }
 
-    console.log(`✅ SUPABASE SUCCESS (hospedagem_diarias): ${data.length} diárias encontradas`)
+    if (DEBUG) console.log(`✅ SUPABASE SUCCESS (hospedagem_diarias): ${data.length} diárias encontradas`)
     return data
 
   } catch (error) {
-    console.error('💥 FETCH HABITACIONES DATA ERROR:', error)
+    if (DEBUG) console.error('💥 FETCH HABITACIONES DATA ERROR:', error)
     throw error
   }
 }
@@ -177,7 +186,7 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
   uniqueHotels: string[]
 }> {
   try {
-    console.log('🧠 SMART FILTER DATA SERVICE')
+    if (DEBUG) console.log('🧠 SMART FILTER DATA SERVICE')
     
     // Buscar TODOS os dados primeiro
     const allData = await fetchRealData()
@@ -208,11 +217,13 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
 
     const uniqueHotels = [...new Set(filteredData.map(item => item.hotel))].filter(Boolean)
     
-    console.log(`🎯 SMART FILTER RESULTS:`)
-    console.log(`   📊 Total data: ${allData.length}`)
-    console.log(`   🔍 Filtered: ${filteredData.length}`)
-    console.log(`   🏨 Unique hotels: ${uniqueHotels.length}`)
-    console.log(`   🏨 Hotels: ${uniqueHotels.slice(0, 5).join(', ')}`)
+    if (DEBUG) {
+      console.log(`🎯 SMART FILTER RESULTS:`)
+      console.log(`   📊 Total data: ${allData.length}`)
+      console.log(`   🔍 Filtered: ${filteredData.length}`)
+      console.log(`   🏨 Unique hotels: ${uniqueHotels.length}`)
+      console.log(`   🏨 Hotels: ${uniqueHotels.slice(0, 5).join(', ')}`)
+    }
 
     return {
       allData,
@@ -221,7 +232,7 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
     }
 
   } catch (error) {
-    console.error('💥 SMART FILTER DATA ERROR:', error)
+    if (DEBUG) console.error('💥 SMART FILTER DATA ERROR:', error)
     throw error
   }
 }
@@ -229,13 +240,13 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
 // ✅ FUNÇÃO PARA LIMPAR CACHE (útil para desenvolvimento)
 export function clearCache() {
   dataCache = { data: null, timestamp: 0 }
-  console.log('🧹 CACHE CLEARED')
+  if (DEBUG) console.log('🧹 CACHE CLEARED')
 }
 
 // ✅ NOVA FUNÇÃO: Buscar cidades de saída da tabela específica
 export async function fetchCidadesSaida(transporte?: string): Promise<any[]> {
   try {
-    console.log('🏙️ BUSCANDO CIDADES DE SAÍDA...')
+    if (DEBUG) console.log('🏙️ BUSCANDO CIDADES DE SAÍDA...')
     
     let query = supabase
       .from('cidades_saida')
@@ -249,15 +260,15 @@ export async function fetchCidadesSaida(transporte?: string): Promise<any[]> {
     const { data, error } = await query
     
     if (error) {
-      console.error('❌ SUPABASE ERROR (cidades_saida):', error)
+      if (DEBUG) console.error('❌ SUPABASE ERROR (cidades_saida):', error)
       throw error
     }
     
-    console.log(`✅ CIDADES DE SAÍDA ENCONTRADAS: ${data?.length || 0}`)
+    if (DEBUG) console.log(`✅ CIDADES DE SAÍDA ENCONTRADAS: ${data?.length || 0}`)
     return data || []
     
   } catch (error) {
-    console.error('❌ FETCH CIDADES SAIDA ERROR:', error)
+    if (DEBUG) console.error('❌ FETCH CIDADES SAIDA ERROR:', error)
     throw error
   }
 }

@@ -989,9 +989,12 @@ export default function DetalhesPage() {
                         })}
                     </div>
                     {(criancas_0_3 + criancas_4_5) > 0 && (
-                      <p className="text-xs text-gray-500 mt-4 text-center italic">
-                        *La primera criança de 0 a 5 años es gratuita!
-                      </p>
+                      <div className="mt-4 flex items-center justify-center">
+                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 text-[11px]">
+                          <span className="font-semibold">Beneficio</span>
+                          <span>1 niño 0–5 gratis cada 2 adultos</span>
+                        </span>
+                      </div>
                     )}
                   </div>
                   

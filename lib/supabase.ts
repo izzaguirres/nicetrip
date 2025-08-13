@@ -2,18 +2,21 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
 
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Key exists:', !!supabaseAnonKey)
+if (DEBUG) {
+  console.log('Supabase client: URL configured?', !!supabaseUrl)
+  console.log('Supabase client: Key exists?', !!supabaseAnonKey)
+}
 
 // Criar cliente Supabase apenas se as variáveis estiverem disponíveis
 let supabase: any = null
 
 if (supabaseUrl && supabaseAnonKey) {
-  console.log('Inicializando Supabase com credenciais reais')
+  if (DEBUG) console.log('Inicializando Supabase com credenciais reais')
   supabase = createClient(supabaseUrl, supabaseAnonKey)
 } else {
-  console.warn('Variáveis de ambiente do Supabase não configuradas - usando modo fallback')
+  if (DEBUG) console.warn('Variáveis de ambiente do Supabase não configuradas - usando modo fallback')
   // Criar um mock do cliente Supabase que sempre retorna erro
   supabase = {
     from: () => ({
@@ -64,6 +67,27 @@ export type CidadeSaida = {
   cidade: string
   provincia: string
   pais: string
+}
+
+export type VooAereo = {
+  id: number
+  origem: string
+  origem_iata: string | null
+  destino: string
+  destino_iata: string
+  tipo: 'charter' | 'regular'
+  sentido: 'ida' | 'volta'
+  data: string | null
+  saida_hora: string
+  chegada_hora: string
+  aeroporto_saida: string | null
+  aeroporto_chegada: string | null
+  bag_carry_kg: number | null
+  bag_despachada_kg: number | null
+  companhia: string | null
+  observacao: string | null
+  ativo: boolean
+  created_at: string
 }
 
 // Filtros para disponibilidades

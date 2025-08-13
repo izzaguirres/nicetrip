@@ -15,14 +15,17 @@ import { DisponibilidadeFilter, PrecoPessoas } from "@/lib/supabase"
 import { fetchRealData, fetchHabitacionesData, SearchFilters, HabitacionSearchFilters } from "@/lib/supabase-service"
 import { getHospedagemData, formatComodidadesForCards, COMODIDADES_GENERICAS } from "@/lib/hospedagens-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils";
-import { 
+  import { 
   calcularPagantesHospedagem, 
   validarConfiguracaoHospedagem,
   quartoAtendeRequisitos,
   calcularPrecoHospedagem,
   formatarExplicacaoPagantes,
+  tiposQuartoCompativeis,
   type HospedagemCalculation 
 } from "@/lib/hospedagem-utils";
+  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+  import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Search,
   MapPin,
@@ -58,7 +61,8 @@ import {
   Gamepad2,
   Circle,
   Luggage,
-  Sun, // Adicionado
+   Sun, // Adicionado
+   Info,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -248,13 +252,14 @@ export default function ResultadosPage() {
   }
 
   const determinarTipoQuarto = (quarto: Room): string => {
-    const totalPessoas = quarto.adults + quarto.children0to3 + quarto.children4to5 + quarto.children6plus
-    if (totalPessoas === 1) return "Individual"
-    if (totalPessoas === 2) return "Doble"
-    if (totalPessoas === 3) return "Triple"
-    if (totalPessoas === 4) return "Cuádruple"
-    if (totalPessoas === 5) return "Quíntuple"
-    return "Suite Familiar"
+    // Usar a regra de pagantes (0–5 grátis a cada 2 adultos; 6+ conta como adulto)
+    const calc = calcularPagantesHospedagem(
+      quarto.adults,
+      quarto.children0to3,
+      quarto.children4to5,
+      quarto.children6plus
+    )
+    return calc.tipoQuartoRequerido
   }
 
   const formatarOcupacaoQuarto = (quarto: Room): string => {
@@ -312,7 +317,7 @@ export default function ResultadosPage() {
       setLoading(true);
       setError(null);
       let data = [];
-      if (activeTab === 'habitaciones') {
+                   if (activeTab === 'habitaciones') {
         const checkin = filters.dateRange?.from
           ? filters.dateRange.from.toISOString().split('T')[0]
           : undefined;
@@ -338,19 +343,21 @@ export default function ResultadosPage() {
         data = await response.json();
       }
       
-      console.log('📊 Dados recebidos:', {
-        tipo: activeTab,
-        totalItems: data.length,
-        tiposQuartoDisponiveis: [...new Set(data.map((item: any) => item.tipo_quarto))],
-        capacidadesDisponiveis: [...new Set(data.map((item: any) => item.capacidade))],
-        sampleItems: data.slice(0, 5).map((item: any) => ({
-          id: item.id,
-          slug_hospedagem: item.slug_hospedagem,
-          tipo_quarto: item.tipo_quarto,
-          capacidade: item.capacidade,
-          valor_diaria: item.valor_diaria
-        }))
-      });
+      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+        console.log('📊 Dados recebidos:', {
+          tipo: activeTab,
+          totalItems: data.length,
+          tiposQuartoDisponiveis: [...new Set(data.map((item: any) => item.tipo_quarto))],
+          capacidadesDisponiveis: [...new Set(data.map((item: any) => item.capacidade))],
+          sampleItems: data.slice(0, 5).map((item: any) => ({
+            id: item.id,
+            slug_hospedagem: item.slug_hospedagem,
+            tipo_quarto: item.tipo_quarto,
+            capacidade: item.capacidade,
+            valor_diaria: item.valor_diaria
+          }))
+        });
+      }
       setDisponibilidades(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -438,7 +445,8 @@ export default function ResultadosPage() {
   }
   
   const verificarCapacidadeQuartos = (disponibilidade: any, quartos: Room[]): boolean => {
-    const totalPessoas = quartos.reduce((total, room) => 
+    // Não usamos mais essa verificação agregada para Habitaciones
+    const totalPessoas = quartos.reduce((total, room) =>
       total + room.adults + room.children0to3 + room.children4to5 + room.children6plus, 0
     )
     return disponibilidade.capacidade >= totalPessoas
@@ -447,114 +455,264 @@ export default function ResultadosPage() {
   const filtrarResultados = (items: any[], quartos: Room[]) => {
     if (!items || !Array.isArray(items) || items.length === 0) return []
     
-    // Filtrar por capacidade e lógica de pagantes
-    const itemsFiltrados = items.filter(item => {
-      if (activeTab === 'habitaciones') {
-        // ✅ USAR NOVA LÓGICA DE PAGANTES
-        const adultos = quartos.reduce((sum, q) => sum + q.adults, 0);
-        const criancas_0_3 = quartos.reduce((sum, q) => sum + q.children0to3, 0);
-        const criancas_4_5 = quartos.reduce((sum, q) => sum + q.children4to5, 0);
-        const criancas_6_mais = quartos.reduce((sum, q) => sum + q.children6plus, 0);
-        
-        // Calcular pagantes usando nossa função utilitária
-        const calculoPagantes = calcularPagantesHospedagem(
-          adultos, 
-          criancas_0_3, 
-          criancas_4_5, 
-          criancas_6_mais
-        );
-        
-        // Validar configuração
-        const validacao = validarConfiguracaoHospedagem(calculoPagantes);
-        if (!validacao.valid) {
-          return false;
-        }
-        
-        // Verificar se o quarto atende aos requisitos
-        const quartoAtende = quartoAtendeRequisitos(
-          { tipo_quarto: item.tipo_quarto, capacidade: item.capacidade },
-          calculoPagantes
-        );
-        
-        return quartoAtende;
-      } else {
-        // Lógica original para pacotes
-        const totalPessoas = quartos.reduce((total, room) => 
-          total + room.adults + room.children0to3 + room.children4to5 + room.children6plus, 0
-        )
-        return item.capacidade >= totalPessoas;
-      }
-    });
+    // Para Habitaciones, não filtrar por soma total de pessoas (quebra multi-quartos).
+    // Deixe toda a base e componha por hotel mais abaixo.
+    const itemsFiltrados = activeTab === 'habitaciones'
+      ? items
+      : items.filter(() => true)
 
-    // Se for busca de pacotes, agrupa por hotel para mostrar só o melhor pacote
+    // Se for busca de pacotes, compor por hotel respeitando rooms_config (suporta múltiplos quartos)
     if (activeTab === 'paquetes') {
-      // ✅ CORREÇÃO: Primeiro filtrar por data exata se especificada
-      let pacotesFiltradosPorData = itemsFiltrados
-      
-      // Extrair a data da busca dos searchParams
       const dataBusca = searchParams.get("data")
-      if (dataBusca) {
-        console.log(`🗓️ Filtrando pacotes por data específica: ${dataBusca}`)
-        pacotesFiltradosPorData = itemsFiltrados.filter(pacote => 
-          pacote.data_saida === dataBusca
-        )
-        console.log(`📊 Pacotes após filtro por data: ${pacotesFiltradosPorData.length}`)
+      // Filtrar por data exata (quando houver)
+      const pacotesNaData = !dataBusca ? itemsFiltrados : itemsFiltrados.filter(p => p.data_saida === dataBusca)
+
+      // Normalizador de tipo por capacidade
+      const tipoPorCapacidade = (cap: number): string => {
+        if (cap === 1) return 'Single'
+        if (cap === 2) return 'Doble'
+        if (cap === 3) return 'Triple'
+        if (cap === 4) return 'Cuádruple'
+        if (cap === 5) return 'Quíntuple'
+        return 'Familiar'
       }
-      
-      // ✅ DEPOIS agrupar por hotel 
-      const pacotesPorHotel = new Map<string, any[]>()
-      pacotesFiltradosPorData.forEach(pacote => {
-        const hotel = pacote.hotel
-        if (!pacotesPorHotel.has(hotel)) pacotesPorHotel.set(hotel, [])
-        pacotesPorHotel.get(hotel)!.push(pacote)
+
+      // Conjunto de quartos solicitados pelo usuário
+      const quartosSolicitados = getQuartosIndividuais()
+
+      // Agrupar registros por hotel
+      const porHotel = new Map<string, any[]>()
+      pacotesNaData.forEach(p => {
+        const hotel = p.hotel
+        if (!porHotel.has(hotel)) porHotel.set(hotel, [])
+        porHotel.get(hotel)!.push(p)
       })
-      
-      const melhoresPorHotel: any[] = []
-      pacotesPorHotel.forEach((pacotesDoHotel) => {
-        // ✅ ORDENAR por preço para pegar o melhor (menor preço)
-        const melhorPacote = pacotesDoHotel.sort((a, b) => 
-          (a.preco_adulto || 0) - (b.preco_adulto || 0)
-        )[0]
-        melhoresPorHotel.push(melhorPacote)
-      })
-      
-      console.log(`🏨 Hotéis únicos encontrados para data ${dataBusca}: ${melhoresPorHotel.length}`)
-      console.log(`🏨 Hotéis: ${melhoresPorHotel.map(p => p.hotel).join(', ')}`)
-      
-      return melhoresPorHotel
+
+      const resultadosCompostos: any[] = []
+
+      for (const [hotel, registros] of porHotel.entries()) {
+        // Para cada quarto solicitado, procurar uma linha com capacidade EXATA
+        const linhasSelecionadas: any[] = []
+        let hotelValido = true
+
+        // Para suportar múltiplos quartos do mesmo tipo, permitir reuso da mesma linha
+        // desde que a capacidade e o tipo correspondam. Marcamos a linha escolhida, mas não
+        // removemos do conjunto (pois o registro do Supabase representa o preço por pessoa por tipo).
+        for (const quarto of quartosSolicitados) {
+          const capacidadeNecessaria = quarto.adults + quarto.children0to3 + quarto.children4to5 + quarto.children6plus
+
+          // Prioridade 1: match por capacidade exata
+          let linha = registros.find(r => Number(r.capacidade) === capacidadeNecessaria)
+
+          // Prioridade 2 (fallback leve): se não achar, aceitar a linha com tipo equivalente
+          if (!linha && registros.some(r => r.quarto_tipo)) {
+            const tipoNecessario = tipoPorCapacidade(capacidadeNecessaria)
+            linha = registros.find(r => (r.quarto_tipo || '').toLowerCase().includes(tipoNecessario.toLowerCase()))
+          }
+
+          if (!linha) {
+            hotelValido = false
+            break
+          }
+          linhasSelecionadas.push({ linha, quarto })
+        }
+
+        if (!hotelValido || linhasSelecionadas.length === 0) continue
+
+        // Calcular total por hotel (somatório de quartos por idade)
+        let totalHotel = 0
+        const transporteHotel = (linhasSelecionadas[0]?.linha?.transporte) || 'Bus'
+        let totalPessoasTaxadasAereo = 0
+
+        linhasSelecionadas.forEach(({ linha, quarto }) => {
+          if (transporteHotel === 'Aéreo') {
+            const unitAdult = Number(linha.preco_adulto_aereo ?? linha.preco_adulto) || 0
+            const unitC0_2 = Number(linha.preco_crianca_0_2_aereo) || 0
+            const unitC2_5 = Number(linha.preco_crianca_2_5_aereo) || 0
+            const unitC6 = Number(linha.preco_crianca_6_mais_aereo ?? unitAdult) || 0
+
+            const subtotal =
+              unitAdult * quarto.adults +
+              unitC0_2 * quarto.children0to3 + // aqui tratamos 0-3 como 0-2 para Aéreo
+              unitC2_5 * quarto.children4to5 + // 2-5
+              unitC6 * quarto.children6plus
+            totalHotel += subtotal
+
+            totalPessoasTaxadasAereo += (quarto.adults || 0) + (quarto.children4to5 || 0) + (quarto.children6plus || 0)
+          } else {
+            const subtotal =
+              (Number(linha.preco_adulto) || 0) * quarto.adults +
+              (Number(linha.preco_crianca_0_3) || 0) * quarto.children0to3 +
+              (Number(linha.preco_crianca_4_5) || 0) * quarto.children4to5 +
+              (Number(linha.preco_crianca_6_mais) || 0) * quarto.children6plus
+            totalHotel += subtotal
+          }
+        })
+
+        // Aplicar taxas finais
+        let finalHotel = totalHotel
+        if (transporteHotel === 'Aéreo') {
+          const taxaPorPessoa = Number(linhasSelecionadas[0]?.linha?.taxa_aereo_por_pessoa) || 200
+          finalHotel = totalHotel + taxaPorPessoa * totalPessoasTaxadasAereo
+        } else {
+          finalHotel = calculateFinalPrice(totalHotel, transporteHotel)
+        }
+
+        // Preparar objeto final para renderização (usar a primeira linha para metadados visuais)
+        const base = { ...linhasSelecionadas[0].linha }
+        base.__linhas_compostas = linhasSelecionadas.map(({ linha, quarto }: any) => ({
+          quarto_tipo: linha.quarto_tipo || tipoPorCapacidade(linha.capacidade),
+          capacidade: linha.capacidade,
+          // Para Aéreo, mapeamos para chaves genéricas usadas na página de detalhes
+          preco_adulto: transporteHotel === 'Aéreo' ? (linha.preco_adulto_aereo ?? linha.preco_adulto) : linha.preco_adulto,
+          preco_crianca_0_3: transporteHotel === 'Aéreo' ? (linha.preco_crianca_0_2_aereo ?? 0) : linha.preco_crianca_0_3,
+          preco_crianca_4_5: transporteHotel === 'Aéreo' ? (linha.preco_crianca_2_5_aereo ?? 0) : linha.preco_crianca_4_5,
+          preco_crianca_6_mais: transporteHotel === 'Aéreo' ? (linha.preco_crianca_6_mais_aereo ?? linha.preco_adulto_aereo ?? linha.preco_adulto) : linha.preco_crianca_6_mais,
+          taxa_por_pessoa: transporteHotel === 'Aéreo' ? (linha.taxa_aereo_por_pessoa ?? 200) : undefined,
+          quarto,
+          subtotal: (Number(linha.preco_adulto) || 0) * quarto.adults +
+                    (Number(linha.preco_crianca_0_3) || 0) * quarto.children0to3 +
+                    (Number(linha.preco_crianca_4_5) || 0) * quarto.children4to5 +
+                    (Number(linha.preco_crianca_6_mais) || 0) * quarto.children6plus
+        }))
+        base.__total_composto_base = totalHotel
+        base.__total_composto = finalHotel
+        base.transporte = transporteHotel
+
+        resultadosCompostos.push(base)
+      }
+
+      // Ordenar pelo total final ascendente
+      resultadosCompostos.sort((a, b) => (a.__total_composto || 0) - (b.__total_composto || 0))
+      return resultadosCompostos
     }
 
-    // Para habitaciones, agrupa as diárias por quarto, soma os preços e verifica a capacidade
-    const quartosAgrupados = new Map<string, any>();
-    itemsFiltrados.forEach(diaria => {
-      const chave = `${diaria.slug_hospedagem}-${diaria.tipo_quarto}`;
-      if (!quartosAgrupados.has(chave)) {
-        quartosAgrupados.set(chave, {
-          ...diaria,
+    // Habitaciones: compor por hotel de acordo com cada quarto solicitado
+    const quartosSolicitados: Room[] = getQuartosIndividuais()
+
+    // Pré-agrupamento: hotel -> tipo_quarto -> agregado de diárias
+    const porHotel: Map<string, Map<string, any>> = new Map()
+    itemsFiltrados.forEach((diaria: any) => {
+      const hotel = diaria.slug_hospedagem || diaria.hotel
+      if (!porHotel.has(hotel)) porHotel.set(hotel, new Map())
+      const porTipo = porHotel.get(hotel)!
+      const tipo = (diaria.tipo_quarto || '').trim() || `Cap${diaria.capacidade}`
+      if (!porTipo.has(tipo)) {
+        porTipo.set(tipo, {
+          hotel,
+          slug_hospedagem: diaria.slug_hospedagem,
+          tipo_quarto: diaria.tipo_quarto,
+          capacidade: diaria.capacidade,
           valor_total: 0,
           noites: 0,
-        });
+          valor_diaria: diaria.valor_diaria
+        })
       }
-      const quarto = quartosAgrupados.get(chave);
-      quarto.valor_total += diaria.valor_diaria;
-      quarto.noites += 1;
-    });
+      const agg = porTipo.get(tipo)
+      agg.valor_total += Number(diaria.valor_diaria) || 0
+      agg.noites += 1
+      if (!agg.valor_diaria) agg.valor_diaria = diaria.valor_diaria
+    })
 
-    const resultadosFinais = Array.from(quartosAgrupados.values());
-    
-    // Os quartos já foram filtrados pela nova lógica de pagantes acima
-    return resultadosFinais;
+    const resultadosCompostos: any[] = []
+
+    porHotel.forEach((porTipo, hotel) => {
+      // Tentar montar composição para todos os quartos solicitados
+      const linhasSelecionadas: any[] = []
+      let valido = true
+
+      for (const q of quartosSolicitados) {
+        const calc = calcularPagantesHospedagem(
+          q.adults,
+          q.children0to3,
+          q.children4to5,
+          q.children6plus
+        )
+
+        // Procurar tipo compatível: por nome (compatível) ou por capacidade exata
+        let match: any = null
+        // 1) Tentar por capacidade exata
+        porTipo.forEach((agg) => {
+          if (match) return
+          if (Number(agg.capacidade) === calc.totalPagantes) match = agg
+        })
+        // 2) Se não achou, tentar por compatibilidade de nome
+        if (!match) {
+          porTipo.forEach((agg) => {
+            if (match) return
+            if (agg.tipo_quarto && tiposQuartoCompativeis(calc.tipoQuartoRequerido, agg.tipo_quarto)) {
+              match = agg
+            }
+          })
+        }
+
+        if (!match) {
+          valido = false
+          return
+        }
+
+        // Registrar seleção com os dados do quarto solicitado
+        const noites = match.noites || 1
+        // Preço por diária já é preço do quarto (não por pessoa)
+        const diaria = Number(match.valor_total && match.noites ? match.valor_total / match.noites : match.valor_diaria) || 0
+        linhasSelecionadas.push({
+          linha: match,
+          quarto: {
+            adults: q.adults,
+            children0to3: q.children0to3,
+            children4to5: q.children4to5,
+            children6plus: q.children6plus
+          },
+          subtotal: diaria * noites,
+          requeridoTipo: calc.tipoQuartoRequerido
+        })
+      }
+
+      if (!valido || linhasSelecionadas.length === 0) return
+
+      // Total por hotel (soma dos subtotais)
+      const totalHotel = linhasSelecionadas.reduce((sum, it) => sum + (it.subtotal || 0), 0)
+
+      // Construir base de saída compatível com renderização existente
+      const primeiro = linhasSelecionadas[0].linha
+      const base: any = { ...primeiro }
+      base.__linhas_compostas = linhasSelecionadas.map(({ linha, quarto, subtotal, requeridoTipo }: any) => ({
+        quarto_tipo: requeridoTipo || linha.tipo_quarto,
+        capacidade: linha.capacidade,
+        valor_por_noite: Number(linha.valor_total && linha.noites ? linha.valor_total / linha.noites : linha.valor_diaria) || 0,
+        noites: linha.noites || 1,
+        quarto,
+        subtotal
+      }))
+      base.__total_composto = totalHotel
+      base.slug_hospedagem = primeiro.slug_hospedagem
+      base.hotel = hotel
+
+      resultadosCompostos.push(base)
+    })
+
+    // Ordenar pelo total final ascendente
+    resultadosCompostos.sort((a, b) => (a.__total_composto || 0) - (b.__total_composto || 0))
+    return resultadosCompostos
 }
   
-  const resultados = filtrarResultados(
+  const quartosForRender = useMemo(() => parseRoomsFromURL(), [searchParams])
+  const resultados = useMemo(() => filtrarResultados(
     disponibilidades, 
-    parseRoomsFromURL()
-  ) || []
+    quartosForRender
+  ) || [], [disponibilidades, quartosForRender])
 
   const formatPrice = (price: number) => {
     const validPrice = Number(price) || 0;
     if (isNaN(validPrice)) return 'USD 0';
     return `USD ${Math.round(validPrice).toLocaleString('es-AR')}`;
+  }
+
+  // Formatação específica para Habitaciones em BRL
+  const formatPriceBRL = (price: number) => {
+    const validPrice = Number(price) || 0
+    if (isNaN(validPrice)) return 'R$ 0'
+    return `R$ ${Math.round(validPrice).toLocaleString('pt-BR')}`
   }
 
   const formatDate = (dateString: string) => {
@@ -677,6 +835,14 @@ export default function ResultadosPage() {
     return texto
   }
 
+  // Formata a ocupação por quarto para Habitaciones
+  const formatRoomPeople = (q: Room) => {
+    const adultosTxt = `${q.adults} Adulto${q.adults === 1 ? '' : 's'}`
+    const ninos = (q.children0to3 || 0) + (q.children4to5 || 0) + (q.children6plus || 0)
+    const ninosTxt = ninos > 0 ? ` + ${ninos} Niño${ninos === 1 ? '' : 's'}` : ''
+    return `${adultosTxt}${ninosTxt}`
+  }
+
   const gerarTextoTiposQuartos = (disponibilidade?: any): string => {
     const quartosIndividuaisCard = parseRoomsFromURL();
     const temMultiplosQuartosCard = quartosIndividuaisCard.length > 1;
@@ -708,11 +874,21 @@ export default function ResultadosPage() {
     params.set('preco', basePrice.toString())
     
     if (activeTab === 'paquetes') {
-      const dadosValidados = validarDadosPreco(disponibilidade);
-      params.set('preco_adulto', dadosValidados.preco_adulto.toString());
-      params.set('preco_crianca_0_3', dadosValidados.preco_crianca_0_3.toString());
-      params.set('preco_crianca_4_5', dadosValidados.preco_crianca_4_5.toString());
-      params.set('preco_crianca_6_mais', dadosValidados.preco_crianca_6_mais.toString());
+      // Enviar breakdown composto quando houver múltiplos quartos
+      if (Array.isArray(disponibilidade.__linhas_compostas)) {
+        params.set('rooms_breakdown', encodeURIComponent(JSON.stringify(disponibilidade.__linhas_compostas)))
+      } else {
+        const dadosValidados = validarDadosPreco(disponibilidade);
+        params.set('preco_adulto', dadosValidados.preco_adulto.toString());
+        params.set('preco_crianca_0_3', dadosValidados.preco_crianca_0_3.toString());
+        params.set('preco_crianca_4_5', dadosValidados.preco_crianca_4_5.toString());
+        params.set('preco_crianca_6_mais', dadosValidados.preco_crianca_6_mais.toString());
+      }
+      // Transport type for details page taxes
+      if (disponibilidade.transporte) params.set('transporte', disponibilidade.transporte)
+      if (disponibilidade.__total_composto_base != null) {
+        params.set('preco_base_total', String(disponibilidade.__total_composto_base))
+      }
       if (disponibilidade.noites_hotel) params.set('noites_hotel', disponibilidade.noites_hotel.toString())
       if (disponibilidade.dias_totais) params.set('dias_totais', disponibilidade.dias_totais.toString())
       if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
@@ -965,38 +1141,53 @@ export default function ResultadosPage() {
                   const quartosIndividuaisCard = parseRoomsFromURL();
                   const temMultiplosQuartosCard = quartosIndividuaisCard.length > 1;
 
-                  // Lógica de Preço
-                  let finalPrice = 0;
+                   // Lógica de Preço
+                   let finalPrice = 0;
                   let installments = 1;
                   let installmentValue = 0;
                   
-                  if (activeTab === 'habitaciones') {
-                    const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
-                    const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
-                    const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
-                    const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
-                    
-                    const calculoPagantes = calcularPagantesHospedagem(
-                      adultos, 
-                      criancas_0_3, 
-                      criancas_4_5, 
-                      criancas_6_mais
-                    );
-                    
-                    const precoHospedagem = calcularPrecoHospedagem(
-                      disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
-                      disponibilidade.noites || 1,
-                      calculoPagantes
-                    );
-                    
-                    finalPrice = precoHospedagem.precoTotal;
-                  } else {
-                    const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
-                    finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
-                    const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
-                    installments = inst;
-                    installmentValue = val;
-                  }
+                   if (activeTab === 'habitaciones') {
+                     // Se vier composição por hotel (__linhas_compostas), usar a soma dos subtotais
+                     if (Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0) {
+                       finalPrice = Number(disponibilidade.__total_composto) || disponibilidade.__linhas_compostas.reduce((s: number, l: any) => s + (Number(l.subtotal) || 0), 0)
+                     } else {
+                       // Fallback antigo (um tipo por resultado)
+                       const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
+                       const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
+                       const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
+                       const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
+                       const calculoPagantes = calcularPagantesHospedagem(adultos, criancas_0_3, criancas_4_5, criancas_6_mais);
+                       const precoHospedagem = calcularPrecoHospedagem(
+                         disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
+                         disponibilidade.noites || 1,
+                         calculoPagantes
+                       );
+                       finalPrice = precoHospedagem.precoTotal;
+                     }
+                   } else {
+                     // Paquetes: usar composição por hotel quando disponível
+                     if (disponibilidade.__total_composto != null) {
+                       finalPrice = Number(disponibilidade.__total_composto) || 0
+                     } else {
+                       // Fallback: cálculo por idade (quarto único)
+                       const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
+                       finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
+                     }
+                     const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
+                     installments = inst;
+                     installmentValue = val;
+                   }
+
+                   // Para Paquetes, exibir preço por pessoa (total dividido pelo nº de pessoas)
+                   let displayPrice = finalPrice;
+                   if (activeTab === 'paquetes') {
+                     const totalPeople = (pessoas.adultos || 0) + (pessoas.criancas_0_3 || 0) + (pessoas.criancas_4_5 || 0) + (pessoas.criancas_6_mais || 0);
+                     const perPerson = totalPeople > 0 ? (finalPrice / totalPeople) : finalPrice;
+                     displayPrice = perPerson;
+                     const { installments: instPP, installmentValue: valPP } = calculateInstallments(perPerson, disponibilidade.data_saida);
+                     installments = instPP;
+                     installmentValue = valPP;
+                   }
                   
                   // Dados do Hotel
                   const hotelIdentifier = disponibilidade.slug_hospedagem || disponibilidade.hotel;
@@ -1013,14 +1204,24 @@ export default function ResultadosPage() {
 
                   return (
                     <div key={disponibilidade.id} className={`bg-white border border-gray-100 rounded-3xl shadow-lg p-3 flex flex-col gap-4 hover:shadow-2xl transition-shadow duration-300 ${viewMode === 'list' ? 'md:flex-row md:gap-6' : ''}`}>
-                      <div className={`relative w-full rounded-2xl overflow-hidden ${viewMode === 'list' ? 'md:w-1/3 h-auto' : 'h-64'}`}>
-                        <Image src={hotelImage} alt={`Foto de ${hotelNameForDisplay}`} layout="fill" objectFit="cover" />
+                       <div className={`relative w-full rounded-2xl overflow-hidden ${viewMode === 'list' ? 'md:w-1/3 h-auto' : 'h-64'}`}>
+                        <Image src={hotelImage} alt={`Foto de ${hotelNameForDisplay}`} layout="fill" objectFit="cover" priority={index < 3} sizes={viewMode === 'list' ? '(min-width: 768px) 33vw, 100vw' : '(min-width: 1280px) 33vw, (min-width: 768px) 50vw, 100vw'} />
                       </div>
 
                       <div className={`flex flex-col gap-4 px-2 ${viewMode === 'list' ? 'md:w-2/3 md:px-0' : 'px-4 pb-2'}`}>
                         <div className="text-left">
                           <h3 className="font-bold text-2xl text-gray-900 font-manrope">{hotelNameForDisplay}</h3>
-                          <p className="text-sm text-gray-600">{disponibilidade.tipo_quarto || gerarTextoTiposQuartos(disponibilidade)}</p>
+                          <p className="text-sm text-gray-600">
+                            {Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0
+                              ? (() => {
+                                  const tipos = disponibilidade.__linhas_compostas.map((l: any) => (l.quarto_tipo || '').trim()).filter(Boolean)
+                                  const counts: Record<string, number> = {}
+                                  tipos.forEach((t: string) => { counts[t] = (counts[t] || 0) + 1 })
+                                  const parts = Object.entries(counts).map(([tipo, qtd]) => qtd > 1 ? `${qtd}x ${tipo}` : tipo)
+                                  return parts.join(' + ')
+                                })()
+                              : (disponibilidade.tipo_quarto || gerarTextoTiposQuartos(disponibilidade))}
+                          </p>
                           <div className="flex items-center text-sm text-gray-500 gap-2 mt-1">
                             <MapPin className="w-4 h-4 text-orange-500" />
                             <span>{filters.destino || 'Canasvieiras'}</span>
@@ -1050,13 +1251,31 @@ export default function ResultadosPage() {
                           )}
                         </div>
                         
-                        <div className="text-sm mt-4">
+                           <div className="text-sm mt-4">
                           {activeTab === 'paquetes' ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
-                              <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
-                              <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
-                              <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="border rounded-xl p-2 flex items-center gap-2"><CalendarIcon className="w-4 h-4 text-orange-500"/><span>{formatDate(disponibilidade.data_saida)}</span></div>
+                                <div className="border rounded-xl p-2 flex items-center gap-2"><Clock className="w-4 h-4 text-orange-500"/><span>{disponibilidade.noites_hotel || 7} noches</span></div>
+                                <div className="border rounded-xl p-2 flex items-center gap-2">{disponibilidade.transporte === 'Aéreo' ? <Plane className="w-4 h-4 text-orange-500"/> : <Bus className="w-4 h-4 text-orange-500"/>}<span>{disponibilidade.transporte} + Hotel</span></div>
+                                <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+                              </div>
+                              {Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0 && (
+                                <div className="bg-gray-50 rounded-2xl p-3">
+                                  {disponibilidade.__linhas_compostas.map((info: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm py-1">
+                                      <div>
+                                        <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
+                                        <span className="text-gray-800 ml-1">{info.quarto_tipo}</span>
+                                        <p className="text-xs text-gray-500">
+                                          {info.quarto.adults} Adultos{(info.quarto.children0to3 + info.quarto.children4to5 + info.quarto.children6plus) > 0 ? `, ${(info.quarto.children0to3 + info.quarto.children4to5 + info.quarto.children6plus)} Niños` : ''}
+                                        </p>
+                                      </div>
+                                      <span className="font-semibold text-gray-700">{formatPrice(info.subtotal)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-3">
@@ -1078,58 +1297,93 @@ export default function ResultadosPage() {
                                 </div>
                               </div>
                               <div className="border rounded-xl p-2 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500"/><span>{formatPessoas(pessoas)}</span></div>
+
+                              {/* Distribuição por quarto no padrão de Paquetes */}
+                              <div className="bg-gray-50 rounded-2xl p-3">
+                                {quartosIndividuaisCard.map((q, idx) => {
+                                  const roomType = determinarTipoQuarto(q)
+                                  const noites = disponibilidade.noites || 1
+                                  const diaria = Number(disponibilidade.valor_diaria || (disponibilidade.valor_total && disponibilidade.noites ? disponibilidade.valor_total / disponibilidade.noites : 0))
+                                  const roomTotal = diaria * noites
+                                  return (
+                                    <div key={idx} className="flex justify-between items-center text-sm py-1">
+                                      <div>
+                                        <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
+                                        <span className="text-gray-800 ml-1">{roomType}</span>
+                                        <p className="text-xs text-gray-500">{formatRoomPeople(q)}</p>
+                                      </div>
+                                      <span className="font-semibold text-gray-700">{formatPriceBRL(roomTotal)}</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
 
-                         {temMultiplosQuartosCard && (
-                          <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                            {quartosIndividuaisCard.map((quarto, idx) => {
-                              const precoQuarto = calcularPrecoQuarto(disponibilidade, quarto)
-                              return (
-                                <div key={idx} className="flex justify-between items-center text-sm">
-                                  <div>
-                                    <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
-                                    <span className="text-gray-800 ml-1">{determinarTipoQuarto(quarto)}</span>
-                                    <p className="text-xs text-gray-500">{formatarOcupacaoQuarto(quarto)}</p>
-                                  </div>
-                                  <span className="font-semibold text-gray-700">{formatPrice(precoQuarto)}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
+                        {/* Removido para evitar duplicidade: manter apenas o breakdown principal em Paquetes */}
 
                         {/* ✅ NOVO: Explicação de pagantes ACIMA da linha do valor */}
                         {activeTab === 'habitaciones' && (() => {
+                          // Badge de resumo: somar pagantes no total para exibir na etiqueta
                           const adultos = quartosIndividuais.reduce((sum, q) => sum + q.adults, 0);
                           const criancas_0_3 = quartosIndividuais.reduce((sum, q) => sum + q.children0to3, 0);
                           const criancas_4_5 = quartosIndividuais.reduce((sum, q) => sum + q.children4to5, 0);
                           const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0);
-                          
-                          const calculoPagantes = calcularPagantesHospedagem(
-                            adultos, criancas_0_3, criancas_4_5, criancas_6_mais
-                          );
-                          
-                          const explicacao = formatarExplicacaoPagantes(calculoPagantes);
+                          const calculoPagantes = calcularPagantesHospedagem(adultos, criancas_0_3, criancas_4_5, criancas_6_mais);
+                          const faixaGratis = calculoPagantes.criancasGratuitas > 0 ? (criancas_0_3 > 0 ? '0–3 años' : '0–5 años') : null;
                           
                           return (
-                            <p className="text-xs text-gray-600 font-medium mb-2">
-                              * {explicacao}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 border border-gray-200 rounded-full px-2 py-0.5 text-[11px]">
+                                <Users className="w-3 h-3 text-orange-500" />
+                                <span className="font-semibold">{calculoPagantes.totalPagantes}</span>
+                                <span>pagantes</span>
+                              </span>
+                              {calculoPagantes.criancasGratuitas > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 rounded-full px-2 py-0.5 text-[11px]">
+                                  <Sparkles className="w-3 h-3" />
+                                  <span className="font-semibold">{calculoPagantes.criancasGratuitas}</span>
+                                  <span>niño{calculoPagantes.criancasGratuitas > 1 ? 's' : ''} ({faixaGratis}) gratis</span>
+                                </span>
+                              )}
+                            </div>
                           );
                         })()}
 
-                        <div className="border-t pt-4 mt-2 flex justify-between items-center">
-                          <div>
-                            <p className="text-2xl font-bold text-gray-900 font-manrope">{formatPrice(finalPrice)}</p>
+                         <div className="border-t pt-4 mt-2 flex justify-between items-center">
+                           <div>
+                             <div className="flex items-center gap-2">
+                              <p className="text-2xl font-bold text-gray-900 font-manrope">{activeTab === 'habitaciones' ? formatPriceBRL(displayPrice) : formatPrice(displayPrice)}</p>
+                              {activeTab === 'paquetes' && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button aria-label="Cómo calculamos" className="p-1 rounded-full hover:bg-gray-100">
+                                      <Info className="w-4 h-4 text-gray-500" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64">
+                                    <div className="text-xs text-gray-700">
+                                      Precio por persona = Total del paquete ÷ Nº de personas.<br />
+                                      {disponibilidade.transporte === 'Aéreo' ? 'Incluye tasa aérea de USD 200 por adulto/niño 2–5/6+ (0–2 exento).' : 'Sin tasas administrativas adicionales.'}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
+                            {activeTab === 'paquetes' && (
+                              <p className="text-xs text-gray-500 -mt-1">por persona</p>
+                            )}
+                            {activeTab === 'habitaciones' && (
+                              <p className="text-xs text-gray-500 -mt-1">por noche</p>
+                            )}
                             {installments > 1 && activeTab === 'paquetes' && (
                               <p className="text-sm text-green-600 font-semibold">
                                 hasta {installments}x de {formatPrice(installmentValue)}
                               </p>
                             )}
                           </div>
-                          <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} passHref>
+                          <Link href={gerarUrlDetalhes(disponibilidade, finalPrice, hotelNameForDisplay)} prefetch passHref>
                             <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-xl px-6 py-5 font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all">
                               Ver detalles <ArrowRight className="w-4 h-4 ml-2" />
                             </Button>

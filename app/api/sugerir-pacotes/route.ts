@@ -31,6 +31,8 @@ interface SearchFilters {
 }
 
 // Dados de fallback para quando o Supabase não estiver disponível
+const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
 const FALLBACK_PACOTES = [
   {
     id: 1,
@@ -78,10 +80,10 @@ const FALLBACK_PACOTES = [
 
 export async function POST(req: Request) {
   try {
-    console.log('Endpoint sugerir-pacotes chamado');
+    if (DEBUG) console.log('Endpoint sugerir-pacotes chamado');
     
     const body = await req.json()
-    console.log('Body recebido:', body);
+    if (DEBUG) console.log('Body recebido:', body);
     
     const { destino, data_saida, transporte, cidade_saida, pessoas } = body
 
@@ -89,7 +91,7 @@ export async function POST(req: Request) {
 
     // Tentar buscar dados do Supabase se estiver configurado
     if (supabase) {
-      console.log('Buscando dados do Supabase...');
+      if (DEBUG) console.log('Buscando dados do Supabase...');
       try {
         const { data: supabasePacotes, error } = await supabase
           .from('disponibilidades')
@@ -97,21 +99,33 @@ export async function POST(req: Request) {
 
         if (!error && supabasePacotes && supabasePacotes.length > 0) {
           pacotes = supabasePacotes
-          console.log(`Encontrados ${pacotes.length} pacotes no Supabase`);
+          if (DEBUG) console.log(`Encontrados ${pacotes.length} pacotes no Supabase`);
         } else {
-          console.log('Usando dados de fallback - Supabase indisponível ou sem dados');
+          if (ENABLE_FALLBACK) {
+            if (DEBUG) console.log('Usando dados de fallback - Supabase indisponível ou sem dados');
+          } else {
+            pacotes = []
+          }
         }
       } catch (supabaseError) {
         console.error('Erro ao conectar com Supabase:', supabaseError);
-        console.log('Usando dados de fallback');
+        if (ENABLE_FALLBACK) {
+          if (DEBUG) console.log('Usando dados de fallback')
+        } else {
+          pacotes = []
+        }
       }
     } else {
-      console.log('Supabase não configurado, usando dados de fallback');
+      if (ENABLE_FALLBACK) {
+        if (DEBUG) console.log('Supabase não configurado, usando dados de fallback')
+      } else {
+        pacotes = []
+      }
     }
 
     // Se não há chave da OpenAI, fazer filtro manual
     if (!openai) {
-      console.log('OpenAI não configurada, fazendo filtro manual...');
+      if (DEBUG) console.log('OpenAI não configurada, fazendo filtro manual...');
       const pacotesFiltrados = pacotes.filter(item => {
         if (destino && item.destino !== destino) return false
         if (cidade_saida && item.cidade_saida !== cidade_saida) return false
@@ -136,7 +150,7 @@ export async function POST(req: Request) {
     }
 
     // Usar ChatGPT se disponível
-    console.log('Chamando ChatGPT...');
+    if (DEBUG) console.log('Chamando ChatGPT...');
     try {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -173,7 +187,7 @@ Formato esperado:
       })
 
       const respostaGPT = completion.choices[0]?.message.content
-      console.log('Resposta GPT recebida:', respostaGPT?.substring(0, 200) + '...');
+      if (DEBUG) console.log('Resposta GPT recebida:', respostaGPT?.substring(0, 200) + '...');
 
       if (!respostaGPT) {
         throw new Error('Resposta vazia do ChatGPT')
@@ -197,7 +211,7 @@ Formato esperado:
       })
     } catch (gptError) {
       console.error('Erro ao usar ChatGPT:', gptError);
-      console.log('Fallback para filtro manual');
+      if (DEBUG) console.log('Fallback para filtro manual');
       
       // Fallback: retornar pacotes filtrados manualmente
       const pacotesFiltrados = pacotes.filter(item => {
@@ -224,16 +238,20 @@ Formato esperado:
   } catch (e) {
     console.error('Erro geral no endpoint:', e)
     
-    // Retornar dados de fallback mesmo em caso de erro
-    return NextResponse.json({ 
-      success: true,
-      pacotes: FALLBACK_PACOTES,
-      total: FALLBACK_PACOTES.length,
-      sugestoes: [
-        'Mostrando pacotes de demonstração',
-        'Configure as variáveis de ambiente para funcionalidade completa',
-        'Pacotes disponíveis para teste'
-      ]
-    }, { status: 200 })
+    // Retornar dados de fallback apenas se habilitado
+    if (ENABLE_FALLBACK) {
+      return NextResponse.json({ 
+        success: true,
+        pacotes: FALLBACK_PACOTES,
+        total: FALLBACK_PACOTES.length,
+        sugestoes: [
+          'Mostrando pacotes de demonstração',
+          'Configure as variáveis de ambiente para funcionalidade completa',
+          'Pacotes disponíveis para teste'
+        ]
+      }, { status: 200 })
+    }
+    
+    return NextResponse.json({ success: false, pacotes: [], total: 0 }, { status: 500 })
   }
 } 

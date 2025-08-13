@@ -46,10 +46,14 @@ export async function getHospedagemData(hotelOficial: string): Promise<Hospedage
     const cacheValid = hospedagensCache && (now - hospedagensCache.timestamp) < CACHE_DURATION
     
     if (!cacheValid) {
-      console.log('🏨 CACHE MISS: Buscando dados de hospedagens do Supabase...')
+      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+        console.log('🏨 CACHE MISS: Buscando dados de hospedagens do Supabase...')
+      }
       await refreshHospedagensCache()
     } else {
-      console.log('⚡ CACHE HIT: Usando dados de hospedagens em cache')
+      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+        console.log('⚡ CACHE HIT: Usando dados de hospedagens em cache')
+      }
     }
 
     if (!hotelOficial) {
@@ -67,15 +71,21 @@ export async function getHospedagemData(hotelOficial: string): Promise<Hospedage
     });
 
     if (hospedagem) {
-      console.log(`✅ Hospedagem encontrada: ${hospedagem.nome} para a busca "${hotelOficial}"`)
+      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+        console.log(`✅ Hospedagem encontrada: ${hospedagem.nome} para a busca "${hotelOficial}"`)
+      }
       return hospedagem
     } else {
-      console.log(`⚠️ Hospedagem não encontrada para: ${hotelOficial}`)
+      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+        console.log(`⚠️ Hospedagem não encontrada para: ${hotelOficial}`)
+      }
       return null
     }
 
   } catch (error) {
-    console.error('❌ Erro ao buscar dados de hospedagem:', error)
+    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+      console.error('❌ Erro ao buscar dados de hospedagem:', error)
+    }
     return null
   }
 }
@@ -106,10 +116,14 @@ async function refreshHospedagensCache(): Promise<void> {
       timestamp: Date.now()
     }
 
-    console.log(`✅ Cache de hospedagens atualizado: ${hospedagens?.length || 0} registros`)
+    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+      console.log(`✅ Cache de hospedagens atualizado: ${hospedagens?.length || 0} registros`)
+    }
 
   } catch (error) {
-    console.error('❌ Erro ao atualizar cache de hospedagens:', error)
+    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+      console.error('❌ Erro ao atualizar cache de hospedagens:', error)
+    }
     // Manter cache anterior se houver erro
   }
 }
@@ -173,5 +187,7 @@ export const COMODIDADES_GENERICAS = [
 // ✅ FUNÇÃO PARA LIMPAR CACHE (útil para desenvolvimento)
 export function clearHospedagensCache(): void {
   hospedagensCache = null
-  console.log('🧹 Cache de hospedagens limpo')
+  if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
+    console.log('🧹 Cache de hospedagens limpo')
+  }
 } 

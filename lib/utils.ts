@@ -7,17 +7,10 @@ export function cn(...inputs: ClassValue[]) {
 
 // ✅ NEW: Calculate final price including taxes and fees
 export function calculateFinalPrice(basePrice: number, transportType: 'Bus' | 'Bús' | 'Aéreo' | string) {
-  const adminFeeRate = 0.03;
+  // Removido: taxa de 3% para Bús (e quaisquer não-aéreo). Mantido apenas acréscimo fixo para Aéreo.
   const airTransportFee = 200;
 
-  let adminFee = 0; // Inicia a taxa como zero
-
-  // Apenas calcula a taxa se o transporte NÃO for Aéreo
-  if (transportType !== 'Aéreo') {
-    adminFee = basePrice * adminFeeRate;
-  }
-  
-  let finalPrice = basePrice + adminFee;
+  let finalPrice = basePrice;
 
   if (transportType === 'Aéreo') {
     finalPrice += airTransportFee;

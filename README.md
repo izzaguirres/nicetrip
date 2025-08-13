@@ -31,6 +31,11 @@ Nas últimas sessões, implementamos uma série de melhorias significativas, com
 - **Banco de Dados:** Supabase
 - **Features de IA:** Integração com OpenAI para buscas inteligentes.
 
+## Documentação
+
+- Guia do Smart Filter, regras de cálculo e composição por hotel: [`SMART_FILTER.md`](SMART_FILTER.md)
+- Esquema do banco e colunas necessárias (incluindo Aéreo): [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md)
+
 ## Como Executar
 
 Para executar o projeto localmente, siga os passos:

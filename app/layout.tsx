@@ -16,9 +16,28 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: "Nice Trip - A viagem dos seus sonhos",
-  description: "Pacotes completos para você e sua família",
-    generator: 'v0.dev'
+  title: {
+    default: "Nice Trip - Pacotes de viagem, hospedagens e passeios",
+    template: "%s | Nice Trip"
+  },
+  description: "Busca inteligente de pacotes (Bus/Aéreo), hospedagens e passeios. Pagamento parcelado, suporte em português e espanhol.",
+  keywords: [
+    "viagem", "pacotes", "florianópolis", "bombinhas", "bus", "aéreo",
+    "hospedagem", "hotel", "passeios", "argentina", "brasil"
+  ],
+  openGraph: {
+    title: "Nice Trip - Pacotes e Hospedagens",
+    description: "Encontre o melhor pacote para suas férias com filtros inteligentes.",
+    type: "website",
+    locale: "es_AR",
+    siteName: "Nice Trip"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nice Trip - Pacotes e Hospedagens",
+    description: "Encontre o melhor pacote para suas férias com filtros inteligentes."
+  },
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
