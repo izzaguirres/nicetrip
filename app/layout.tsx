@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Rethink_Sans, Manrope } from "next/font/google"
 import "./globals.css"
+import Script from "next/script"
 
 const rethinkSans = Rethink_Sans({
   subsets: ["latin"],
@@ -47,7 +48,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <head />
+      <head>
+        {/* Script global do widget Dólar Hoje, carregado após a hidratação */}
+        <Script id="dolar-hoje-widget" src="https://dolarhoje.com/widgets/button/v1.js" strategy="afterInteractive" />
+      </head>
       <body className={`${rethinkSans.variable} ${manrope.variable} font-sans`} suppressHydrationWarning={true}>
         {children}
       </body>

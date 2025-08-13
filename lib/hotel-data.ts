@@ -135,6 +135,22 @@ import vpa4 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/4.png';
 import vpa5 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/5.png';
 import vpa6 from '@/public/images/hoteles/Verdes Pássaros Apart Hotel/6.png';
 
+// Hotel Gracher Camboriú (novo)
+// Observação: a pasta possui nome com acento, manter o caminho exatamente como está no diretório
+import hgc1 from '@/public/images/hoteles/Hotel Gracher Camboriú/1.png';
+import hgc2 from '@/public/images/hoteles/Hotel Gracher Camboriú/2.png';
+import hgc3 from '@/public/images/hoteles/Hotel Gracher Camboriú/3.png';
+import hgc4 from '@/public/images/hoteles/Hotel Gracher Camboriú/4.png';
+import hgc5 from '@/public/images/hoteles/Hotel Gracher Camboriú/5.png';
+import hgc6 from '@/public/images/hoteles/Hotel Gracher Camboriú/6.png';
+import hgc7 from '@/public/images/hoteles/Hotel Gracher Camboriú/7.png';
+import hgc9 from '@/public/images/hoteles/Hotel Gracher Camboriú/9.png';
+import hgc10 from '@/public/images/hoteles/Hotel Gracher Camboriú/10.png';
+import hgc11 from '@/public/images/hoteles/Hotel Gracher Camboriú/11.png';
+import hgc12 from '@/public/images/hoteles/Hotel Gracher Camboriú/12.png';
+import hgc13 from '@/public/images/hoteles/Hotel Gracher Camboriú/13.png';
+import hgc14 from '@/public/images/hoteles/Hotel Gracher Camboriú/14.png';
+
 
 // --- ESTRUTURA DE DADOS MESTRE ---
 export interface HotelData {
@@ -156,6 +172,14 @@ const hotelDataMap: Record<string, HotelData> = {
   "residencial-terrazas": { displayName: "Residencial Terrazas", imageFiles: [rt1, rt2, rt3, rt4, rt5, rt6, rt7, rt8] },
   "tropicanas-flat": { displayName: "Tropicanas Flat", imageFiles: [tf1, tf2, tf3, tf4, tf5, tf6, tf7, tf8] },
   "verdes-passaros-apart-hotel": { displayName: "Verdes Pássaros Apart Hotel", imageFiles: [vpa1, vpa2, vpa3, vpa4, vpa5, vpa6] },
+  // Novo hotel (Balneário Camboriú)
+  "hotel-gracher-camboriu": {
+    displayName: "Hotel Gracher Camboriú",
+    imageFiles: [
+      hgc1, hgc2, hgc3, hgc4, hgc5, hgc6, hgc7,
+      hgc9, hgc10, hgc11, hgc12, hgc13, hgc14
+    ]
+  },
   "fallback": { displayName: "Hotel não encontrado", imageFiles: ["/placeholder.svg"] }
 };
 

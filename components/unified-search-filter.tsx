@@ -50,7 +50,8 @@ const FALLBACK_CITIES = [
 
 const FALLBACK_DESTINATIONS = [
   { id: 1, destino: "Canasvieiras" },
-  { id: 2, destino: "Bombinhas" }
+  { id: 2, destino: "Bombinhas" },
+  { id: 3, destino: "Balneário Camboriú" }
 ]
 
 const FALLBACK_TRANSPORTS = [
@@ -85,9 +86,21 @@ const capitalizeWords = (str: string): string => {
   return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 }
 
-// Helper para normalizar transporte (Bus/Bús)
+// Helper para normalizar transporte (remove todos os acentos → 'aereo' | 'bus')
 const normalizeTransport = (t?: string): string => {
-  return (t || "").toLowerCase().replace('ú', 'u')
+  return (t || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+// Helper para normalizar texto (comparar destinos com ou sem acento)
+const normalizeText = (s?: string): string => {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
 }
 
 export function UnifiedSearchFilter({ 
@@ -116,8 +129,10 @@ export function UnifiedSearchFilter({
       // Aéreo sempre Janeiro
       return new Date(2026, 0, 8) // 08 de Janeiro 2026
     } else if (transporte === "Bus" || transporte === "Bús") {
-      if (destino === "Bombinhas") {
-        // Bús + Bombinhas = Janeiro
+      const nd = normalizeText(destino)
+      const isJanDest = nd === 'bombinhas' || (nd.includes('balneario') && nd.includes('camboriu'))
+      if (isJanDest) {
+        // Bús + Bombinhas/Balneário Camboriú = Janeiro
         return new Date(2026, 0, 4) // 04 de Janeiro 2026
       } else {
         // Bús + outros destinos = Outubro
@@ -164,9 +179,36 @@ export function UnifiedSearchFilter({
 
   // Usar dados de fallback se houver erro ou se estiver carregando por muito tempo
   const cidades = (ENABLE_FALLBACK && (errorCidades || supabaseCidades.length === 0)) ? FALLBACK_CITIES : supabaseCidades
-  const destinos = (ENABLE_FALLBACK && (errorDestinos || supabaseDestinos.length === 0))
-    ? FALLBACK_DESTINATIONS 
-    : supabaseDestinos.map((d: any) => typeof d === 'string' ? { id: Math.random(), destino: d } : { id: d.id || Math.random(), destino: d.destino || d })
+  const destinos = useMemo(() => {
+    const list = (ENABLE_FALLBACK && (errorDestinos || supabaseDestinos.length === 0))
+      ? FALLBACK_DESTINATIONS 
+      : supabaseDestinos.map((d: any) => typeof d === 'string' ? { id: Math.random(), destino: d } : { id: d.id || Math.random(), destino: d.destino || d })
+    // Remover "Balneário Camboriú" quando o transporte selecionado for Aéreo
+    const t = normalizeTransport(filters.transporte)
+    if (t.startsWith('aer')) {
+      return list.filter((d) => {
+        const nd = normalizeText(typeof d === 'string' ? d : d.destino)
+        // filtra qualquer variação com/sem acento/hífen/uppercase
+        const isBalneario = nd.includes('balneario') && nd.includes('camboriu')
+        return !isBalneario
+      })
+    }
+    return list
+  }, [ENABLE_FALLBACK, errorDestinos, supabaseDestinos, filters.transporte])
+
+  // Regra de negócio solicitada: "Balneário Camboriú" apenas para Bús
+  const destinosFiltrados = destinos
+
+  // Limpar destino automaticamente apenas na HOME (não em resultados)
+  useEffect(() => {
+    if (variant !== 'homepage') return
+    if (!isInitializedRef.current) return
+    if (!filters.destino) return
+    const permitido = destinosFiltrados.some(d => normalizeText(d.destino) === normalizeText(filters.destino))
+    if (!permitido) {
+      setFilters(prev => ({ ...prev, destino: "" }))
+    }
+  }, [variant, destinosFiltrados, filters.destino])
   const transportes = (ENABLE_FALLBACK && (errorTransportes || supabaseTransportes.length === 0))
     ? FALLBACK_TRANSPORTS 
     : supabaseTransportes.map((t: any) => typeof t === 'string' ? { id: Math.random(), transporte: t } : { id: t.id || Math.random(), transporte: t.transporte || t })
@@ -232,7 +274,11 @@ export function UnifiedSearchFilter({
     if (filters.transporte === "Aéreo") {
       // ✈️ AÉREO: Sempre Janeiro (independente do destino)
       if (datasDisponiveis.length > 0) {
-        const primeiraDataAereo = datasDisponiveis.find(data => data.startsWith('2026-01'))
+        // Buscar a primeira data disponível em janeiro de qualquer ano recente (2026 ou 2025-12/2026-01 casos de virada)
+        const primeiraDataAereo =
+          datasDisponiveis.find(d => d.startsWith('2026-01')) ||
+          datasDisponiveis.find(d => d.startsWith('2025-12')) ||
+          datasDisponiveis[0]
         if (primeiraDataAereo) {
           novaData = new Date(primeiraDataAereo + 'T00:00:00')
         }
@@ -242,8 +288,11 @@ export function UnifiedSearchFilter({
       }
     } else if (filters.transporte === "Bus" || filters.transporte === "Bús") {
       // 🚌 ÔNIBUS: Depende do destino
-      if (filters.destino === "Bombinhas") {
-        // Bús + Bombinhas = 04 de Janeiro
+      const nd = normalizeText(filters.destino)
+      const isBalneario = nd.includes('balneario') && nd.includes('camboriu')
+      const isBombinhas = nd === 'bombinhas'
+      if (isBalneario || isBombinhas) {
+        // Bús + Balneário Camboriú/Bombinhas = Janeiro
         if (datasDisponiveis.length > 0) {
           const dataBombinhas = datasDisponiveis.find(data => data.startsWith('2026-01'))
           if (dataBombinhas) {
@@ -627,7 +676,7 @@ export function UnifiedSearchFilter({
               </div>
             </SelectTrigger>
             <SelectContent className="rounded-xl border-2 border-gray-200 shadow-xl">
-              {destinos.map((destino) => (
+              {destinosFiltrados.map((destino) => (
                 <SelectItem key={destino.id} value={destino.destino} className="rounded-lg hover:bg-[#EE7215]/5">
                   {destino.destino}
                 </SelectItem>

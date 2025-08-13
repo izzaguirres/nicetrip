@@ -6,7 +6,6 @@ import { Globe, Menu, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import Script from "next/script"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -79,17 +78,13 @@ export function Header() {
             </Link>
             {/* Badge: Dólar Hoje */}
             <div className="flex items-center">
-              <a
-                href="https://dolarhoje.com/"
-                className="dolar-hoje-button text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-700"
-                data-currency="dolar"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Cotação do Dólar Hoje"
-              >
-                Dólar Hoje
-              </a>
-              <Script src="https://dolarhoje.com/widgets/button/v1.js" strategy="afterInteractive" />
+              {/* Inserção direta do HTML do provedor para manter o estilo original */}
+              <span
+                dangerouslySetInnerHTML={{
+                  __html:
+                    '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" title="Cotação do Dólar Hoje">Dólar Hoje</a><script async src="https://dolarhoje.com/widgets/button/v1.js"><\/script>'
+                }}
+              />
             </div>
           </div>
 

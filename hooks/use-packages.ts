@@ -648,6 +648,15 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
     async function fetchTransportes() {
       try {
         setLoading(true)
+        // Canonicaliza o texto do transporte para evitar duplicatas (Aereo/Aéreo, Bus/Bús)
+        const toCanonical = (t: string): string => {
+          const ascii = (t || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+          if (ascii.includes('aer')) return 'Aéreo'
+          return 'Bús'
+        }
         let query = supabase
           .from('disponibilidades')
           .select('transporte')
@@ -675,15 +684,15 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
               .filter((item: Disponibilidade) => item.data_saida === dataSaida)
               .map((item: Disponibilidade) => item.transporte)
           }
-          const transportesUnicos = [...new Set(transportesFallback)]
+          const transportesUnicos = [...new Set(transportesFallback.map(toCanonical))]
           setTransportes(transportesUnicos)
           return
         }
 
         if (error) throw error
         
-        // Extrair transportes únicos
-        const transportesSet = new Set((data || []).map((item: any) => item.transporte as string))
+        // Extrair transportes únicos já canonicalizados
+        const transportesSet = new Set((data || []).map((item: any) => toCanonical(item.transporte as string)))
         const transportesUnicos = Array.from(transportesSet) as string[]
         setTransportes(transportesUnicos)
       } catch (err) {
@@ -700,7 +709,7 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
               .filter((item: Disponibilidade) => item.data_saida === dataSaida)
               .map((item: Disponibilidade) => item.transporte)
           }
-          const transportesUnicos = [...new Set(transportesFallback)]
+          const transportesUnicos = [...new Set(transportesFallback.map(toCanonical))]
           setTransportes(transportesUnicos)
           setError(null)
         } else {

@@ -167,8 +167,11 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Family Image - Absolutely Positioned on Desktop */}
-            <div className="hidden lg:block absolute bottom-44 right-[70px] w-[50%] h-[85%] z-0 pointer-events-none">
+            {/* Family Image - Constrained to avoid overlapping header */}
+            <div
+              className="hidden lg:block absolute right-[70px] z-0 pointer-events-none"
+              style={{ top: '96px', bottom: '176px', width: '50%' }}
+            >
               <Image
                 src="https://raw.githubusercontent.com/izzaguirres/nicetrip/main/public/images/header_family.png"
                 alt="Família aproveitando as férias"

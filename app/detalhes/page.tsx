@@ -1362,6 +1362,11 @@ export default function DetalhesPage() {
                           const precoQuarto = searchType === 'paquetes'
                             ? ((quarto.adultos * unitAdult) + (quarto.criancas_6 * unitC6) + (quarto.criancas_4_5 * unitC4_5) + (quarto.criancas_0_3 * unitC0_3))
                             : (valorDiaria * diasNoites.noites);
+                          // Labels dinâmicos por transporte
+                          const isAereo = transporte === 'Aéreo';
+                          const label03 = isAereo ? '0-2 años' : '0-3 años';
+                          const label45 = isAereo ? '2-5 años' : '4-5 años';
+                          const label6p = '6+ años';
                           return (
                             <div key={quartoIndex} className="border-t border-gray-100 pt-3">
                               <div className="flex justify-between items-center mb-2">
@@ -1376,19 +1381,19 @@ export default function DetalhesPage() {
                                 )}
                                 {quarto.criancas_6 > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} (6+ años)</span>
+                                    <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} ({label6p})</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC6)} por persona</span>}
                                   </div>
                                 )}
                                 {quarto.criancas_4_5 > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} (4-5 años)</span>
+                                    <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} ({label45})</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC4_5)}</span>}
                                   </div>
                                 )}
                                 {quarto.criancas_0_3 > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} (0-3 años)</span>
+                                    <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} ({label03})</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC0_3)}</span>}
                                   </div>
                                 )}
