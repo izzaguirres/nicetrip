@@ -624,7 +624,7 @@ export function UnifiedSearchFilter({
         {/* Cidade de Saída */}
         <div className="space-y-2">
           <label className={`text-sm font-bold ${variant === 'homepage' ? 'text-[#222222]' : 'text-gray-800'}`}>
-            Salida
+            Embarque
           </label>
           <Select
             value={filters.salida}

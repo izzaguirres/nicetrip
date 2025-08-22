@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Image, { StaticImageData } from "next/image"
 import { Button } from "@/components/ui/button"
+import { buildWhatsappMessage, openWhatsapp } from "@/lib/whatsapp"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Paseo, fetchPaseoById } from "@/lib/passeios-service"
@@ -221,7 +222,7 @@ function DetalhesPasseioContent() {
   
   // Usando dados reais do Supabase para a seção "Informaciones"
   const infoItems = [
-    passeio.local_saida && { text: `Salida desde ${passeio.local_saida}` },
+    passeio.local_saida && { text: `Embarque desde ${passeio.local_saida}` },
     passeio.horario_saida && { text: `Horario de salida: ${passeio.horario_saida}` },
     passeio.inclui_transporte && { text: `Transporte ida y vuelta en Bús` },
     passeio.guia_turistico && { text: `Guía turístico` },
@@ -270,7 +271,7 @@ function DetalhesPasseioContent() {
           <div className="lg:hidden">
             <div className="relative">
               <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-2">
-                {galleryImages.map((image: string, index: number) => (
+                {galleryImages.map((image: string | StaticImageData, index: number) => (
                   <div
                     key={index}
                     className="relative flex-shrink-0 w-full snap-start"
@@ -303,7 +304,7 @@ function DetalhesPasseioContent() {
                 onClick={() => { setCurrentImageIndex(0); setShowAllPhotos(true); }}
               />
             </div>
-            {galleryImages.slice(1, 5).map((image: string, index: number) => (
+            {galleryImages.slice(1, 5).map((image: string | StaticImageData, index: number) => (
               <div key={index} className="relative group h-full w-full">
                 <Image
                   src={image}
@@ -518,10 +519,25 @@ function DetalhesPasseioContent() {
                  </div>
               </div>
 
-              <Button className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+              <a
+                onClick={(e)=>{
+                  e.preventDefault();
+                  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+                  const mesSel = mesUsuario ? formatarMesExibicao(mesUsuario) : 'a consultar'
+                  const msg = buildWhatsappMessage('paseo', {
+                    paseo: passeio?.nome || '-',
+                    mes: mesSel,
+                    adultos: adultosFiltro,
+                    ninos: (criancas03Filtro + criancas45Filtro + criancas6Filtro),
+                    link: typeof window!== 'undefined' ? window.location.href : ''
+                  })
+                  openWhatsapp(phone, msg)
+                }}
+                className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2"
+              >
                 <MessageCircle className="w-5 h-5" />
                 Hablar com Operador
-              </Button>
+              </a>
               <p className="text-center text-xs text-gray-500 mt-2">
                 No se cobrará aún
               </p>

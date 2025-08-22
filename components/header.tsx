@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Globe, Menu, X } from "lucide-react"
 import Image from "next/image"
@@ -11,6 +11,30 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const dolarContainerRef = useRef<HTMLSpanElement | null>(null)
+  
+  // Garantir que o widget "Dólar Hoje" permaneça renderizado em todas as páginas
+  useEffect(() => {
+    if (!dolarContainerRef.current) return
+    // Evitar múltiplas inserções
+    if (dolarContainerRef.current.childElementCount === 0) {
+      dolarContainerRef.current.innerHTML = '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" title="Cotação do Dólar Hoje">Dólar</a>'
+    }
+    // Carregar ou reexecutar o script do provider
+    const existing = document.querySelector('script#dolar-hoje-widget-runtime') as HTMLScriptElement | null
+    if (!existing) {
+      const s = document.createElement('script')
+      s.src = 'https://dolarhoje.com/widgets/button/v1.js'
+      s.async = true
+      s.id = 'dolar-hoje-widget-runtime'
+      document.body.appendChild(s)
+    } else {
+      // Alguns widgets expõem um reinit no window; se não, reanexar força reexecução
+      const reattach = existing.cloneNode(true) as HTMLScriptElement
+      existing.remove()
+      document.body.appendChild(reattach)
+    }
+  }, [pathname])
 
   // Função para determinar se um link está ativo
   const isActive = (href: string) => {
@@ -78,13 +102,7 @@ export function Header() {
             </Link>
             {/* Badge: Dólar Hoje */}
             <div className="flex items-center">
-              {/* Inserção direta do HTML do provedor para manter o estilo original */}
-              <span
-                dangerouslySetInnerHTML={{
-                  __html:
-                    '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" title="Cotação do Dólar Hoje">Dólar Hoje</a><script async src="https://dolarhoje.com/widgets/button/v1.js"><\/script>'
-                }}
-              />
+              <span ref={dolarContainerRef} />
             </div>
           </div>
 

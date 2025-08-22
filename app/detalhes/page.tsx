@@ -12,6 +12,7 @@ import { packageConditionsService } from "@/lib/package-conditions-service"
 import { packageDescriptionService } from "@/lib/package-description-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils"
 import { getHotelData } from '@/lib/hotel-data';
+import { buildWhatsappMessage, openWhatsapp } from '@/lib/whatsapp';
 import { 
   Star, 
   MapPin, 
@@ -401,7 +402,7 @@ export default function DetalhesPage() {
   const precoCalculadoInterno = quartosIndividuais.reduce((total: number, quarto: any) => {
     return total + calcularPrecoQuarto(quarto)
   }, 0)
-  
+
   let basePrice = 0;
   if (searchType === 'habitacion') {
     if (checkin && checkout) {
@@ -411,10 +412,21 @@ export default function DetalhesPage() {
       basePrice = valorDiaria * noites;
     }
   } else {
-    // Paquetes: se veio breakdown composto dos cards, recompor o total base sem taxas
+    // Paquetes: recompor o total base sem taxas a partir do breakdown (prioritário)
     if (roomsBreakdown && roomsBreakdown.length > 0) {
-      const somaSubtotais = roomsBreakdown.reduce((acc: number, info: any) => acc + (Number(info.subtotal) || 0), 0)
-      basePrice = somaSubtotais
+      basePrice = roomsBreakdown.reduce((acc: number, info: any) => {
+        const unitAdult = Number((info as any).preco_adulto) || 0
+        const unitC03   = Number((info as any).preco_crianca_0_3) || 0
+        const unitC45   = Number((info as any).preco_crianca_4_5) || 0
+        const unitC6    = Number((info as any).preco_crianca_6_mais) || 0
+        const q         = (info as any).quarto || {}
+        const adults = Number(q.adults ?? q.adultos ?? 0)
+        const c03    = Number(q.children0to3 ?? q.criancas_0_3 ?? 0)
+        const c45    = Number(q.children4to5 ?? q.criancas_4_5 ?? 0)
+        const c6     = Number(q.children6plus ?? q.criancas_6 ?? 0)
+        const sub    = unitAdult * adults + unitC03 * c03 + unitC45 * c45 + unitC6 * c6
+        return acc + sub
+      }, 0)
     } else {
       basePrice = preco || precoCalculadoInterno;
     }
@@ -556,6 +568,7 @@ export default function DetalhesPage() {
               "Guias locales bilingües",
               "Kit de viaje",
               "Asistencia al viajero (ver mayores de 70 años)",
+              "Cena de Bienvenida",
             ]
       ),
       
@@ -665,6 +678,27 @@ export default function DetalhesPage() {
 
   const formatPriceWithCurrency = (value: number): string => {
     return `USD ${formatPrice(value)}`;
+  }
+
+  // WhatsApp helper (Pacotes)
+  const getWhatsAppLinkForPackage = () => {
+    const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+    const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/'
+    const dataSalida = packageData.dataViagem.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    const roomsLines = (quartosIndividuais || []).map((q: any, i: number) => {
+      const parts: string[] = []
+      if ((q.adultos || 0) > 0) parts.push(`${q.adultos} Adulto${q.adultos > 1 ? 's' : ''}`)
+      const n03 = q.criancas_0_3 || 0
+      const n45 = q.criancas_4_5 || 0
+      const n6 = q.criancas_6 || 0
+      if (n03 > 0) parts.push(`${n03} Niño(s) 0–2`)
+      if (n45 > 0) parts.push(`${n45} Niño(s) 2–5`)
+      if (n6 > 0) parts.push(`${n6} Niño(s) 6+`)
+      return `- Cuarto ${i + 1}: ${parts.join(', ')}`
+    }).join('\n')
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+    const texto = `Hola! 👋 Me gustaría hablar sobre este paquete de Nice Trip.\n\nResumen de mi selección:\n• Transporte: ${transporte}\n• Embarque: ${saida}\n• Destino: ${destino}\n• Hospedaje: ${displayName}\n• Fecha de salida: ${dataSalida}\n\nHabitaciones:\n${roomsLines || '- (sin distribución informada)'}\n\nTotal estimado: ${formatPriceWithCurrency(precoTotalReal)}\nLink: ${url}\n\n¿Podés ayudarme a finalizar la reserva? ¡Gracias! 🙏`
+    return `${base}?text=${encodeURIComponent(texto)}`
   }
 
   // Share functionality
@@ -1307,7 +1341,7 @@ export default function DetalhesPage() {
                       <>
                         <div className="flex justify-between gap-4">
                           <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Salida</p>
+                            <p className="text-sm text-gray-600 mb-1">Embarque</p>
                             <div className="bg-white rounded-xl p-2">
                               <p className="font-medium text-gray-900 text-sm">{packageData.dataViagem.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
@@ -1413,14 +1447,21 @@ export default function DetalhesPage() {
                     )}
                   </div>
                   
-                  {/* Taxas */}
+                  {/* Tasas e Impuestos (Aéreo) */}
                   {searchType === 'paquetes' && (
                     <>
                       <div className="space-y-2 text-sm mb-4">
                         {transporte === 'Aéreo' && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Impuestos y Cargos</span>
-                            <span className="text-gray-600">{formatPriceWithCurrency(200)}</span>
+                          <div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Tasas e Impuestos</span>
+                              <span className="text-gray-600">{formatPriceWithCurrency(200)} <span className="whitespace-nowrap">por persona</span></span>
+                            </div>
+                            {(criancas_0_3 || 0) > 0 && (
+                              <div className="mt-1 text-[11px] text-gray-500 leading-snug">
+                                <p>0–2 exentos</p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1443,10 +1484,55 @@ export default function DetalhesPage() {
                   
 
                   {/* Book Button */}
-                  <button className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+                  <a onClick={(e) => {
+                        e.preventDefault();
+                        const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+                        const habitaciones = (quartosIndividuais || []).map((q: any) => ({
+                          adultos: q.adultos || 0,
+                          children0to3: q.criancas_0_3 || 0,
+                          children4to5: q.criancas_4_5 || 0,
+                          children6plus: q.criancas_6 || 0,
+                        }))
+                        const toISO = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+                        const fechaSalida = toISO(packageData.dataViagem)
+                        const regresoDate = new Date(packageData.dataViagem)
+                        regresoDate.setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)
+                        const fechaRegreso = toISO(regresoDate)
+                        const msg = buildWhatsappMessage('paquete', {
+                          destino,
+                          hotel: displayName,
+                          transporte,
+                          embarque: saida,
+                          fecha_salida: fechaSalida,
+                          fecha_regreso: fechaRegreso,
+                          noches: diasNoites.noites,
+                          habitaciones,
+                          total: Math.round(precoTotalReal),
+                          voos: (()=>{
+                            const ida = (voosInfo?.ida||[]).map(v=>({
+                              data: v.data,
+                              origem_iata: v.origem_iata || v.aeroporto_saida,
+                              destino_iata: v.destino_iata || v.aeroporto_chegada,
+                              saida: v.saida_hora || v.saida,
+                              chegada: v.chegada_hora || v.chegada,
+                            }))
+                            const volta = (voosInfo?.volta||[]).map(v=>({
+                              data: v.data,
+                              origem_iata: v.origem_iata || v.aeroporto_saida,
+                              destino_iata: v.destino_iata || v.aeroporto_chegada,
+                              saida: v.saida_hora || v.saida,
+                              chegada: v.chegada_hora || v.chegada,
+                            }))
+                            return [...ida, ...volta]
+                          })(),
+                          bagagem: voosInfo?.bagagem,
+                          link: typeof window !== 'undefined' ? window.location.href : ''
+                        })
+                        openWhatsapp(phone, msg)
+                      }} href="#" className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
                     <MessageCircle className="w-5 h-5" />
                     Hablar com Operador
-                  </button>
+                  </a>
                   <p className="text-center text-xs text-gray-500 mt-2">
                     No se cobrará aún
                   </p>
@@ -1470,14 +1556,59 @@ export default function DetalhesPage() {
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
+            <a onClick={(e)=>{
+                e.preventDefault();
+                const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+                const habitaciones = (quartosIndividuais || []).map((q: any) => ({
+                  adultos: q.adultos || 0,
+                  children0to3: q.criancas_0_3 || 0,
+                  children4to5: q.criancas_4_5 || 0,
+                  children6plus: q.criancas_6 || 0,
+                }))
+                const toISO = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+                const fechaSalida = toISO(packageData.dataViagem)
+                const regresoDate = new Date(packageData.dataViagem)
+                regresoDate.setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)
+                const fechaRegreso = toISO(regresoDate)
+                const msg = buildWhatsappMessage('paquete', {
+                  destino,
+                  hotel: displayName,
+                  transporte,
+                  embarque: saida,
+                  fecha_salida: fechaSalida,
+                  fecha_regreso: fechaRegreso,
+                  noches: diasNoites.noites,
+                  habitaciones,
+                  total: Math.round(precoTotalReal),
+                  voos: (()=>{
+                    const ida = (voosInfo?.ida||[]).map(v=>({
+                      data: v.data,
+                      origem_iata: v.origem_iata || v.aeroporto_saida,
+                      destino_iata: v.destino_iata || v.aeroporto_chegada,
+                      saida: v.saida_hora || v.saida,
+                      chegada: v.chegada_hora || v.chegada,
+                    }))
+                    const volta = (voosInfo?.volta||[]).map(v=>({
+                      data: v.data,
+                      origem_iata: v.origem_iata || v.aeroporto_saida,
+                      destino_iata: v.destino_iata || v.aeroporto_chegada,
+                      saida: v.saida_hora || v.saida,
+                      chegada: v.chegada_hora || v.chegada,
+                    }))
+                    return [...ida, ...volta]
+                  })(),
+                  bagagem: voosInfo?.bagagem,
+                  link: typeof window !== 'undefined' ? window.location.href : ''
+                })
+                openWhatsapp(phone, msg)
+              }} href="#" className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
               {/* Shine Effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
               
               <span className="relative flex items-center justify-center gap-2 text-sm">
                 <span className="font-bold tracking-wide">Reservar</span>
               </span>
-            </button>
+            </a>
             <p className="text-xs font-light text-gray-600">No se cobrará aún</p>
           </div>
         </div>

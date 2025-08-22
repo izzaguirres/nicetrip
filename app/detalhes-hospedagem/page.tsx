@@ -50,6 +50,7 @@ import {
 } from "lucide-react"
 import dynamic from 'next/dynamic'
 import { supabase } from "@/lib/supabase" // Importar supabase client
+import { buildWhatsappMessage, openWhatsapp } from "@/lib/whatsapp"
 
 const MapDisplay = dynamic(() => import('@/components/ui/map-display'), {
   ssr: false,
@@ -560,6 +561,28 @@ export default function DetalhesPage() {
     return `R$ ${formatPrice(value)}`;
   }
 
+  // WhatsApp helper (Habitaciones)
+  const getWhatsAppLinkForHotel = () => {
+    const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+    const base = phone ? `https://wa.me/${phone}` : 'https://wa.me/'
+    const checkInStr = checkin ? new Date(checkin + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
+    const checkOutStr = checkout ? new Date(checkout + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'
+    const rooms = (getQuartosIndividuais() || []).map((q: any, i: number) => {
+      const parts: string[] = []
+      if ((q.adultos || 0) > 0) parts.push(`${q.adultos} Adulto${q.adultos > 1 ? 's' : ''}`)
+      const n03 = q.criancas_0_3 || 0
+      const n45 = q.criancas_4_5 || 0
+      const n6 = q.criancas_6 || 0
+      if (n03 > 0) parts.push(`${n03} Niño(s) 0–5`)
+      if (n45 > 0) parts.push(`${n45} Niño(s) 4–5`)
+      if (n6 > 0) parts.push(`${n6} Niño(s) 6+`)
+      return `- Cuarto ${i + 1}: ${parts.join(', ')}`
+    }).join('\n')
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+    const texto = `Hola! 👋 Me gustaría hablar sobre este alojamiento de Nice Trip.\n\nResumen de mi selección:\n• Hotel: ${packageData.name}\n• Destino: ${destino}\n• Check-in: ${checkInStr}\n• Check-out: ${checkOutStr}\n\nHabitaciones:\n${rooms || '- (sin distribución informada)'}\n\nTotal estimado: ${formatPriceWithCurrency(precoTotalReal)}\nLink: ${url}\n\n¿Podés ayudarme a avanzar con la reserva? ¡Gracias! 🙏`
+    return `${base}?text=${encodeURIComponent(texto)}`
+  }
+
   // Share functionality
   const handleShare = async () => {
     const shareData = {
@@ -1008,10 +1031,23 @@ export default function DetalhesPage() {
                   
 
                   {/* Book Button */}
-                  <button className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+                  <a onClick={(e)=>{
+                        e.preventDefault();
+                        const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+                        const habs = (getQuartosIndividuais() || []).map((q: any) => ({ adultos: q.adultos || 0, niños: (q.criancas_0_3||0)+(q.criancas_4_5||0)+(q.criancas_6||0) }))
+                        const msg = buildWhatsappMessage('habitacion', {
+                          hotel: packageData.name,
+                          checkin: checkin || '-',
+                          checkout: checkout || '-',
+                          habitaciones: habs,
+                          total: Math.round(precoTotalReal),
+                          link: typeof window !== 'undefined' ? window.location.href : ''
+                        })
+                        openWhatsapp(phone, msg)
+                      }} href="#" className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
                     <MessageCircle className="w-5 h-5" />
                     Hablar com Operador
-                  </button>
+                  </a>
                   <p className="text-center text-xs text-gray-500 mt-2">
                     No se cobrará aún
                   </p>
@@ -1035,14 +1071,27 @@ export default function DetalhesPage() {
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
+            <a onClick={(e)=>{
+                e.preventDefault();
+                const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+                const habs = (getQuartosIndividuais() || []).map((q: any) => ({ adultos: q.adultos || 0, niños: (q.criancas_0_3||0)+(q.criancas_4_5||0)+(q.criancas_6||0) }))
+                const msg = buildWhatsappMessage('habitacion', {
+                  hotel: packageData.name,
+                  checkin: checkin ? new Date(checkin + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+                  checkout: checkout ? new Date(checkout + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+                  habitaciones: habs,
+                  total: Math.round(precoTotalReal),
+                  link: typeof window !== 'undefined' ? window.location.href : ''
+                })
+                openWhatsapp(phone, msg)
+              }} href="#" className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
               {/* Shine Effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
               
               <span className="relative flex items-center justify-center gap-2 text-sm">
                 <span className="font-bold tracking-wide">Reservar</span>
               </span>
-            </button>
+            </a>
             <p className="text-xs font-light text-gray-600">No se cobrará aún</p>
           </div>
         </div>

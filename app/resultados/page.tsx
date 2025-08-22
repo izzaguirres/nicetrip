@@ -1165,13 +1165,14 @@ export default function ResultadosPage() {
                        finalPrice = precoHospedagem.precoTotal;
                      }
                    } else {
-                     // Paquetes: usar composição por hotel quando disponível
+                     // Paquetes: exibir preço BASE (sem taxas) nos cards de resultados
                      if (disponibilidade.__total_composto != null) {
-                       finalPrice = Number(disponibilidade.__total_composto) || 0
+                       // Quando houver composição, usar o total base sem taxa aérea
+                       finalPrice = Number(disponibilidade.__total_composto_base ?? disponibilidade.__total_composto) || 0
                      } else {
-                       // Fallback: cálculo por idade (quarto único)
+                       // Fallback: cálculo por idade (quarto único) SEM aplicar taxa aérea aqui
                        const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
-                       finalPrice = calculateFinalPrice(basePrice, disponibilidade.transporte);
+                       finalPrice = basePrice;
                      }
                      const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
                      installments = inst;
@@ -1262,18 +1263,59 @@ export default function ResultadosPage() {
                               </div>
                               {Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0 && (
                                 <div className="bg-gray-50 rounded-2xl p-3">
-                                  {disponibilidade.__linhas_compostas.map((info: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm py-1">
-                                      <div>
-                                        <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
-                                        <span className="text-gray-800 ml-1">{info.quarto_tipo}</span>
-                                        <p className="text-xs text-gray-500">
-                                          {info.quarto.adults} Adultos{(info.quarto.children0to3 + info.quarto.children4to5 + info.quarto.children6plus) > 0 ? `, ${(info.quarto.children0to3 + info.quarto.children4to5 + info.quarto.children6plus)} Niños` : ''}
-                                        </p>
+                                  {disponibilidade.__linhas_compostas.map((info: any, idx: number) => {
+                                    const adults = Number(info?.quarto?.adults || 0)
+                                    const c03 = Number(info?.quarto?.children0to3 || 0)
+                                    const c45 = Number(info?.quarto?.children4to5 || 0)
+                                    const c6  = Number(info?.quarto?.children6plus || 0)
+                                    const unitAdult = Number(info?.preco_adulto || 0)
+                                    const unit03    = Number(info?.preco_crianca_0_3 || 0)
+                                    const unit45    = Number(info?.preco_crianca_4_5 || 0)
+                                    const unit6     = Number(info?.preco_crianca_6_mais || 0)
+                                    const roomSubtotal = unitAdult * adults + unit03 * c03 + unit45 * c45 + unit6 * c6
+                                    const isAereo = disponibilidade.transporte === 'Aéreo'
+                                    const label03 = isAereo ? '0–2 años' : '0–3 años'
+                                    const label45 = isAereo ? '2–5 años' : '4–5 años'
+                                    const label6p = '6+ años'
+
+                                    return (
+                                      <div key={idx} className="py-2">
+                                        <div className="flex justify-between items-center">
+                                          <div>
+                                            <span className="font-bold text-orange-600">Cuarto {idx + 1}:</span>
+                                            <span className="text-gray-800 ml-1">{info.quarto_tipo}</span>
+                                          </div>
+                                          <span className="font-semibold text-gray-700">{formatPrice(roomSubtotal)}</span>
+                                        </div>
+                                        <div className="mt-1 space-y-0.5 text-xs text-gray-600">
+                                          {adults > 0 && (
+                                            <div className="flex justify-between">
+                                              <span>{adults} Adulto{adults > 1 ? 's' : ''}</span>
+                                              <span className="text-gray-700">{formatPrice(unitAdult)} <span className="text-[10px] text-gray-500">por persona</span></span>
+                                            </div>
+                                          )}
+                                          {c45 > 0 && (
+                                            <div className="flex justify-between">
+                                              <span>{c45} Niño{c45 > 1 ? 's' : ''} ({label45})</span>
+                                              <span className="text-gray-700">{formatPrice(unit45)}</span>
+                                            </div>
+                                          )}
+                                          {c03 > 0 && (
+                                            <div className="flex justify-between">
+                                              <span>{c03} Niño{c03 > 1 ? 's' : ''} ({label03})</span>
+                                              <span className="text-gray-700">{formatPrice(unit03)}</span>
+                                            </div>
+                                          )}
+                                          {c6 > 0 && (
+                                            <div className="flex justify-between">
+                                              <span>{c6} Niño{c6 > 1 ? 's' : ''} ({label6p})</span>
+                                              <span className="text-gray-700">{formatPrice(unit6)}</span>
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                      <span className="font-semibold text-gray-700">{formatPrice(info.subtotal)}</span>
-                                    </div>
-                                  ))}
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1365,7 +1407,9 @@ export default function ResultadosPage() {
                                   <PopoverContent className="w-64">
                                     <div className="text-xs text-gray-700">
                                       Precio por persona = Total del paquete ÷ Nº de personas.<br />
-                                      {disponibilidade.transporte === 'Aéreo' ? 'Incluye tasa aérea de USD 200 por adulto/niño 2–5/6+ (0–2 exento).' : 'Sin tasas administrativas adicionales.'}
+                                      {disponibilidade.transporte === 'Aéreo'
+                                        ? 'Precio base sin tasas. La tasa aérea de USD 200 por adulto/niño 2–5/6+ (0–2 exento) se agrega en la página de detalles.'
+                                        : 'Sin tasas administrativas adicionales.'}
                                     </div>
                                   </PopoverContent>
                                 </Popover>
