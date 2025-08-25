@@ -112,15 +112,24 @@ export function buildWhatsappMessage(
 }
 
 export function openWhatsapp(telefoneOperador: string, mensagemCodificada: string) {
-  // Permitir passar um número diretamente ou usar o configurado via env pública
+  // Número padrão público (footer)
+  const DEFAULT_WHATSAPP_PHONE = '5548998601754'
+  // Permitir passar um número diretamente, ou usar env, e por fim o padrão público
   const provided = (telefoneOperador || '').replace(/\D/g, '');
   const configured = (process.env.NEXT_PUBLIC_WHATSAPP_PHONE || '').replace(/\D/g, '');
-  const targetNumber = provided || configured;
+  const targetNumber = provided || configured || DEFAULT_WHATSAPP_PHONE;
 
   // Usar API oficial garante direcionamento direto ao número em mais plataformas
-  const url = targetNumber
-    ? `https://api.whatsapp.com/send?phone=${targetNumber}&text=${mensagemCodificada}`
-    : `https://api.whatsapp.com/send?text=${mensagemCodificada}`;
-  if (typeof window !== "undefined") window.open(url, "_blank");
-  return url;
+  // Tentar deep link nativo primeiro (melhor experiência em mobile)
+  const urlNative = `whatsapp://send?phone=${targetNumber}&text=${mensagemCodificada}`
+  const urlWeb = `https://api.whatsapp.com/send?phone=${targetNumber}&text=${mensagemCodificada}`
+
+  if (typeof window !== "undefined") {
+    // Heurística simples: em desktop pode não ter handler do esquema nativo
+    const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent)
+    const finalUrl = isMobile ? urlNative : urlWeb
+    window.open(finalUrl, "_blank")
+    return finalUrl
+  }
+  return urlWeb
 }
