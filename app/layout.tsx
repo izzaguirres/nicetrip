@@ -49,8 +49,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        {/* Script global do widget Dólar Hoje, carregado após a hidratação */}
-        <Script id="dolar-hoje-widget" src="https://dolarhoje.com/widgets/button/v1.js" strategy="afterInteractive" />
+        {/* Widget Dólar gerenciado no Header para evitar conflitos de reexecução */}
       </head>
       <body className={`${rethinkSans.variable} ${manrope.variable} font-sans`} suppressHydrationWarning={true}>
         {children}

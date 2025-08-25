@@ -55,7 +55,16 @@ export function buildWhatsappMessage(
     add("");
     add("👥 *Habitaciones:*");
     (data.habitaciones as Hab[]).forEach((h: Hab, i: number) => {
-      add(`• Habitación ${i + 1}: ${h.adultos} adultos, ${h.children0to3 ?? 0} niño(s) 0–3, ${h.children4to5 ?? 0} niño(s) 4–5, ${h.children6plus ?? 0} niño(s) 6+`);
+      const parts: string[] = [];
+      const ad = Number(h.adultos || 0);
+      const c03 = Number(h.children0to3 || 0);
+      const c45 = Number(h.children4to5 || 0);
+      const c6  = Number(h.children6plus || 0);
+      if (ad > 0) parts.push(`${ad} adulto${ad > 1 ? 's' : ''}`);
+      if (c03 > 0) parts.push(`${c03} niño${c03 > 1 ? 's' : ''} 0–3`);
+      if (c45 > 0) parts.push(`${c45} niño${c45 > 1 ? 's' : ''} 4–5`);
+      if (c6  > 0) parts.push(`${c6} niño${c6 > 1 ? 's' : ''} 6+`);
+      add(`• Habitación ${i + 1}: ${parts.join(', ')}`);
     });
     add("");
     if (data.total != null) add(`💵 *Total estimado:* ${fmt.money(data.total)}`);
@@ -72,7 +81,12 @@ export function buildWhatsappMessage(
     add("");
     add("🛏️ *Habitaciones:*");
     (data.habitaciones as { adultos: number; niños: number }[]).forEach((h, i) => {
-      add(`• Habitación ${i + 1}: ${h.adultos} adultos, ${h.niños} niños`);
+      const parts: string[] = [];
+      const ad = Number(h.adultos || 0);
+      const ni = Number(h.niños || 0);
+      if (ad > 0) parts.push(`${ad} adulto${ad > 1 ? 's' : ''}`);
+      if (ni > 0) parts.push(`${ni} niño${ni > 1 ? 's' : ''}`);
+      add(`• Habitación ${i + 1}: ${parts.join(', ')}`);
     });
     add("");
     if (data.total != null) add(`💵 *Total:* ${fmt.money(data.total)}`);
@@ -83,7 +97,12 @@ export function buildWhatsappMessage(
     add("🌴 *Reserva de Paseo - Nice Trip*");
     add(`🚶 *Paseo:* ${data.paseo}`);
     add(`📅 *Mes:* ${data.mes}`);
-    add(`👥 *Personas:* ${data.adultos} adultos, ${data.ninos} niños`);
+    const ppl: string[] = [];
+    const ad = Number(data.adultos || 0);
+    const ni = Number(data.ninos || 0);
+    if (ad > 0) ppl.push(`${ad} adulto${ad > 1 ? 's' : ''}`);
+    if (ni > 0) ppl.push(`${ni} niño${ni > 1 ? 's' : ''}`);
+    if (ppl.length) add(`👥 *Personas:* ${ppl.join(', ')}`);
     add("");
     if (data.total != null) add(`💵 *Total:* ${fmt.money(data.total)}`);
     // link removido a pedido do cliente
@@ -93,8 +112,13 @@ export function buildWhatsappMessage(
 }
 
 export function openWhatsapp(telefoneOperador: string, mensagemCodificada: string) {
-  const onlyDigits = (telefoneOperador || '').replace(/\D/g, '');
-  const url = `https://wa.me/${onlyDigits}?text=${mensagemCodificada}`;
+  // Permitir passar um número diretamente ou usar o configurado via env pública
+  const provided = (telefoneOperador || '').replace(/\D/g, '');
+  const configured = (process.env.NEXT_PUBLIC_WHATSAPP_PHONE || '').replace(/\D/g, '');
+  const targetNumber = provided || configured;
+
+  const base = targetNumber ? `https://wa.me/${targetNumber}` : `https://wa.me`;
+  const url = `${base}?text=${mensagemCodificada}`;
   if (typeof window !== "undefined") window.open(url, "_blank");
   return url;
 }

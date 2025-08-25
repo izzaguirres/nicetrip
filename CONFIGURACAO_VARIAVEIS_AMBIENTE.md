@@ -15,6 +15,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
 OPENAI_API_KEY=sua-chave-openai-aqui
 ```
 
+### **3. WhatsApp (Número do Operador)**
+Use um número no formato internacional, somente dígitos (ex.: 5511999999999 para BR, 5493519999999 para AR):
+```bash
+NEXT_PUBLIC_WHATSAPP_PHONE=5493519999999
+```
+
 ## 🚀 **Como Configurar**
 
 ### **Método 1: Arquivo .env.local (Recomendado)**
@@ -32,6 +38,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima-aqui
 
 # Configuração da OpenAI (opcional)
 OPENAI_API_KEY=sua-chave-openai-aqui
+
+# WhatsApp (usado nos botões Reservar/Hablar)
+NEXT_PUBLIC_WHATSAPP_PHONE=5493519999999
 ```
 
 3. **Reinicie o servidor:**
@@ -45,6 +54,7 @@ npm run dev
 export NEXT_PUBLIC_SUPABASE_URL="https://seu-projeto.supabase.co"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="sua-chave-anonima-aqui"
 export OPENAI_API_KEY="sua-chave-openai-aqui"
+export NEXT_PUBLIC_WHATSAPP_PHONE="5493519999999"
 npm run dev
 ```
 
@@ -108,6 +118,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 OPENAI_API_KEY=sk-proj-abc123xyz...
 
 # Outras configurações (se necessário)
+NEXT_PUBLIC_WHATSAPP_PHONE=5493519999999
 # NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 

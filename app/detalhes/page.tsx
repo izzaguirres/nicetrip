@@ -1341,13 +1341,13 @@ export default function DetalhesPage() {
                       <>
                         <div className="flex justify-between gap-4">
                           <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Embarque</p>
+                            <p className="text-sm text-gray-600 mb-1">Ida</p>
                             <div className="bg-white rounded-xl p-2">
                               <p className="font-medium text-gray-900 text-sm">{packageData.dataViagem.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
                           </div>
                           <div className="w-1/2 text-left">
-                            <p className="text-sm text-gray-600 mb-1">Chegada</p>
+                            <p className="text-sm text-gray-600 mb-1">Vuelta</p>
                             <div className="bg-white rounded-xl p-2">
                               <p className="font-medium text-gray-900 text-sm">{new Date(new Date(packageData.dataViagem).setDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>

@@ -13,27 +13,25 @@ export function Header() {
   const searchParams = useSearchParams()
   const dolarContainerRef = useRef<HTMLSpanElement | null>(null)
   
-  // Garantir que o widget "Dólar Hoje" permaneça renderizado em todas as páginas
+  // Sempre reexecuta o widget ao mudar de rota, evitando ficar apenas o texto
   useEffect(() => {
     if (!dolarContainerRef.current) return
-    // Evitar múltiplas inserções
-    if (dolarContainerRef.current.childElementCount === 0) {
-      dolarContainerRef.current.innerHTML = '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" title="Cotação do Dólar Hoje">Dólar</a>'
+    // Insere o anchor com visibilidade oculta até o script estilizar
+    dolarContainerRef.current.innerHTML = '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" rel="noopener noreferrer" title="Cotação do Dólar Hoje" style="visibility:hidden">Dólar Hoje</a>'
+
+    // Remover script antigo (se existir) e reanexar para forçar reexecução
+    const existing = document.getElementById('dolar-hoje-widget-runtime') as HTMLScriptElement | null
+    if (existing) existing.remove()
+
+    const s = document.createElement('script')
+    s.src = 'https://dolarhoje.com/widgets/button/v1.js'
+    s.async = true
+    s.id = 'dolar-hoje-widget-runtime'
+    s.onload = () => {
+      const a = dolarContainerRef.current?.querySelector('a.dolar-hoje-button') as HTMLAnchorElement | null
+      if (a) a.style.visibility = 'visible'
     }
-    // Carregar ou reexecutar o script do provider
-    const existing = document.querySelector('script#dolar-hoje-widget-runtime') as HTMLScriptElement | null
-    if (!existing) {
-      const s = document.createElement('script')
-      s.src = 'https://dolarhoje.com/widgets/button/v1.js'
-      s.async = true
-      s.id = 'dolar-hoje-widget-runtime'
-      document.body.appendChild(s)
-    } else {
-      // Alguns widgets expõem um reinit no window; se não, reanexar força reexecução
-      const reattach = existing.cloneNode(true) as HTMLScriptElement
-      existing.remove()
-      document.body.appendChild(reattach)
-    }
+    document.body.appendChild(s)
   }, [pathname])
 
   // Função para determinar se um link está ativo
