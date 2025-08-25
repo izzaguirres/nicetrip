@@ -117,8 +117,10 @@ export function openWhatsapp(telefoneOperador: string, mensagemCodificada: strin
   const configured = (process.env.NEXT_PUBLIC_WHATSAPP_PHONE || '').replace(/\D/g, '');
   const targetNumber = provided || configured;
 
-  const base = targetNumber ? `https://wa.me/${targetNumber}` : `https://wa.me`;
-  const url = `${base}?text=${mensagemCodificada}`;
+  // Usar API oficial garante direcionamento direto ao número em mais plataformas
+  const url = targetNumber
+    ? `https://api.whatsapp.com/send?phone=${targetNumber}&text=${mensagemCodificada}`
+    : `https://api.whatsapp.com/send?text=${mensagemCodificada}`;
   if (typeof window !== "undefined") window.open(url, "_blank");
   return url;
 }
