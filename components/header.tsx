@@ -12,6 +12,7 @@ export function Header() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const dolarContainerRef = useRef<HTMLSpanElement | null>(null)
+  const agencyUrl = "https://app.redevt.com/red/ag/login.asp?xpid=4643367633313934344559"
   
   // Sempre reexecuta o widget ao mudar de rota, evitando ficar apenas o texto
   useEffect(() => {
@@ -123,7 +124,10 @@ export function Header() {
 
             {/* CTA Button */}
             <div className="flex-shrink-0">
-              <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white rounded-xl px-4 py-2 font-semibold text-[14px] shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.02] overflow-hidden group whitespace-nowrap">
+              <button
+                onClick={() => window.open(agencyUrl, '_blank', 'noopener,noreferrer')}
+                className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white rounded-xl px-4 py-2 font-semibold text-[14px] shadow-[0_8px_24px_rgba(238,114,21,0.4)] hover:shadow-[0_12px_32px_rgba(238,114,21,0.6)] transition-all duration-300 hover:scale-[1.02] overflow-hidden group whitespace-nowrap"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                 <div className="relative z-10 flex items-center">
                   <Globe className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -157,7 +161,10 @@ export function Header() {
               >
                 Contacto
               </Link>
-              <button className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white rounded-xl w-full py-2.5 font-semibold transition-all duration-300 overflow-hidden group">
+              <button
+                onClick={() => window.open(agencyUrl, '_blank', 'noopener,noreferrer')}
+                className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] text-white rounded-xl w-full py-2.5 font-semibold transition-all duration-300 overflow-hidden group text-center"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                 <div className="relative z-10 flex items-center justify-center">
                   <Globe className="w-4 h-4 mr-2" />
