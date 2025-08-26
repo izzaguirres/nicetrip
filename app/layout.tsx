@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Rethink_Sans, Manrope } from "next/font/google"
 import "./globals.css"
 import Script from "next/script"
+import WhatsappFloat from "@/components/whatsapp-float"
 
 const rethinkSans = Rethink_Sans({
   subsets: ["latin"],
@@ -26,17 +27,41 @@ export const metadata: Metadata = {
     "viagem", "pacotes", "florianópolis", "bombinhas", "bus", "aéreo",
     "hospedagem", "hotel", "passeios", "argentina", "brasil"
   ],
+  icons: {
+    icon: "/images/icon.png",
+    shortcut: "/images/icon.png",
+    apple: "/images/icon.png"
+  },
+  metadataBase: typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+    : undefined,
+  alternates: {
+    canonical: "/"
+  },
+  robots: {
+    index: true,
+    follow: true
+  },
   openGraph: {
     title: "Nice Trip - Pacotes e Hospedagens",
     description: "Encontre o melhor pacote para suas férias com filtros inteligentes.",
     type: "website",
     locale: "es_AR",
-    siteName: "Nice Trip"
+    siteName: "Nice Trip",
+    images: [
+      {
+        url: "/images/og-cover.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Nice Trip"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: "Nice Trip - Pacotes e Hospedagens",
-    description: "Encontre o melhor pacote para suas férias com filtros inteligentes."
+    description: "Encontre o melhor pacote para suas férias com filtros inteligentes.",
+    images: ["/images/og-cover.jpg"]
   },
   generator: 'v0.dev'
 }
@@ -71,6 +96,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </noscript>
         {/* End Google Tag Manager (noscript) */}
         {children}
+        <WhatsappFloat />
       </body>
     </html>
   )
