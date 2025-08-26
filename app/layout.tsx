@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Rethink_Sans, Manrope } from "next/font/google"
 import "./globals.css"
 import Script from "next/script"
+import { Analytics } from "@vercel/analytics/next"
 import WhatsappFloat from "@/components/whatsapp-float"
 
 const rethinkSans = Rethink_Sans({
@@ -97,6 +98,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {/* End Google Tag Manager (noscript) */}
         {children}
         <WhatsappFloat />
+        <Analytics />
       </body>
     </html>
   )
