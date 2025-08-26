@@ -41,7 +41,7 @@ const nextConfig = {
       "img-src 'self' data: https: https://maps.gstatic.com",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
-      "frame-src https://www.googletagmanager.com",
+      "frame-src https://www.googletagmanager.com https://www.google.com https://maps.google.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
