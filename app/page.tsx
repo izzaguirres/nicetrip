@@ -67,34 +67,29 @@ export default function HomePage() {
             {/* Headline Content */}
             <div className="grid lg:grid-cols-12 gap-8 items-start">
               <div className="text-center lg:text-left lg:col-span-5">
-                <div className="inline-block mb-6">
-                  <TestimonialBadge />
-                </div>
-                <h1 className="text-3xl lg:text-[42px] font-bold tracking-tight leading-tight text-white">
+                <h1 className="text-[36px] lg:text-[48px] font-bold tracking-tight leading-tight text-white">
                   <span className="lg:hidden">
-                    Las vacaciones<br />perfectas para<br />quienes aman{" "}
-                     <span
-                      className="text-transparent bg-clip-text"
-                      style={{
-                        backgroundImage: "linear-gradient(to right, #FF8F00, #F7931E, #FF6B35)",
-                      }}
-                    >
-                      viajar
-                    </span>
-                  </span>
-                  <span className="hidden lg:block">
-                    Las vacaciones
+                    Viví Brasil,
                     <br />
-                    perfectas para
-                    <br />
-                    quienes aman{" "}
                     <span
                       className="text-transparent bg-clip-text"
                       style={{
                         backgroundImage: "linear-gradient(to right, #FF8F00, #F7931E, #FF6B35)",
                       }}
                     >
-                      viajar
+                      Solo elegí cómo
+                    </span>
+                  </span>
+                  <span className="hidden lg:block">
+                    Viví Brasil,
+                    <br />
+                    <span
+                      className="text-transparent bg-clip-text"
+                      style={{
+                        backgroundImage: "linear-gradient(to right, #FF8F00, #F7931E, #FF6B35)",
+                      }}
+                    >
+                      Solo elegí cómo
                     </span>
                   </span>
                 </h1>
@@ -107,7 +102,7 @@ export default function HomePage() {
             </div>
 
             {/* Search Filter Section - Hybrid Positioning */}
-            <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-40 lg:left-0 lg:right-0 lg:z-10">
+            <div className="relative mt-8 lg:absolute lg:mt-0 lg:bottom-44 lg:left-0 lg:right-0 lg:z-10">
               <div className="lg:container lg:mx-auto lg:px-[70px]">
                 {/* Tabs moved outside the main content box */}
                 <div className="mb-4 flex justify-center">

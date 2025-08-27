@@ -33,7 +33,7 @@ export function BenefitsSection() {
           </h2>
           
           <p className="text-base text-gray-600 max-w-2xl mx-auto">
-            <span className="block">Transformamos el planeamiento de tus</span>
+            <span className="block">Transformamos la organización de tus</span>
             <span className="block">vacaciones en algo liviano, seguro e</span>
             <span className="block">inolvidable.</span>
           </p>
@@ -51,7 +51,7 @@ export function BenefitsSection() {
               </h2>
               
               <p className="text-lg text-gray-600 max-w-2xl">
-                <span className="block">Transformamos el planeamiento de tus</span>
+                <span className="block">Transformamos la organización de tus</span>
                 <span className="block">vacaciones en algo liviano, seguro e</span>
                 <span className="block">inolvidable.</span>
               </p>
