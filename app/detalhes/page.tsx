@@ -11,6 +11,7 @@ import { getVoosPorCidadeEData, formatHora } from "@/lib/voos-service"
 import { packageConditionsService } from "@/lib/package-conditions-service"
 import { packageDescriptionService } from "@/lib/package-description-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils"
+import { computePackageBaseTotal } from "@/lib/package-pricing"
 import { getHotelData } from '@/lib/hotel-data';
 import { buildWhatsappMessage, openWhatsapp } from '@/lib/whatsapp';
 import { 
@@ -378,30 +379,18 @@ export default function DetalhesPage() {
     }
   }, [transporte, destino, hotelName])
   
-  // 💰 Obter valores dinâmicos da URL com fallback
+  // 💰 Obter valores dinâmicos da URL com fallback (usamos aqui apenas preco_adulto)
   const dadosPacote = {
     preco_adulto: parseInt(searchParams.get('preco_adulto') || '490'),
-    preco_crianca_0_3: parseInt(searchParams.get('preco_crianca_0_3') || '50'),
-    preco_crianca_4_5: parseInt(searchParams.get('preco_crianca_4_5') || '350'),
-    preco_crianca_6_mais: parseInt(searchParams.get('preco_crianca_6_mais') || '490')
   }
   
-  // 🧮 CALCULAR PREÇO EXATO POR QUARTO baseado nos dados reais do Supabase
-  const calcularPrecoQuarto = (quarto: any) => {
-    return (
-      (quarto.adultos * dadosPacote.preco_adulto) +
-      (quarto.criancas_0_3 * dadosPacote.preco_crianca_0_3) +
-      (quarto.criancas_4_5 * dadosPacote.preco_crianca_4_5) +
-      (quarto.criancas_6 * dadosPacote.preco_crianca_6_mais)
-    )
-  }
+  // OBS: A recomposição por quarto deixou de ser fonte da verdade para Paquetes.
+  // O total base de Paquetes é calculado pela nova regra (computePackageBaseTotal).
   
   // 💰 USAR O PREÇO ESPECÍFICO DO CARD CLICADO (via URL)
   // Se o preço veio da URL (card específico), usar esse preço
   // Caso contrário, calcular baseado nos quartos configurados
-  const precoCalculadoInterno = quartosIndividuais.reduce((total: number, quarto: any) => {
-    return total + calcularPrecoQuarto(quarto)
-  }, 0)
+  const precoCalculadoInterno = 0
 
   let basePrice = 0;
   if (searchType === 'habitacion') {
@@ -412,35 +401,65 @@ export default function DetalhesPage() {
       basePrice = valorDiaria * noites;
     }
   } else {
-    // Paquetes: recompor o total base sem taxas a partir do breakdown (prioritário)
-    if (roomsBreakdown && roomsBreakdown.length > 0) {
-      basePrice = roomsBreakdown.reduce((acc: number, info: any) => {
-        const unitAdult = Number((info as any).preco_adulto) || 0
-        const unitC03   = Number((info as any).preco_crianca_0_3) || 0
-        const unitC45   = Number((info as any).preco_crianca_4_5) || 0
-        const unitC6    = Number((info as any).preco_crianca_6_mais) || 0
-        const q         = (info as any).quarto || {}
-        const adults = Number(q.adults ?? q.adultos ?? 0)
-        const c03    = Number(q.children0to3 ?? q.criancas_0_3 ?? 0)
-        const c45    = Number(q.children4to5 ?? q.criancas_4_5 ?? 0)
-        const c6     = Number(q.children6plus ?? q.criancas_6 ?? 0)
-        const sub    = unitAdult * adults + unitC03 * c03 + unitC45 * c45 + unitC6 * c6
-        return acc + sub
+    // Paquetes: novo cálculo base com política de cortesia
+    // Preferir somar por quarto quando breakdown estiver presente
+    if (roomsBreakdown && Array.isArray(roomsBreakdown) && roomsBreakdown.length > 0) {
+      basePrice = quartosIndividuais.reduce((sum: number, quarto: any, idx: number) => {
+        const rb = roomsBreakdown && roomsBreakdown[idx] ? roomsBreakdown[idx] : null
+        const unitAdult = Number(rb?.preco_adulto ?? dadosPacote.preco_adulto) || 0
+        const calcRoom = computePackageBaseTotal(
+          transporte,
+          unitAdult,
+          {
+            adultos: (quarto.adultos || 0) + (quarto.criancas_6 || 0),
+            criancas_0_3: quarto.criancas_0_3 || 0,
+            criancas_4_5: quarto.criancas_4_5 || 0,
+            criancas_6_mais: 0,
+          }
+        )
+        return sum + calcRoom.totalBaseUSD
       }, 0)
     } else {
-      basePrice = preco || precoCalculadoInterno;
+      const calc = computePackageBaseTotal(
+        transporte,
+        dadosPacote.preco_adulto,
+        {
+          adultos,
+          criancas_0_3,
+          criancas_4_5,
+          criancas_6_mais: criancas_6,
+        }
+      )
+      basePrice = calc.totalBaseUSD
     }
   }
   
-  // Aéreo: +200 por pessoa (adultos, 6+, 2-5). 0-2 não paga taxa.
-  let precoTotalReal = basePrice + addonsPrice;
-  if (transporte === 'Aéreo') {
-    const taxaPorPessoa = 200;
-    const pessoasTaxadas = adultos + criancas_6 + criancas_4_5; // 2-5 paga taxa, 0-2 não
-    precoTotalReal += taxaPorPessoa * pessoasTaxadas;
-  } else {
-    precoTotalReal = calculateFinalPrice(basePrice, transporte) + addonsPrice;
+  // Tasas e Impuestos (Aéreo): +200 por persona para Adultos y 2–5 (0–2 exentos)
+  let taxesAereo = 0
+  let taxesPeopleCount = 0
+  let taxesAdultsCount = 0
+  let taxesKids2a5Count = 0
+  if (searchType === 'paquetes' && transporte === 'Aéreo') {
+    // Política de tasas: Adultos (inclui 6+) e 2–5 SEMPRE pagam 200; 0–2 SEMPRE isentos
+    const roomCount = Math.max(1, quartosIndividuais?.length || 0)
+    taxesAereo = Array.from({ length: roomCount }).reduce((sum: number, _v, idx: number) => {
+      const q = quartosIndividuais[idx] || {
+        adultos,
+        criancas_0_3,
+        criancas_4_5,
+        criancas_6,
+      }
+      const taxedAdults = (Number(q.adultos || 0) + Number(q.criancas_6 || 0))
+      const taxedKids2a5 = Number(q.criancas_4_5 || 0)
+      const taxed = taxedAdults + taxedKids2a5
+      taxesAdultsCount += taxedAdults
+      taxesKids2a5Count += taxedKids2a5
+      taxesPeopleCount += taxed
+      return sum + (200 * taxed)
+    }, 0)
   }
+
+  const precoTotalReal = basePrice + addonsPrice + taxesAereo
   
   const { installments, installmentValue } = calculateInstallments(precoTotalReal, searchParams.get('data') || new Date());
 
@@ -1389,45 +1408,57 @@ export default function DetalhesPage() {
                           const tipoQuarto = searchParams.get('quarto_tipo') || determinarTipoQuarto(quarto);
                           // Preços unitários por quarto vindos do breakdown quando disponível
                           const rb = roomsBreakdown && roomsBreakdown[quartoIndex] ? roomsBreakdown[quartoIndex] : null;
-                          const unitAdult = rb?.preco_adulto ?? dadosPacote.preco_adulto;
-                          const unitC0_3 = rb?.preco_crianca_0_3 ?? dadosPacote.preco_crianca_0_3;
-                          const unitC4_5 = rb?.preco_crianca_4_5 ?? dadosPacote.preco_crianca_4_5;
-                          const unitC6   = rb?.preco_crianca_6_mais ?? dadosPacote.preco_crianca_6_mais;
-                          const precoQuarto = searchType === 'paquetes'
-                            ? ((quarto.adultos * unitAdult) + (quarto.criancas_6 * unitC6) + (quarto.criancas_4_5 * unitC4_5) + (quarto.criancas_0_3 * unitC0_3))
-                            : (valorDiaria * diasNoites.noites);
-                          // Labels dinâmicos por transporte
+                          const unitAdult = Number(rb?.preco_adulto ?? dadosPacote.preco_adulto) || 0;
                           const isAereo = transporte === 'Aéreo';
+                          const unitC0_3 = isAereo ? 160 : 50;
+                          const unitC4_5 = isAereo ? 700 : 350;
                           const label03 = isAereo ? '0-2 años' : '0-3 años';
                           const label45 = isAereo ? '2-5 años' : '4-5 años';
                           const label6p = '6+ años';
+                          const calcRoom = computePackageBaseTotal(
+                            transporte,
+                            unitAdult,
+                            {
+                              adultos: (quarto.adultos || 0) + (quarto.criancas_6 || 0),
+                              criancas_0_3: quarto.criancas_0_3 || 0,
+                              criancas_4_5: quarto.criancas_4_5 || 0,
+                              criancas_6_mais: 0,
+                            }
+                          )
+                          const precoQuarto = searchType === 'paquetes'
+                            ? calcRoom.totalBaseUSD
+                            : (valorDiaria * diasNoites.noites);
                           return (
                             <div key={quartoIndex} className="border-t border-gray-100 pt-3">
                               <div className="flex justify-between items-center mb-2">
                                 <span className="text-sm font-bold text-orange-600 flex items-center gap-2"><Bed className="w-4 h-4" />Cuarto {quartoIndex + 1}: <span className="text-gray-800">{tipoQuarto}</span></span>
                               </div>
                               <div className="space-y-1 text-sm">
-                                {quarto.adultos > 0 && (
+                                {calcRoom.breakdown.adultosCobrados > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.adultos} Adulto{quarto.adultos > 1 ? 's' : ''}</span>
+                                    <span className="text-gray-600">{calcRoom.breakdown.adultosCobrados} Adulto{calcRoom.breakdown.adultosCobrados > 1 ? 's' : ''}</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitAdult)} por persona</span>}
                                   </div>
                                 )}
-                                {quarto.criancas_6 > 0 && (
+                                {(calcRoom.breakdown.excedentes0a3ComoAdulto > 0 || calcRoom.breakdown.excedentes4a5ComoAdulto > 0) && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_6} Niño{quarto.criancas_6 > 1 ? 's' : ''} ({label6p})</span>
-                                    {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC6)} por persona</span>}
+                                    <span className="text-[11px] italic text-gray-500">
+                                      incluye {[
+                                        calcRoom.breakdown.excedentes0a3ComoAdulto > 0 ? `${calcRoom.breakdown.excedentes0a3ComoAdulto} niño${calcRoom.breakdown.excedentes0a3ComoAdulto>1?'s':''} (${label03})` : null,
+                                        calcRoom.breakdown.excedentes4a5ComoAdulto > 0 ? `${calcRoom.breakdown.excedentes4a5ComoAdulto} niño${calcRoom.breakdown.excedentes4a5ComoAdulto>1?'s':''} (${label45})` : null
+                                      ].filter(Boolean).join(' y ')} cobrados como adulto
+                                    </span>
                                   </div>
                                 )}
-                                {quarto.criancas_4_5 > 0 && (
+                                {calcRoom.breakdown.criancas4a5ComTarifaReduzida > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_4_5} Niño{quarto.criancas_4_5 > 1 ? 's' : ''} ({label45})</span>
+                                    <span className="text-gray-600">{calcRoom.breakdown.criancas4a5ComTarifaReduzida} Niño{calcRoom.breakdown.criancas4a5ComTarifaReduzida > 1 ? 's' : ''} ({label45})</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC4_5)}</span>}
                                   </div>
                                 )}
-                                {quarto.criancas_0_3 > 0 && (
+                                {calcRoom.breakdown.criancas0a3ComTarifaReduzida > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">{quarto.criancas_0_3} Niño{quarto.criancas_0_3 > 1 ? 's' : ''} ({label03})</span>
+                                    <span className="text-gray-600">{calcRoom.breakdown.criancas0a3ComTarifaReduzida} Niño{calcRoom.breakdown.criancas0a3ComTarifaReduzida > 1 ? 's' : ''} ({label03})</span>
                                     {searchType === 'paquetes' && <span className="font-medium text-gray-800">{formatPriceWithCurrency(unitC0_3)}</span>}
                                   </div>
                                 )}
@@ -1448,22 +1479,23 @@ export default function DetalhesPage() {
                   </div>
                   
                   {/* Tasas e Impuestos (Aéreo) */}
-                  {searchType === 'paquetes' && (
+                  {searchType === 'paquetes' && transporte === 'Aéreo' && (
                     <>
                       <div className="space-y-2 text-sm mb-4">
-                        {transporte === 'Aéreo' && (
-                          <div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Tasas e Impuestos</span>
-                              <span className="text-gray-600">{formatPriceWithCurrency(200)} <span className="whitespace-nowrap">por persona</span></span>
-                            </div>
-                            {(criancas_0_3 || 0) > 0 && (
-                              <div className="mt-1 text-[11px] text-gray-500 leading-snug">
-                                <p>0–2 exentos</p>
-                              </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tasas e Impuestos</span>
+                          <span className="text-gray-600">{formatPriceWithCurrency(200)} <span className="whitespace-nowrap">por persona</span></span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-gray-500 leading-snug">
+                          <p>
+                            0–2 exentos. Aplicado a adultos y 2–5.
+                            {taxesPeopleCount > 0 && (
+                              <> — <strong>{taxesPeopleCount}</strong> persona{taxesPeopleCount>1?'s':''} gravadas
+                              {` (Adultos: ${taxesAdultsCount}`}{taxesKids2a5Count>0?`, 2–5: ${taxesKids2a5Count}`:''}{`)`}
+                              </>
                             )}
-                          </div>
-                        )}
+                          </p>
+                        </div>
                       </div>
                       <div className="border-t border-gray-300 my-4"></div>
                     </>

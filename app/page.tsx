@@ -94,7 +94,7 @@ export default function HomePage() {
                   </span>
                 </h1>
                 <p className="mt-2 text-sm lg:text-[20px] max-w-lg mx-auto lg:mx-0 text-white/90">
-                  Elegí como querés viajar y empezá a planear
+                  Busca como queres viajar y empeza a planear
                 </p>
               </div>
 

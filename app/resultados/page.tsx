@@ -15,6 +15,7 @@ import { DisponibilidadeFilter, PrecoPessoas } from "@/lib/supabase"
 import { fetchRealData, fetchHabitacionesData, SearchFilters, HabitacionSearchFilters } from "@/lib/supabase-service"
 import { getHospedagemData, formatComodidadesForCards, COMODIDADES_GENERICAS } from "@/lib/hospedagens-service"
 import { calculateFinalPrice, calculateInstallments } from "@/lib/utils";
+import { computePackageBaseTotal } from "@/lib/package-pricing";
   import { 
   calcularPagantesHospedagem, 
   validarConfiguracaoHospedagem,
@@ -499,14 +500,27 @@ export default function ResultadosPage() {
         // desde que a capacidade e o tipo correspondam. Marcamos a linha escolhida, mas não
         // removemos do conjunto (pois o registro do Supabase representa o preço por pessoa por tipo).
         for (const quarto of quartosSolicitados) {
-          const capacidadeNecessaria = quarto.adults + quarto.children0to3 + quarto.children4to5 + quarto.children6plus
+          // Calcular adultos equivalentes (adultos + 6+ + excedentes 0–5)
+          const transporteHotelTmp = (registros[0]?.transporte) || 'Bus'
+          const adultUnitTmp = Number(registros[0]?.preco_adulto) || 0
+          const baseCalc = computePackageBaseTotal(
+            transporteHotelTmp,
+            adultUnitTmp,
+            {
+              adultos: (quarto.adults || 0) + (quarto.children6plus || 0),
+              criancas_0_3: quarto.children0to3 || 0,
+              criancas_4_5: quarto.children4to5 || 0,
+              criancas_6_mais: 0,
+            }
+          )
+          const adultosEquivalentes = baseCalc.breakdown.adultosCobrados
 
-          // Prioridade 1: match por capacidade exata
-          let linha = registros.find(r => Number(r.capacidade) === capacidadeNecessaria)
+          // Prioridade 1: match por capacidade exata baseada em adultos-equivalentes
+          let linha = registros.find(r => Number(r.capacidade) === adultosEquivalentes)
 
           // Prioridade 2 (fallback leve): se não achar, aceitar a linha com tipo equivalente
           if (!linha && registros.some(r => r.quarto_tipo)) {
-            const tipoNecessario = tipoPorCapacidade(capacidadeNecessaria)
+            const tipoNecessario = tipoPorCapacidade(adultosEquivalentes)
             linha = registros.find(r => (r.quarto_tipo || '').toLowerCase().includes(tipoNecessario.toLowerCase()))
           }
 
@@ -514,67 +528,37 @@ export default function ResultadosPage() {
             hotelValido = false
             break
           }
-          linhasSelecionadas.push({ linha, quarto })
+          linhasSelecionadas.push({ linha, quarto, adultosEquivalentes, subtotalBase: baseCalc.totalBaseUSD })
         }
 
         if (!hotelValido || linhasSelecionadas.length === 0) continue
 
-        // Calcular total por hotel (somatório de quartos por idade)
+        // Calcular total por hotel a partir da nova regra (sem taxas extras)
         let totalHotel = 0
         const transporteHotel = (linhasSelecionadas[0]?.linha?.transporte) || 'Bus'
-        let totalPessoasTaxadasAereo = 0
-
-        linhasSelecionadas.forEach(({ linha, quarto }) => {
-          if (transporteHotel === 'Aéreo') {
-            const unitAdult = Number(linha.preco_adulto_aereo ?? linha.preco_adulto) || 0
-            const unitC0_2 = Number(linha.preco_crianca_0_2_aereo) || 0
-            const unitC2_5 = Number(linha.preco_crianca_2_5_aereo) || 0
-            const unitC6 = Number(linha.preco_crianca_6_mais_aereo ?? unitAdult) || 0
-
-            const subtotal =
-              unitAdult * quarto.adults +
-              unitC0_2 * quarto.children0to3 + // aqui tratamos 0-3 como 0-2 para Aéreo
-              unitC2_5 * quarto.children4to5 + // 2-5
-              unitC6 * quarto.children6plus
-            totalHotel += subtotal
-
-            totalPessoasTaxadasAereo += (quarto.adults || 0) + (quarto.children4to5 || 0) + (quarto.children6plus || 0)
-          } else {
-            const subtotal =
-              (Number(linha.preco_adulto) || 0) * quarto.adults +
-              (Number(linha.preco_crianca_0_3) || 0) * quarto.children0to3 +
-              (Number(linha.preco_crianca_4_5) || 0) * quarto.children4to5 +
-              (Number(linha.preco_crianca_6_mais) || 0) * quarto.children6plus
-            totalHotel += subtotal
-          }
+        linhasSelecionadas.forEach(({ subtotalBase }) => {
+          totalHotel += Number(subtotalBase) || 0
         })
-
-        // Aplicar taxas finais
-        let finalHotel = totalHotel
-        if (transporteHotel === 'Aéreo') {
-          const taxaPorPessoa = Number(linhasSelecionadas[0]?.linha?.taxa_aereo_por_pessoa) || 200
-          finalHotel = totalHotel + taxaPorPessoa * totalPessoasTaxadasAereo
-        } else {
-          finalHotel = calculateFinalPrice(totalHotel, transporteHotel)
-        }
+        const finalHotel = totalHotel
 
         // Preparar objeto final para renderização (usar a primeira linha para metadados visuais)
         const base = { ...linhasSelecionadas[0].linha }
-        base.__linhas_compostas = linhasSelecionadas.map(({ linha, quarto }: any) => ({
-          quarto_tipo: linha.quarto_tipo || tipoPorCapacidade(linha.capacidade),
-          capacidade: linha.capacidade,
-          // Para Aéreo, mapeamos para chaves genéricas usadas na página de detalhes
-          preco_adulto: transporteHotel === 'Aéreo' ? (linha.preco_adulto_aereo ?? linha.preco_adulto) : linha.preco_adulto,
-          preco_crianca_0_3: transporteHotel === 'Aéreo' ? (linha.preco_crianca_0_2_aereo ?? 0) : linha.preco_crianca_0_3,
-          preco_crianca_4_5: transporteHotel === 'Aéreo' ? (linha.preco_crianca_2_5_aereo ?? 0) : linha.preco_crianca_4_5,
-          preco_crianca_6_mais: transporteHotel === 'Aéreo' ? (linha.preco_crianca_6_mais_aereo ?? linha.preco_adulto_aereo ?? linha.preco_adulto) : linha.preco_crianca_6_mais,
-          taxa_por_pessoa: transporteHotel === 'Aéreo' ? (linha.taxa_aereo_por_pessoa ?? 200) : undefined,
-          quarto,
-          subtotal: (Number(linha.preco_adulto) || 0) * quarto.adults +
-                    (Number(linha.preco_crianca_0_3) || 0) * quarto.children0to3 +
-                    (Number(linha.preco_crianca_4_5) || 0) * quarto.children4to5 +
-                    (Number(linha.preco_crianca_6_mais) || 0) * quarto.children6plus
-        }))
+        base.__linhas_compostas = linhasSelecionadas.map(({ linha, quarto, adultosEquivalentes, subtotalBase }: any) => {
+          const adultUnit = transporteHotel === 'Aéreo'
+            ? (Number(linha.preco_adulto_aereo ?? linha.preco_adulto) || 0)
+            : (Number(linha.preco_adulto) || 0)
+          return {
+            quarto_tipo: tipoPorCapacidade(adultosEquivalentes),
+            capacidade: adultosEquivalentes,
+            // Preços unitários informativos conforme regras atuais
+            preco_adulto: adultUnit,
+            preco_crianca_0_3: transporteHotel === 'Aéreo' ? 160 : 50,
+            preco_crianca_4_5: transporteHotel === 'Aéreo' ? 500 : 350,
+            preco_crianca_6_mais: adultUnit,
+            quarto,
+            subtotal: subtotalBase
+          }
+        })
         base.__total_composto_base = totalHotel
         base.__total_composto = finalHotel
         base.transporte = transporteHotel
@@ -878,11 +862,9 @@ export default function ResultadosPage() {
       if (Array.isArray(disponibilidade.__linhas_compostas)) {
         params.set('rooms_breakdown', encodeURIComponent(JSON.stringify(disponibilidade.__linhas_compostas)))
       } else {
+        // Enviar ao menos o preço de adulto para recomposição no detalhe
         const dadosValidados = validarDadosPreco(disponibilidade);
         params.set('preco_adulto', dadosValidados.preco_adulto.toString());
-        params.set('preco_crianca_0_3', dadosValidados.preco_crianca_0_3.toString());
-        params.set('preco_crianca_4_5', dadosValidados.preco_crianca_4_5.toString());
-        params.set('preco_crianca_6_mais', dadosValidados.preco_crianca_6_mais.toString());
       }
       // Transport type for details page taxes
       if (disponibilidade.transporte) params.set('transporte', disponibilidade.transporte)
@@ -1165,18 +1147,42 @@ export default function ResultadosPage() {
                        finalPrice = precoHospedagem.precoTotal;
                      }
                    } else {
-                     // Paquetes: exibir preço BASE (sem taxas) nos cards de resultados
-                     if (disponibilidade.__total_composto != null) {
-                       // Quando houver composição, usar o total base sem taxa aérea
-                       finalPrice = Number(disponibilidade.__total_composto_base ?? disponibilidade.__total_composto) || 0
+                     // Paquetes: cálculo base (Bus/Aéreo) com política de cortesia
+                     if (Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0) {
+                       finalPrice = disponibilidade.__linhas_compostas.reduce((sum: number, info: any) => {
+                         const unitAdult = Number(info?.preco_adulto || 0)
+                         const q = info?.quarto || {}
+                         const calc = computePackageBaseTotal(
+                           disponibilidade.transporte,
+                           unitAdult,
+                           {
+                             adultos: Number(q.adults || 0) + Number(q.children6plus || 0),
+                             criancas_0_3: Number(q.children0to3 || 0),
+                             criancas_4_5: Number(q.children4to5 || 0),
+                             criancas_6_mais: 0,
+                           }
+                         )
+                         return sum + calc.totalBaseUSD
+                       }, 0)
                      } else {
-                       // Fallback: cálculo por idade (quarto único) SEM aplicar taxa aérea aqui
-                       const basePrice = calcularPrecoTotalSeguro(disponibilidade, pessoas);
-                       finalPrice = basePrice;
+                       const adultUnit = Number(disponibilidade.preco_adulto) || 0
+                       const calc = computePackageBaseTotal(
+                         disponibilidade.transporte,
+                         adultUnit,
+                         {
+                           adultos: pessoas.adultos + pessoas.criancas_6_mais,
+                           criancas_0_3: pessoas.criancas_0_3,
+                           criancas_4_5: pessoas.criancas_4_5,
+                           criancas_6_mais: 0,
+                         }
+                       )
+                       finalPrice = calc.totalBaseUSD
                      }
-                     const { installments: inst, installmentValue: val } = calculateInstallments(finalPrice, disponibilidade.data_saida);
-                     installments = inst;
-                     installmentValue = val;
+
+                     // Parcelas com base no TOTAL DO PACOTE (não por persona)
+                     const instData = calculateInstallments(finalPrice, disponibilidade.data_saida)
+                     installments = instData.installments
+                     installmentValue = instData.installmentValue
                    }
 
                    // Para Paquetes, exibir preço por pessoa (total dividido pelo nº de pessoas)
@@ -1185,9 +1191,7 @@ export default function ResultadosPage() {
                      const totalPeople = (pessoas.adultos || 0) + (pessoas.criancas_0_3 || 0) + (pessoas.criancas_4_5 || 0) + (pessoas.criancas_6_mais || 0);
                      const perPerson = totalPeople > 0 ? (finalPrice / totalPeople) : finalPrice;
                      displayPrice = perPerson;
-                     const { installments: instPP, installmentValue: valPP } = calculateInstallments(perPerson, disponibilidade.data_saida);
-                     installments = instPP;
-                     installmentValue = valPP;
+                     // Mantemos installments baseado no total (já calculado acima)
                    }
                   
                   // Dados do Hotel
@@ -1269,11 +1273,15 @@ export default function ResultadosPage() {
                                     const c45 = Number(info?.quarto?.children4to5 || 0)
                                     const c6  = Number(info?.quarto?.children6plus || 0)
                                     const unitAdult = Number(info?.preco_adulto || 0)
-                                    const unit03    = Number(info?.preco_crianca_0_3 || 0)
-                                    const unit45    = Number(info?.preco_crianca_4_5 || 0)
-                                    const unit6     = Number(info?.preco_crianca_6_mais || 0)
-                                    const roomSubtotal = unitAdult * adults + unit03 * c03 + unit45 * c45 + unit6 * c6
                                     const isAereo = disponibilidade.transporte === 'Aéreo'
+                                    const unit03    = isAereo ? 160 : 50
+                                    const unit45    = isAereo ? 500 : 350
+                                    const calc = computePackageBaseTotal(
+                                      disponibilidade.transporte,
+                                      unitAdult,
+                                      { adultos: adults + c6, criancas_0_3: c03, criancas_4_5: c45, criancas_6_mais: 0 }
+                                    )
+                                    const roomSubtotal = calc.totalBaseUSD
                                     const label03 = isAereo ? '0–2 años' : '0–3 años'
                                     const label45 = isAereo ? '2–5 años' : '4–5 años'
                                     const label6p = '6+ años'
@@ -1288,34 +1296,38 @@ export default function ResultadosPage() {
                                           <span className="font-semibold text-gray-700">{formatPrice(roomSubtotal)}</span>
                                         </div>
                                         <div className="mt-1 space-y-0.5 text-xs text-gray-600">
-                                          {adults > 0 && (
+                                          {calc.breakdown.adultosCobrados > 0 && (
                                             <div className="flex justify-between">
-                                              <span>{adults} Adulto{adults > 1 ? 's' : ''}</span>
+                                              <span>{calc.breakdown.adultosCobrados} Adulto{calc.breakdown.adultosCobrados > 1 ? 's' : ''}</span>
                                               <span className="text-gray-700">{formatPrice(unitAdult)} <span className="text-[10px] text-gray-500">por persona</span></span>
                                             </div>
                                           )}
-                                          {c45 > 0 && (
+                                          {(calc.breakdown.excedentes0a3ComoAdulto > 0 || calc.breakdown.excedentes4a5ComoAdulto > 0) && (
                                             <div className="flex justify-between">
-                                              <span>{c45} Niño{c45 > 1 ? 's' : ''} ({label45})</span>
+                                              <span className="text-[11px] italic text-gray-500">
+                                                incluye {[
+                                                  calc.breakdown.excedentes0a3ComoAdulto > 0 ? `${calc.breakdown.excedentes0a3ComoAdulto} niño${calc.breakdown.excedentes0a3ComoAdulto>1?'s':''} (${label03})` : null,
+                                                  calc.breakdown.excedentes4a5ComoAdulto > 0 ? `${calc.breakdown.excedentes4a5ComoAdulto} niño${calc.breakdown.excedentes4a5ComoAdulto>1?'s':''} (${label45})` : null
+                                                ].filter(Boolean).join(' y ')} cobrados como adulto
+                                              </span>
+                                            </div>
+                                          )}
+                                          {calc.breakdown.criancas4a5ComTarifaReduzida > 0 && (
+                                            <div className="flex justify-between">
+                                              <span>{calc.breakdown.criancas4a5ComTarifaReduzida} Niño{calc.breakdown.criancas4a5ComTarifaReduzida > 1 ? 's' : ''} ({label45})</span>
                                               <span className="text-gray-700">{formatPrice(unit45)}</span>
                                             </div>
                                           )}
-                                          {c03 > 0 && (
+                                          {calc.breakdown.criancas0a3ComTarifaReduzida > 0 && (
                                             <div className="flex justify-between">
-                                              <span>{c03} Niño{c03 > 1 ? 's' : ''} ({label03})</span>
+                                              <span>{calc.breakdown.criancas0a3ComTarifaReduzida} Niño{calc.breakdown.criancas0a3ComTarifaReduzida > 1 ? 's' : ''} ({label03})</span>
                                               <span className="text-gray-700">{formatPrice(unit03)}</span>
                                             </div>
                                           )}
-                                          {c6 > 0 && (
-                                            <div className="flex justify-between">
-                                              <span>{c6} Niño{c6 > 1 ? 's' : ''} ({label6p})</span>
-                                              <span className="text-gray-700">{formatPrice(unit6)}</span>
-                                            </div>
-                                          )}
-                                        </div>
                                       </div>
-                                    )
-                                  })}
+                                    </div>
+                                  )
+                                })}
                                 </div>
                               )}
                             </div>
@@ -1404,12 +1416,12 @@ export default function ResultadosPage() {
                                       <Info className="w-4 h-4 text-gray-500" />
                                     </button>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-64">
+                                  <PopoverContent className="w-80">
                                     <div className="text-xs text-gray-700">
                                       Precio por persona = Total del paquete ÷ Nº de personas.<br />
                                       {disponibilidade.transporte === 'Aéreo'
-                                        ? 'Precio base sin tasas. La tasa aérea de USD 200 por adulto/niño 2–5/6+ (0–2 exento) se agrega en la página de detalles.'
-                                        : 'Sin tasas administrativas adicionales.'}
+                                        ? 'Para aéreo: 0–2 = USD 160 (incluye), 2–5 = USD 500 (base). Impuestos de USD 200 por adulto y 2–5 se agregan en la página de detalles.'
+                                        : 'Para bus: niños 0–3 = USD 50 y 4–5 = USD 350, según política de cortesía.'}
                                     </div>
                                   </PopoverContent>
                                 </Popover>
