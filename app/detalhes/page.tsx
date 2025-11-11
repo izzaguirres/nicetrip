@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Image, { StaticImageData } from "next/image"
 import { Button } from "@/components/ui/button"
@@ -10,10 +10,14 @@ import { getHospedagemData } from "@/lib/hospedagens-service"
 import { getVoosPorCidadeEData, formatHora } from "@/lib/voos-service"
 import { packageConditionsService } from "@/lib/package-conditions-service"
 import { packageDescriptionService } from "@/lib/package-description-service"
-import { calculateFinalPrice, calculateInstallments } from "@/lib/utils"
-import { computePackageBaseTotal } from "@/lib/package-pricing"
+import { calculateInstallments } from "@/lib/utils"
+import {
+  computePackageBaseTotal,
+  computePackagePricingSummary,
+  type PackagePricingSummary,
+} from "@/lib/package-pricing"
 import { getHotelData } from '@/lib/hotel-data';
-import { buildWhatsappMessage, openWhatsapp } from '@/lib/whatsapp';
+import { buildWhatsappMessage, openWhatsapp, logWhatsappConversion } from '@/lib/whatsapp';
 import { 
   Star, 
   MapPin, 
@@ -75,6 +79,7 @@ export default function DetalhesPage() {
   const [selectedConditionType, setSelectedConditionType] = useState<'cancelacion' | 'equipaje' | 'documentos' | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<number[]>([]);
   const [voosInfo, setVoosInfo] = useState<{ ida: any[]; volta: any[]; bagagem?: { carry: number | null; despachada: number | null } } | null>(null)
+  const [pricingSummary, setPricingSummary] = useState<PackagePricingSummary | null>(null)
 
   // Dados dinâmicos da URL (movidos para o topo)
   const searchType = searchParams.get('tipo') || 'paquetes'
@@ -88,22 +93,46 @@ export default function DetalhesPage() {
   const checkin = searchParams.get('checkin');
   const checkout = searchParams.get('checkout');
   const dataFiltro = (searchParams.get('data') || '').split('T')[0] || null
+  const precoOriginalParam = searchParams.get('preco_original')
+  const precoOriginalFromUrl = precoOriginalParam ? Number(precoOriginalParam) : null
+  const slugPacote = searchParams.get('slug_pacote')
+  const slug = searchParams.get('slug')
   
   // Breakdown detalhado enviado a partir da página de resultados (um item por quarto)
-  const roomsBreakdownParam = searchParams.get('rooms_breakdown');
-  let roomsBreakdown: Array<{
-    preco_adulto?: number;
-    preco_crianca_0_3?: number;
-    preco_crianca_4_5?: number;
-    preco_crianca_6_mais?: number;
-    subtotal?: number;
-  }> | null = null;
-  if (roomsBreakdownParam) {
+  const parseJsonParam = <T,>(raw: string | null): T | null => {
+    if (!raw) return null
+    const candidates = [raw]
     try {
-      const parsed = JSON.parse(decodeURIComponent(roomsBreakdownParam));
-      if (Array.isArray(parsed)) roomsBreakdown = parsed as any[];
-    } catch {}
+      candidates.push(decodeURIComponent(raw))
+    } catch {
+      // pode já estar decodificado
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate)
+        return parsed as T
+      } catch {
+        // tenta próximo candidato
+      }
+    }
+    return null
   }
+
+  const precoAdultoParam = searchParams.get('preco_adulto')
+  const precoAdultoNumber = precoAdultoParam ? Number(precoAdultoParam) : NaN
+  const dadosPacote = {
+    preco_adulto: Number.isFinite(precoAdultoNumber) ? precoAdultoNumber : 490,
+  }
+
+  const roomsBreakdownParam = searchParams.get('rooms_breakdown')
+  const roomsBreakdown = parseJsonParam<Array<{
+    preco_adulto?: number
+    preco_crianca_0_3?: number
+    preco_crianca_4_5?: number
+    preco_crianca_6_mais?: number
+    subtotal?: number
+  }>>(roomsBreakdownParam)
   
   // Dados de quartos e pessoas (movidos para o topo)
   const quartos = parseInt(searchParams.get('quartos') || '1')
@@ -204,25 +233,18 @@ export default function DetalhesPage() {
   const temMultiplosQuartos = quartos > 1
 
   // Função para distribuir pessoas pelos quartos (igual ao card de resultados)
-  const getQuartosIndividuais = () => {
-    const quartosEspecificos = searchParams.get('rooms_config')
+  const getQuartosIndividuais = useCallback(() => {
+    const quartosEspecificos = parseJsonParam<any[]>(searchParams.get('rooms_config'))
     
-    if (quartosEspecificos) {
-      try {
-        const configDecoded = JSON.parse(decodeURIComponent(quartosEspecificos))
-        if (Array.isArray(configDecoded) && configDecoded.length > 0) {
-            console.log('🎯 CONFIGURAÇÃO ESPECÍFICA ENCONTRADA:', configDecoded)
-            return configDecoded.map((room: any, index: number) => ({
-              numero: index + 1,
-              adultos: room.adults || 0,
-              criancas_0_3: room.children_0_3 || 0,
-              criancas_4_5: room.children_4_5 || 0,
-              criancas_6: room.children_6 || 0
-            }));
-        }
-      } catch (error) {
-        console.log('⚠️ Erro ao decodificar configuração específica, usando fallback:', error)
-      }
+    if (Array.isArray(quartosEspecificos) && quartosEspecificos.length > 0) {
+      console.log('🎯 CONFIGURAÇÃO ESPECÍFICA ENCONTRADA:', quartosEspecificos)
+      return quartosEspecificos.map((room: any, index: number) => ({
+        numero: index + 1,
+        adultos: room.adults || 0,
+        criancas_0_3: room.children_0_3 || 0,
+        criancas_4_5: room.children_4_5 || 0,
+        criancas_6: room.children_6 || 0,
+      }))
     }
     
     // ✅ FALLBACK ROBUSTO: Sempre executa se a lógica acima falhar ou não retornar.
@@ -265,7 +287,7 @@ export default function DetalhesPage() {
     if(criancas_6_restantes > 0) quartosArray[0].criancas_6 += criancas_6_restantes;
 
     return quartosArray
-  }
+  }, [searchParams])
 
   // Busca os dados do hotel (nome e imagens) do nosso mapa central
   const hotelData = getHotelData(hotelName);
@@ -284,7 +306,85 @@ export default function DetalhesPage() {
   console.log(`Imagens encontradas:`, packageImages.length);
   console.log('-------------------------');
   
-  const quartosIndividuais = getQuartosIndividuais()
+  const quartosIndividuais = useMemo(() => getQuartosIndividuais(), [getQuartosIndividuais])
+
+  useEffect(() => {
+    if (searchType !== 'paquetes') {
+      setPricingSummary(null)
+      return
+    }
+
+    let cancelled = false
+
+    const loadPricingSummary = async () => {
+      try {
+        const rooms = (quartosIndividuais && quartosIndividuais.length > 0)
+          ? quartosIndividuais
+          : [
+              {
+                adultos,
+                criancas_0_3,
+                criancas_4_5,
+                criancas_6,
+              },
+            ]
+
+        const roomRequests = rooms.map((room: any, index: number) => {
+          const breakdown = roomsBreakdown && roomsBreakdown[index] ? roomsBreakdown[index] : null
+          const unitPrice = breakdown
+            ? Number(breakdown.preco_adulto ?? dadosPacote.preco_adulto)
+            : Number(dadosPacote.preco_adulto)
+
+          return {
+            precoAdultoUSD: unitPrice,
+            pessoas: {
+              adultos: Number(room.adultos || 0) + Number(room.criancas_6 || 0),
+              criancas_0_3: Number(room.criancas_0_3 || 0),
+              criancas_4_5: Number(room.criancas_4_5 || 0),
+              criancas_6_mais: 0,
+            },
+          }
+        })
+
+        const summary = await computePackagePricingSummary(transporte, roomRequests, {
+          destination: destino,
+          packageSlug: slugPacote || slug || undefined,
+          hotelName,
+        })
+
+        if (!cancelled) {
+          setPricingSummary(summary)
+        }
+      } catch (error) {
+        console.error('Erro ao calcular descontos do pacote:', error)
+        if (!cancelled) {
+          setPricingSummary(null)
+        }
+      }
+    }
+
+    void loadPricingSummary()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    searchType,
+    transporte,
+    destino,
+    hotelName,
+    slugPacote,
+    slug,
+    adultos,
+    criancas_0_3,
+    criancas_4_5,
+    criancas_6,
+    quartos,
+    quartosIndividuais,
+    roomsBreakdown,
+    roomsBreakdownParam,
+    dadosPacote.preco_adulto,
+  ])
 
   // ✅ CARREGAR COMODIDADES REAIS DO HOTEL
   useEffect(() => {
@@ -380,10 +480,6 @@ export default function DetalhesPage() {
   }, [transporte, destino, hotelName])
   
   // 💰 Obter valores dinâmicos da URL com fallback (usamos aqui apenas preco_adulto)
-  const dadosPacote = {
-    preco_adulto: parseInt(searchParams.get('preco_adulto') || '490'),
-  }
-  
   // OBS: A recomposição por quarto deixou de ser fonte da verdade para Paquetes.
   // O total base de Paquetes é calculado pela nova regra (computePackageBaseTotal).
   
@@ -459,9 +555,105 @@ export default function DetalhesPage() {
     }, 0)
   }
 
-  const precoTotalReal = basePrice + addonsPrice + taxesAereo
-  
-  const { installments, installmentValue } = calculateInstallments(precoTotalReal, searchParams.get('data') || new Date());
+  const packageBaseOriginal = pricingSummary?.originalUSD ?? precoOriginalFromUrl ?? basePrice
+  const packageBaseFinal = pricingSummary?.totalUSD ?? (preco > 0 ? preco : basePrice)
+  const packageDiscountUSD = Math.max(0, packageBaseOriginal - packageBaseFinal)
+
+  const hasPackageDiscount = packageDiscountUSD > 0
+  const appliedDiscountRules = pricingSummary?.appliedRules ?? []
+
+  const precoTotalOriginal = packageBaseOriginal + addonsPrice + taxesAereo
+  const precoTotalReal = packageBaseFinal + addonsPrice + taxesAereo
+  const finalPackagePrice = Math.round(precoTotalReal)
+  const originalPackagePrice = Math.round(precoTotalOriginal)
+
+  const { installments, installmentValue } = calculateInstallments(
+    precoTotalReal,
+    searchParams.get('data') || new Date()
+  )
+
+  const toISODate = (date: Date) =>
+    `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
+      date.getUTCDate()
+    ).padStart(2, '0')}`
+
+  const buildPackageWhatsappData = () => {
+    const habitaciones = (quartosIndividuais || []).map((quarto: any, index: number) => {
+      const breakdown = roomsBreakdown && roomsBreakdown[index] ? roomsBreakdown[index] : null
+      return {
+        label: `Habitación ${index + 1}`,
+        adultos: Number(quarto.adultos || 0),
+        children0to3: Number(quarto.criancas_0_3 || 0),
+        children4to5: Number(quarto.criancas_4_5 || 0),
+        children6plus: Number(quarto.criancas_6 || 0),
+        tipo: breakdown?.quarto_tipo || breakdown?.tipo_quarto || undefined,
+      }
+    })
+
+    const fechaSalida = toISODate(packageData.dataViagem)
+    const regresoDate = new Date(packageData.dataViagem)
+    regresoDate.setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)
+    const fechaRegreso = toISODate(regresoDate)
+
+    const voos = (() => {
+      const ida = (voosInfo?.ida || []).map((voo) => ({
+        data: voo.data,
+        origem_iata: voo.origem_iata || voo.aeroporto_saida,
+        destino_iata: voo.destino_iata || voo.aeroporto_chegada,
+        saida: voo.saida_hora || voo.saida,
+        chegada: voo.chegada_hora || voo.chegada,
+      }))
+      const volta = (voosInfo?.volta || []).map((voo) => ({
+        data: voo.data,
+        origem_iata: voo.origem_iata || voo.aeroporto_saida,
+        destino_iata: voo.destino_iata || voo.aeroporto_chegada,
+        saida: voo.saida_hora || voo.saida,
+        chegada: voo.chegada_hora || voo.chegada,
+      }))
+      return [...ida, ...volta]
+    })()
+
+    return {
+      destino,
+      hotel: displayName,
+      transporte,
+      embarque: saida,
+      fecha_salida: fechaSalida,
+      fecha_regreso: fechaRegreso,
+      noches: diasNoites.noites,
+      habitaciones,
+      total: precoTotalReal,
+      currency: 'USD',
+      installments:
+        installments && installments > 0
+          ? { count: installments, value: installmentValue, currency: 'USD' }
+          : undefined,
+      voos,
+      bagagem: voosInfo?.bagagem,
+      link: typeof window !== 'undefined' ? window.location.href : '',
+    }
+  }
+
+  const sendPackageWhatsapp = (origin: string) => {
+    const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+    const payload = buildPackageWhatsappData()
+    const mensagem = buildWhatsappMessage('paquete', payload)
+
+    logWhatsappConversion({
+      origem: origin,
+      destino,
+      transporte,
+      embarque: saida,
+      fecha_salida: payload.fecha_salida,
+      fecha_regreso: payload.fecha_regreso,
+      noches: payload.noches,
+      total: payload.total,
+      currency: payload.currency || 'USD',
+      habitaciones: payload.habitaciones,
+    })
+
+    openWhatsapp(phone, mensagem)
+  }
 
   console.log('💰 DEBUG PREÇO DETALHES:')
   console.log('  - Preço da URL (base):', preco)
@@ -636,7 +828,7 @@ export default function DetalhesPage() {
     rating: 4.9,
     reviewCount: 127,
     price: preco,
-    originalPrice: preco + 350,
+    originalPrice: precoOriginalFromUrl ?? preco,
     dataViagem: dataViagem,
     images: packageImages,
     description: packageDescription?.descripcion || "Cargando descripción...", // Use dynamic description
@@ -724,7 +916,7 @@ export default function DetalhesPage() {
   const handleShare = async () => {
     const shareData = {
       title: `${packageData.name} - Nice Trip`,
-      text: `¡Mira este increíble paquete en ${destino}! Desde $ ${formatPrice(packageData.price)}`,
+      text: `¡Mira este increíble paquete en ${destino}! Desde $ ${formatPrice(finalPackagePrice)}`,
       url: window.location.href
     }
 
@@ -1502,66 +1694,57 @@ export default function DetalhesPage() {
                   )}
                   
                   {/* Valor final */}
-                   <div className="space-y-2">
-                     <div className="flex justify-between items-center font-bold">
+                   <div className="space-y-3">
+                     <div className="flex justify-between items-start font-bold">
                         <span className="text-gray-800">Valor Total</span>
-                        <span className="text-xl text-gray-900">{formatPriceWithCurrency(precoTotalReal)}</span>
+                        <div className="text-right">
+                          {hasPackageDiscount && (
+                            <div className="text-sm text-gray-400 line-through">
+                              {formatPriceWithCurrency(precoTotalOriginal)}
+                            </div>
+                          )}
+                          <div className="text-xl text-gray-900">
+                            {formatPriceWithCurrency(precoTotalReal)}
+                          </div>
+                        </div>
                      </div>
+                     {hasPackageDiscount && (
+                       <div className="text-right text-sm text-green-600 font-semibold">
+                         Ahorras {formatPriceWithCurrency(packageDiscountUSD)} en este paquete
+                       </div>
+                     )}
                      {installments > 1 && (
                         <div className="text-right text-sm text-green-600 font-semibold">
                           hasta {installments}x de {formatPriceWithCurrency(installmentValue)}
+                        </div>
+                      )}
+                     {hasPackageDiscount && appliedDiscountRules.length > 0 && (
+                        <div className="text-xs text-gray-700 bg-green-50 border border-green-100 rounded-lg p-3 space-y-1">
+                          <p className="font-semibold text-green-700 flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" /> Descuentos aplicados
+                          </p>
+                          <ul className="space-y-1">
+                            {appliedDiscountRules.map((rule) => (
+                              <li key={rule.ruleId} className="flex items-center justify-between">
+                                <span className="pr-2">{rule.name}</span>
+                                <span className="font-medium text-green-600">-{formatPriceWithCurrency(rule.amount)}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
                    </div>
                   
 
                   {/* Book Button */}
-                  <a onClick={(e) => {
-                        e.preventDefault();
-                        const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-                        const habitaciones = (quartosIndividuais || []).map((q: any) => ({
-                          adultos: q.adultos || 0,
-                          children0to3: q.criancas_0_3 || 0,
-                          children4to5: q.criancas_4_5 || 0,
-                          children6plus: q.criancas_6 || 0,
-                        }))
-                        const toISO = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
-                        const fechaSalida = toISO(packageData.dataViagem)
-                        const regresoDate = new Date(packageData.dataViagem)
-                        regresoDate.setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)
-                        const fechaRegreso = toISO(regresoDate)
-                        const msg = buildWhatsappMessage('paquete', {
-                          destino,
-                          hotel: displayName,
-                          transporte,
-                          embarque: saida,
-                          fecha_salida: fechaSalida,
-                          fecha_regreso: fechaRegreso,
-                          noches: diasNoites.noites,
-                          habitaciones,
-                          total: Math.round(precoTotalReal),
-                          voos: (()=>{
-                            const ida = (voosInfo?.ida||[]).map(v=>({
-                              data: v.data,
-                              origem_iata: v.origem_iata || v.aeroporto_saida,
-                              destino_iata: v.destino_iata || v.aeroporto_chegada,
-                              saida: v.saida_hora || v.saida,
-                              chegada: v.chegada_hora || v.chegada,
-                            }))
-                            const volta = (voosInfo?.volta||[]).map(v=>({
-                              data: v.data,
-                              origem_iata: v.origem_iata || v.aeroporto_saida,
-                              destino_iata: v.destino_iata || v.aeroporto_chegada,
-                              saida: v.saida_hora || v.saida,
-                              chegada: v.chegada_hora || v.chegada,
-                            }))
-                            return [...ida, ...volta]
-                          })(),
-                          bagagem: voosInfo?.bagagem,
-                          link: typeof window !== 'undefined' ? window.location.href : ''
-                        })
-                        openWhatsapp(phone, msg)
-                      }} href="#" className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+                  <a
+                    onClick={(e) => {
+                      e.preventDefault()
+                      sendPackageWhatsapp('detalhes-pacote')
+                    }}
+                    href="#"
+                    className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2"
+                  >
                     <MessageCircle className="w-5 h-5" />
                     Hablar com Operador
                   </a>
@@ -1579,7 +1762,21 @@ export default function DetalhesPage() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1">
             <div className="text-sm font-light text-gray-600">Precio total</div>
-            <div className="text-lg font-bold text-gray-900">$ {formatPrice(precoTotalReal)}</div>
+            <div className="flex flex-col">
+              {hasPackageDiscount && (
+                <span className="text-xs text-gray-400 line-through">
+                  {formatPriceWithCurrency(precoTotalOriginal)}
+                </span>
+              )}
+              <span className="text-lg font-bold text-gray-900">
+                {formatPriceWithCurrency(precoTotalReal)}
+              </span>
+              {hasPackageDiscount && (
+                <span className="text-[11px] text-green-600 font-semibold">
+                  Ahorras {formatPriceWithCurrency(packageDiscountUSD)}
+                </span>
+              )}
+            </div>
             <div className="text-xs font-light text-gray-600">
               {temMultiplosQuartos 
                 ? `${adultos} Adultos, ${totalCriancas} Niños en ${quartos} cuartos`
@@ -1588,52 +1785,14 @@ export default function DetalhesPage() {
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <a onClick={(e)=>{
-                e.preventDefault();
-                const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-                const habitaciones = (quartosIndividuais || []).map((q: any) => ({
-                  adultos: q.adultos || 0,
-                  children0to3: q.criancas_0_3 || 0,
-                  children4to5: q.criancas_4_5 || 0,
-                  children6plus: q.criancas_6 || 0,
-                }))
-                const toISO = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
-                const fechaSalida = toISO(packageData.dataViagem)
-                const regresoDate = new Date(packageData.dataViagem)
-                regresoDate.setUTCDate(packageData.dataViagem.getUTCDate() + diasNoites.dias)
-                const fechaRegreso = toISO(regresoDate)
-                const msg = buildWhatsappMessage('paquete', {
-                  destino,
-                  hotel: displayName,
-                  transporte,
-                  embarque: saida,
-                  fecha_salida: fechaSalida,
-                  fecha_regreso: fechaRegreso,
-                  noches: diasNoites.noites,
-                  habitaciones,
-                  total: Math.round(precoTotalReal),
-                  voos: (()=>{
-                    const ida = (voosInfo?.ida||[]).map(v=>({
-                      data: v.data,
-                      origem_iata: v.origem_iata || v.aeroporto_saida,
-                      destino_iata: v.destino_iata || v.aeroporto_chegada,
-                      saida: v.saida_hora || v.saida,
-                      chegada: v.chegada_hora || v.chegada,
-                    }))
-                    const volta = (voosInfo?.volta||[]).map(v=>({
-                      data: v.data,
-                      origem_iata: v.origem_iata || v.aeroporto_saida,
-                      destino_iata: v.destino_iata || v.aeroporto_chegada,
-                      saida: v.saida_hora || v.saida,
-                      chegada: v.chegada_hora || v.chegada,
-                    }))
-                    return [...ida, ...volta]
-                  })(),
-                  bagagem: voosInfo?.bagagem,
-                  link: typeof window !== 'undefined' ? window.location.href : ''
-                })
-                openWhatsapp(phone, msg)
-              }} href="#" className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
+            <a
+              onClick={(e) => {
+                e.preventDefault()
+                sendPackageWhatsapp('detalhes-pacote-mobile')
+              }}
+              href="#"
+              className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1"
+            >
               {/* Shine Effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
               

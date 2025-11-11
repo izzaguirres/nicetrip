@@ -1,39 +1,18 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Globe, Menu, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
+import { TARIFARIOS_PDF_URL } from "@/lib/constants"
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const dolarContainerRef = useRef<HTMLSpanElement | null>(null)
   const agencyUrl = "https://app.redevt.com/red/ag/login.asp?xpid=4643367633313934344559"
-  
-  // Sempre reexecuta o widget ao mudar de rota, evitando ficar apenas o texto
-  useEffect(() => {
-    if (!dolarContainerRef.current) return
-    // Insere o anchor com visibilidade oculta até o script estilizar
-    dolarContainerRef.current.innerHTML = '<a href="https://dolarhoje.com/" class="dolar-hoje-button" data-currency="dolar" target="_blank" rel="noopener noreferrer" title="Cotação do Dólar Hoje" style="visibility:hidden">Dólar Hoje</a>'
-
-    // Remover script antigo (se existir) e reanexar para forçar reexecução
-    const existing = document.getElementById('dolar-hoje-widget-runtime') as HTMLScriptElement | null
-    if (existing) existing.remove()
-
-    const s = document.createElement('script')
-    s.src = 'https://dolarhoje.com/widgets/button/v1.js'
-    s.async = true
-    s.id = 'dolar-hoje-widget-runtime'
-    s.onload = () => {
-      const a = dolarContainerRef.current?.querySelector('a.dolar-hoje-button') as HTMLAnchorElement | null
-      if (a) a.style.visibility = 'visible'
-    }
-    document.body.appendChild(s)
-  }, [pathname])
 
   // Função para determinar se um link está ativo
   const isActive = (href: string) => {
@@ -88,7 +67,7 @@ export function Header() {
     >
       <div className="container mx-auto px-4 lg:px-[70px]">
         <div className="flex items-center justify-between h-16 lg:h-20 py-4">
-          {/* Logo + Dólar Hoje */}
+          {/* Logo */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <Link href="/" className="flex items-center flex-shrink-0">
               <Image
@@ -99,10 +78,6 @@ export function Header() {
                 className="h-8 lg:h-10 w-auto flex-shrink-0"
               />
             </Link>
-            {/* Badge: Dólar Hoje */}
-            <div className="flex items-center">
-              <span ref={dolarContainerRef} />
-            </div>
           </div>
 
           {/* Right: Links essenciais + CTA */}
@@ -119,6 +94,13 @@ export function Header() {
                 className={getLinkClasses("/contacto")}
               >
                 Contacto
+              </Link>
+              <Link
+                href={TARIFARIOS_PDF_URL}
+                className={getLinkClasses("/tarifarios")}
+                download
+              >
+                Tarifários Completos
               </Link>
             </nav>
 

@@ -1,452 +1,105 @@
-import { useState, useEffect } from 'react'
-import { supabase, Disponibilidade, CidadeSaida, DisponibilidadeFilter, PrecoPessoas, calcularPrecoTotal } from '@/lib/supabase'
-import { fetchRealData, SearchFilters } from '@/lib/supabase-service'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import type {
+  Disponibilidade,
+  CidadeSaida,
+  DisponibilidadeFilter,
+} from '@/lib/supabase'
+import {
+  fetchRealData,
+  fetchCidadesSaida,
+  fetchDisponibilidadeById,
+  type SearchFilters,
+} from '@/lib/supabase-service'
 
-// Dados de fallback para quando o Supabase não estiver configurado
-const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
-const FALLBACK_DISPONIBILIDADES: Disponibilidade[] = [
-  {
-    id: 1,
-    destino: "Canasvieiras",
-    data_saida: "2025-11-23",
-    transporte: "Bus",
-    hotel: "Residencial Terrazas",
-    quarto_tipo: "Habitación Cuádruple",
-    capacidade: 4,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 7,
-    dias_viagem: 8,
-    dias_totais: 8,
-    link_imagem: "/placeholder.jpg",
-    slug: "canasvieiras-residencial-terrazas",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 2,
-    destino: "Canasvieiras",
-    data_saida: "2025-11-30",
-    transporte: "Bus",
-    hotel: "Residencial Leonidas",
-    quarto_tipo: "Habitación Cuádruple",
-    capacidade: 4,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 7,
-    dias_viagem: 8,
-    dias_totais: 8,
-    link_imagem: "/placeholder.jpg",
-    slug: "canasvieiras-residencial-leonidas",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 3,
-    destino: "Canasvieiras",
-    data_saida: "2025-12-07",
-    transporte: "Bus",
-    hotel: "Hotel Fenix",
-    quarto_tipo: "Habitación Doble",
-    capacidade: 6,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 5,
-    dias_viagem: 6,
-    dias_totais: 6,
-    link_imagem: "/placeholder.jpg",
-    slug: "canasvieiras-hotel-fenix",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 4,
-    destino: "Canasvieiras",
-    data_saida: "2025-11-23",
-    transporte: "Aéreo",
-    hotel: "Resort Premium",
-    quarto_tipo: "Habitación Suite",
-    capacidade: 6,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 7,
-    dias_viagem: 8,
-    dias_totais: 8,
-    link_imagem: "/placeholder.jpg",
-    slug: "canasvieiras-resort-premium",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 5,
-    destino: "Canasvieiras",
-    data_saida: "2025-12-14",
-    transporte: "Bus",
-    hotel: "Hotel Costa Verde",
-    quarto_tipo: "Habitación Triple",
-    capacidade: 5,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 7,
-    dias_viagem: 8,
-    dias_totais: 8,
-    link_imagem: "/placeholder.jpg",
-    slug: "canasvieiras-hotel-costa-verde",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 6,
-    destino: "Florianópolis",
-    data_saida: "2025-11-23",
-    transporte: "Aéreo",
-    hotel: "Pousada Sol e Mar",
-    quarto_tipo: "Habitación Familiar",
-    capacidade: 6,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 5,
-    dias_viagem: 6,
-    dias_totais: 6,
-    link_imagem: "/placeholder.jpg",
-    slug: "florianopolis-pousada-sol-e-mar",
-    created_at: "2025-01-01T00:00:00Z"
-  },
-  {
-    id: 7,
-    destino: "Bombinhas",
-    data_saida: "2026-01-04",
-    transporte: "Bus",
-    hotel: "BOMBINHAS PALACE HOTEL",
-    quarto_tipo: "Habitación Doble",
-    capacidade: 4,
-    preco_adulto: 490,
-    preco_crianca_0_3: 50,
-    preco_crianca_4_5: 350,
-    preco_crianca_6_mais: 490,
-    noites_hotel: 7,
-    dias_viagem: 8,
-    dias_totais: 8,
-    link_imagem: "/placeholder.jpg",
-    slug: "bombinhas-palace-hotel",
-    created_at: "2025-01-01T00:00:00Z"
+const mapFiltersToService = (
+  filters?: DisponibilidadeFilter,
+): SearchFilters | undefined => {
+  if (!filters) return undefined
+  return {
+    destino: filters.destino,
+    transporte: filters.transporte,
+    data_saida: filters.data_saida,
+    cidade_saida: filters.cidade_saida,
+    preco_min: filters.preco_min,
+    preco_max: filters.preco_max,
+    capacidade_min: filters.capacidade_min,
   }
-]
-
-const FALLBACK_CIDADES: CidadeSaida[] = [
-  { id: 1, transporte: "Bus", cidade: "Buenos Aires", provincia: "Buenos Aires", pais: "Argentina" },
-  { id: 2, transporte: "Bus", cidade: "São Paulo", provincia: "São Paulo", pais: "Brasil" },
-  { id: 3, transporte: "Aéreo", cidade: "Rio de Janeiro", provincia: "Rio de Janeiro", pais: "Brasil" }
-]
+}
 
 export function useDisponibilidades(filters?: DisponibilidadeFilter) {
   const [disponibilidades, setDisponibilidades] = useState<Disponibilidade[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchDisponibilidades()
-  }, [filters])
+  const filtersKey = useMemo(() => JSON.stringify(filters || {}), [filters])
+  const serviceFilters = useMemo(
+    () => mapFiltersToService(filters),
+    [filtersKey],
+  )
 
-  const fetchDisponibilidades = async () => {
+  const loadDisponibilidades = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-
-      console.log('🚀 HOOK useDisponibilidades INICIANDO...')
-      console.log('=== DEBUG useDisponibilidades ===')
-      console.log('Filtros recebidos:', filters)
-
-      // NOVA ABORDAGEM: Buscar TODOS os dados primeiro (como no endpoint que funciona)
-      console.log('Buscando TODOS os dados do Supabase (sem filtros SQL)...')
-      const { data: allData, error: supabaseError } = await supabase
-        .from('disponibilidades')
-        .select('*')
-
-      // Se há erro do Supabase (não configurado), usar dados de fallback
-      if (ENABLE_FALLBACK && supabaseError && supabaseError.message.includes('Supabase não configurado')) {
-        console.log('Supabase não configurado, usando dados de fallback')
-        
-        // Aplicar filtros nos dados de fallback
-        let dadosFiltrados = FALLBACK_DISPONIBILIDADES
-        
-        if (filters?.destino) {
-          dadosFiltrados = dadosFiltrados.filter(item => 
-            item.destino.toLowerCase().includes(filters.destino!.toLowerCase())
-          )
-        }
-        
-        if (filters?.transporte) {
-          dadosFiltrados = dadosFiltrados.filter(item => 
-            item.transporte.toLowerCase().includes(filters.transporte!.toLowerCase())
-          )
-        }
-        
-        if (filters?.data_saida) {
-          dadosFiltrados = dadosFiltrados.filter(item => 
-            item.data_saida >= filters.data_saida!
-          )
-        }
-        
-        console.log(`Usando dados de fallback: ${dadosFiltrados.length} disponibilidades`)
-        setDisponibilidades(dadosFiltrados)
-        return
-      }
-
-      if (supabaseError) {
-        console.error('Erro na busca do Supabase:', supabaseError)
-        throw new Error(`Erro de conexão: ${supabaseError.message}`)
-      }
-
-      console.log(`✅ Supabase retornou ${allData?.length || 0} registros totais`)
-      
-      if (!allData || allData.length === 0) {
-        if (!ENABLE_FALLBACK) {
-          setDisponibilidades([])
-          return
-        }
-        console.log('⚠️ Supabase realmente vazio - usando dados de fallback apenas se necessário')
-        // ✅ SÓ USAR FALLBACK quando realmente não há dados
-        let dadosFiltrados = FALLBACK_DISPONIBILIDADES
-        
-        // Aplicar filtros nos dados de fallback
-        if (filters?.destino) {
-          console.log(`🔍 Filtrando fallback por destino: ${filters.destino}`)
-          dadosFiltrados = dadosFiltrados.filter(item => 
-            item.destino.toLowerCase().includes(filters.destino!.toLowerCase())
-          )
-        }
-        
-        if (filters?.transporte) {
-          console.log(`🔍 Filtrando fallback por transporte: ${filters.transporte}`)
-          const transporteNormalizado = filters.transporte.replace('ú', 'u').toLowerCase()
-          dadosFiltrados = dadosFiltrados.filter(item => {
-            const itemTransporte = item.transporte.replace('ú', 'u').toLowerCase()
-            return itemTransporte.includes(transporteNormalizado)
-          })
-        }
-        
-        if (filters?.data_saida) {
-          console.log(`🔍 Filtrando fallback por data >= ${filters.data_saida}`)
-          const antes = dadosFiltrados.length
-          
-          // ✅ CORREÇÃO BOMBINHAS: Ser mais flexível com destino Bombinhas
-          if (filters.destino === 'Bombinhas') {
-            console.log('🏖️ DESTINO BOMBINHAS - Aplicando filtro flexível de data')
-            // Para Bombinhas, buscar qualquer data de 2026 (ano correto)
-            const ano2026 = dadosFiltrados.filter(item => 
-              item.data_saida && item.data_saida.startsWith('2026')
-            )
-            
-            if (ano2026.length > 0) {
-              dadosFiltrados = ano2026
-              console.log(`✅ Bombinhas 2026: ${antes} → ${dadosFiltrados.length} pacotes encontrados`)
-            } else {
-              console.log(`⚠️ Bombinhas: mantendo todos ${antes} pacotes do destino`)
-            }
-          } else {
-            // ✅ FILTRO NORMAL para outros destinos
-            const dadosComDataExata = dadosFiltrados.filter(item => 
-              item.data_saida >= filters.data_saida!
-            )
-            
-            if (dadosComDataExata.length > 0) {
-              dadosFiltrados = dadosComDataExata
-              console.log(`Filtro data fallback (≥ ${filters.data_saida}): ${antes} → ${dadosFiltrados.length}`)
-            } else {
-              console.log(`⚠️ Fallback: Nenhum dado para data ≥ ${filters.data_saida}`)
-              console.log(`🔄 Fallback flexível: mantendo todos os dados do destino`)
-              console.log(`Filtro data fallback (flexível): ${antes} → ${dadosFiltrados.length}`)
-            }
-          }
-        }
-        
-        console.log(`🎯 DADOS DE FALLBACK: ${dadosFiltrados.length} pacotes disponíveis`)
-        setDisponibilidades(dadosFiltrados)
-        return
-      }
-
-      // Agora aplicar filtros EM JAVASCRIPT (não no SQL)
-      let dadosFiltrados = [...allData]
-      
-      console.log('Aplicando filtros em JavaScript...')
-      
-      if (filters?.destino) {
-        console.log(`Filtrando por destino: ${filters.destino}`)
-        const antes = dadosFiltrados.length
-        dadosFiltrados = dadosFiltrados.filter(item => 
-          item.destino && item.destino.toLowerCase().includes(filters.destino!.toLowerCase())
-        )
-        console.log(`Filtro destino: ${antes} → ${dadosFiltrados.length}`)
-      }
-      
-      if (filters?.transporte) {
-        console.log(`Filtrando por transporte: ${filters.transporte}`)
-        const antes = dadosFiltrados.length
-        // Tratar "Bus" e "Bús" como equivalentes
-        const transporteNormalizado = filters.transporte.replace('ú', 'u').toLowerCase()
-        dadosFiltrados = dadosFiltrados.filter(item => {
-          if (!item.transporte) return false
-          const itemTransporte = item.transporte.replace('ú', 'u').toLowerCase()
-          return itemTransporte.includes(transporteNormalizado)
-        })
-        console.log(`Filtro transporte: ${antes} → ${dadosFiltrados.length}`)
-      }
-      
-      if (filters?.data_saida) {
-        console.log(`Filtrando por data_saida >= ${filters.data_saida}`)
-        const antes = dadosFiltrados.length
-        
-        // ✅ CORREÇÃO BOMBINHAS: Ser mais flexível com destino Bombinhas
-        if (filters.destino === 'Bombinhas') {
-          console.log('🏖️ DESTINO BOMBINHAS - Aplicando filtro flexível de data')
-          // Para Bombinhas, buscar qualquer data de 2026 (ano correto)
-          const ano2026 = dadosFiltrados.filter(item => 
-            item.data_saida && item.data_saida.startsWith('2026')
-          )
-          
-          if (ano2026.length > 0) {
-            dadosFiltrados = ano2026
-            console.log(`✅ Bombinhas 2026: ${antes} → ${dadosFiltrados.length} pacotes encontrados`)
-          } else {
-            console.log(`⚠️ Bombinhas: mantendo todos ${antes} pacotes do destino`)
-          }
-        } else {
-          // ✅ FILTRO NORMAL para outros destinos
-          const dadosComDataExata = dadosFiltrados.filter(item => 
-            item.data_saida && item.data_saida >= filters.data_saida!
-          )
-          
-          if (dadosComDataExata.length > 0) {
-            dadosFiltrados = dadosComDataExata
-            console.log(`Filtro data (≥ ${filters.data_saida}): ${antes} → ${dadosFiltrados.length}`)
-          } else {
-            console.log(`⚠️ Nenhum dado encontrado para data ≥ ${filters.data_saida}`)
-            console.log(`🔄 Mantendo todos os dados do destino: ${antes} → ${dadosFiltrados.length}`)
-          }
-        }
-      }
-      
-      if (filters?.preco_min) {
-        console.log(`Filtrando por preço >= ${filters.preco_min}`)
-        const antes = dadosFiltrados.length
-        dadosFiltrados = dadosFiltrados.filter(item => 
-          item.preco_adulto && item.preco_adulto >= filters.preco_min!
-        )
-        console.log(`Filtro preço min: ${antes} → ${dadosFiltrados.length}`)
-      }
-      
-      if (filters?.preco_max) {
-        console.log(`Filtrando por preço <= ${filters.preco_max}`)
-        const antes = dadosFiltrados.length
-        dadosFiltrados = dadosFiltrados.filter(item => 
-          item.preco_adulto && item.preco_adulto <= filters.preco_max!
-        )
-        console.log(`Filtro preço max: ${antes} → ${dadosFiltrados.length}`)
-      }
-
-      if (filters?.capacidade_min) {
-        console.log(`Filtrando por capacidade >= ${filters.capacidade_min}`)
-        const antes = dadosFiltrados.length
-        dadosFiltrados = dadosFiltrados.filter(item => 
-          item.capacidade && item.capacidade >= filters.capacidade_min!
-        )
-        console.log(`Filtro capacidade: ${antes} → ${dadosFiltrados.length}`)
-      }
-
-      // Ordenar por data de saída
-      dadosFiltrados.sort((a, b) => {
-        if (!a.data_saida || !b.data_saida) return 0
-        return new Date(a.data_saida).getTime() - new Date(b.data_saida).getTime()
-      })
-
-      console.log(`✅ RESULTADO FINAL: ${dadosFiltrados.length} disponibilidades após filtros`)
-      console.log('Primeiros 3 resultados:', dadosFiltrados.slice(0, 3).map(d => ({
-        id: d.id,
-        destino: d.destino,
-        hotel: d.hotel,
-        data_saida: d.data_saida,
-        transporte: d.transporte
-      })))
-      
-      // LOG ADICIONAL: Ver todas as datas únicas disponíveis no banco
-      const datasUnicas = [...new Set(allData.map((d: any) => d.data_saida))].sort().slice(0, 10)
-      console.log('🗓️ DATAS DISPONÍVEIS NO BANCO (primeiras 10):', datasUnicas)
-      
-      setDisponibilidades(dadosFiltrados)
+      const data = await fetchRealData(serviceFilters)
+      setDisponibilidades(data)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao buscar disponibilidades'
-      console.error('Erro completo:', err)
-
-      // Em caso de erro, usar dados de fallback apenas se habilitado
-      if (ENABLE_FALLBACK) {
-        console.log('Erro na busca, usando dados de fallback como último recurso (habilitado)')
-        setDisponibilidades(FALLBACK_DISPONIBILIDADES)
-        setError(null)
-      } else {
-        setDisponibilidades([])
-        setError(errorMessage)
-      }
+      const message =
+        err instanceof Error ? err.message : 'Erro ao buscar disponibilidades'
+      setDisponibilidades([])
+      setError(message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [serviceFilters])
+
+  useEffect(() => {
+    loadDisponibilidades()
+  }, [loadDisponibilidades])
 
   return {
     disponibilidades,
     loading,
     error,
-    refetch: fetchDisponibilidades
+    refetch: loadDisponibilidades,
   }
 }
 
-export function useDisponibilidade(id: string) {
+export function useDisponibilidade(id: string | null | undefined) {
   const [disponibilidade, setDisponibilidade] = useState<Disponibilidade | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (id) {
-      fetchDisponibilidade()
+  const loadDisponibilidade = useCallback(async () => {
+    if (!id) {
+      setDisponibilidade(null)
+      setLoading(false)
+      return
     }
-  }, [id])
-
-  const fetchDisponibilidade = async () => {
     try {
       setLoading(true)
       setError(null)
-
-      const { data, error } = await supabase
-        .from('disponibilidades')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) {
-        throw error
-      }
-
+      const data = await fetchDisponibilidadeById(id)
       setDisponibilidade(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao buscar disponibilidade')
-      console.error('Erro ao buscar disponibilidade:', err)
+      const message =
+        err instanceof Error ? err.message : 'Erro ao buscar disponibilidade'
+      setDisponibilidade(null)
+      setError(message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    loadDisponibilidade()
+  }, [loadDisponibilidade])
 
   return {
     disponibilidade,
     loading,
     error,
-    refetch: fetchDisponibilidade
+    refetch: loadDisponibilidade,
   }
 }
 
@@ -455,63 +108,31 @@ export function useCidadesSaida(transporte?: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchCidades()
-  }, [transporte])
-
-  const fetchCidades = async () => {
+  const loadCidades = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-
-      let query = supabase
-        .from('cidades_saida')
-        .select('*')
-        .order('cidade', { ascending: true })
-
-      if (transporte) {
-        query = query.eq('transporte', transporte)
-      }
-
-      const { data, error } = await query
-
-      if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
-        console.log('Supabase não configurado, usando cidades de fallback')
-        let cidadesFiltradas = FALLBACK_CIDADES
-        if (transporte) {
-          const tNorm = transporte.replace('ú', 'u').toLowerCase()
-          cidadesFiltradas = FALLBACK_CIDADES.filter(cidade => {
-            return cidade.transporte.replace('ú', 'u').toLowerCase() === tNorm
-          })
-        }
-        setCidades(cidadesFiltradas)
-        return
-      }
-
-      if (error) {
-        throw error
-      }
-
-      setCidades(data || [])
+      const data = await fetchCidadesSaida(transporte)
+      setCidades(data as CidadeSaida[])
     } catch (err) {
-      console.error('Erro ao buscar cidades, usando fallback:', err)
-      if (ENABLE_FALLBACK) {
-        setCidades(FALLBACK_CIDADES)
-        setError(null)
-      } else {
-        setCidades([])
-        setError(err instanceof Error ? err.message : 'Erro ao buscar cidades')
-      }
+      const message =
+        err instanceof Error ? err.message : 'Erro ao buscar cidades de saída'
+      setCidades([])
+      setError(message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [transporte])
+
+  useEffect(() => {
+    loadCidades()
+  }, [loadCidades])
 
   return {
     cidades,
     loading,
     error,
-    refetch: fetchCidades
+    refetch: loadCidades,
   }
 }
 
@@ -520,46 +141,30 @@ export function useDestinos() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchDestinos() {
-      try {
-        const { data, error } = await supabase
-          .from('disponibilidades')
-          .select('destino')
-          .order('destino')
-
-        if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
-          console.log('Supabase não configurado, usando destinos de fallback')
-          const destinosFallback = [...new Set(FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.destino))]
-          setDestinos(destinosFallback)
-          return
-        }
-
-        if (error) throw error
-        
-        // Extrair destinos únicos
-        const destinosSet = new Set((data || []).map((item: any) => item.destino as string))
-        const destinosUnicos = Array.from(destinosSet) as string[]
-        setDestinos(destinosUnicos)
-      } catch (err) {
-        console.error('Erro ao carregar destinos, usando fallback:', err)
-        if (ENABLE_FALLBACK) {
-          const destinosFallback = [...new Set(FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.destino))]
-          setDestinos(destinosFallback)
-          setError(null)
-        } else {
-          setDestinos([])
-          setError(err instanceof Error ? err.message : 'Erro ao carregar destinos')
-        }
-      } finally {
-        setLoading(false)
-      }
+  const loadDestinos = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await fetchRealData()
+      const destinosUnicos = Array.from(
+        new Set((data || []).map((item) => item.destino).filter(Boolean)),
+      ) as string[]
+      setDestinos(destinosUnicos)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Erro ao carregar destinos'
+      setDestinos([])
+      setError(message)
+    } finally {
+      setLoading(false)
     }
-
-    fetchDestinos()
   }, [])
 
-  return { destinos, loading, error }
+  useEffect(() => {
+    loadDestinos()
+  }, [loadDestinos])
+
+  return { destinos, loading, error, refetch: loadDestinos }
 }
 
 export function useDatasDisponiveis(destino?: string, transporte?: string) {
@@ -567,76 +172,42 @@ export function useDatasDisponiveis(destino?: string, transporte?: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchDatas() {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        console.log('📅 BUSCANDO DATAS DISPONÍVEIS:', { destino, transporte })
-        
-        // ✅ USAR NOVO SERVIÇO LIMPO
-        const { fetchRealData } = await import('@/lib/supabase-service')
-        
-        const filters: any = {}
-        if (destino) filters.destino = destino
-        if (transporte) filters.transporte = transporte
-        
-        const data = await fetchRealData(filters)
-        
-        if (!data || data.length === 0) {
-          if (!ENABLE_FALLBACK) {
-            setDatas([])
-            return
-          }
-          console.log('⚠️ SEM DADOS - Usando fallback para datas')
-          let datasFiltradas = FALLBACK_DISPONIBILIDADES
-          if (destino) {
-            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
-          }
-          if (transporte) {
-            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
-          }
-          const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
-          const datasUnicas = [...new Set(datasFallback)]
-          setDatas(datasUnicas)
-          return
-        }
-        
-        // ✅ EXTRAIR DATAS ÚNICAS DOS DADOS REAIS
-        const datasSet = new Set(data.map((item: any) => item.data_saida as string))
-        const datasUnicas = Array.from(datasSet).sort()
-        
-        console.log(`✅ DATAS ENCONTRADAS: ${datasUnicas.length}`, datasUnicas.slice(0, 5))
-        setDatas(datasUnicas)
-        
-      } catch (err) {
-        console.error('❌ Erro ao carregar datas, usando fallback:', err)
-        if (ENABLE_FALLBACK) {
-          let datasFiltradas = FALLBACK_DISPONIBILIDADES
-          if (destino) {
-            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.destino === destino)
-          }
-          if (transporte) {
-            datasFiltradas = datasFiltradas.filter((item: Disponibilidade) => item.transporte === transporte)
-          }
-          const datasFallback = datasFiltradas.map((item: Disponibilidade) => item.data_saida)
-          const datasUnicas = [...new Set(datasFallback)]
-          setDatas(datasUnicas)
-          setError(null)
-        } else {
-          setDatas([])
-          setError(err instanceof Error ? err.message : 'Erro ao carregar datas')
-        }
-      } finally {
-        setLoading(false)
-      }
+  const loadDatas = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const filters: SearchFilters = {}
+      if (destino) filters.destino = destino
+      if (transporte) filters.transporte = transporte
+      const data = await fetchRealData(filters)
+      const datasUnicas = Array.from(
+        new Set((data || []).map((item) => item.data_saida).filter(Boolean)),
+      ).sort()
+      setDatas(datasUnicas)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Erro ao carregar datas disponíveis'
+      setDatas([])
+      setError(message)
+    } finally {
+      setLoading(false)
     }
-
-    fetchDatas()
   }, [destino, transporte])
 
-  return { datas, loading, error }
+  useEffect(() => {
+    loadDatas()
+  }, [loadDatas])
+
+  return { datas, loading, error, refetch: loadDatas }
+}
+
+const canonicalizeTransporte = (valor?: string): string => {
+  const normalized = (valor || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  if (normalized.includes('aer')) return 'Aéreo'
+  return 'Bús'
 }
 
 export function useTransportesDisponiveis(destino?: string, dataSaida?: string) {
@@ -644,85 +215,37 @@ export function useTransportesDisponiveis(destino?: string, dataSaida?: string) 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchTransportes() {
-      try {
-        setLoading(true)
-        // Canonicaliza o texto do transporte para evitar duplicatas (Aereo/Aéreo, Bus/Bús)
-        const toCanonical = (t: string): string => {
-          const ascii = (t || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-          if (ascii.includes('aer')) return 'Aéreo'
-          return 'Bús'
-        }
-        let query = supabase
-          .from('disponibilidades')
-          .select('transporte')
-          .order('transporte')
+  const loadTransportes = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const filters: SearchFilters = {}
+      if (destino) filters.destino = destino
+      if (dataSaida) filters.data_saida = dataSaida
 
-        if (destino) {
-          query = query.eq('destino', destino)
-        }
-        if (dataSaida) {
-          query = query.eq('data_saida', dataSaida)
-        }
-
-        const { data, error } = await query
-
-        if (ENABLE_FALLBACK && error && error.message.includes('Supabase não configurado')) {
-          console.log('Supabase não configurado, usando transportes de fallback')
-          let transportesFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.transporte)
-          if (destino) {
-            transportesFallback = FALLBACK_DISPONIBILIDADES
-              .filter((item: Disponibilidade) => item.destino === destino)
-              .map((item: Disponibilidade) => item.transporte)
-          }
-          if (dataSaida) {
-            transportesFallback = FALLBACK_DISPONIBILIDADES
-              .filter((item: Disponibilidade) => item.data_saida === dataSaida)
-              .map((item: Disponibilidade) => item.transporte)
-          }
-          const transportesUnicos = [...new Set(transportesFallback.map(toCanonical))]
-          setTransportes(transportesUnicos)
-          return
-        }
-
-        if (error) throw error
-        
-        // Extrair transportes únicos já canonicalizados
-        const transportesSet = new Set((data || []).map((item: any) => toCanonical(item.transporte as string)))
-        const transportesUnicos = Array.from(transportesSet) as string[]
-        setTransportes(transportesUnicos)
-      } catch (err) {
-        console.error('Erro ao carregar transportes, usando fallback:', err)
-        if (ENABLE_FALLBACK) {
-          let transportesFallback = FALLBACK_DISPONIBILIDADES.map((item: Disponibilidade) => item.transporte)
-          if (destino) {
-            transportesFallback = FALLBACK_DISPONIBILIDADES
-              .filter((item: Disponibilidade) => item.destino === destino)
-              .map((item: Disponibilidade) => item.transporte)
-          }
-          if (dataSaida) {
-            transportesFallback = FALLBACK_DISPONIBILIDADES
-              .filter((item: Disponibilidade) => item.data_saida === dataSaida)
-              .map((item: Disponibilidade) => item.transporte)
-          }
-          const transportesUnicos = [...new Set(transportesFallback.map(toCanonical))]
-          setTransportes(transportesUnicos)
-          setError(null)
-        } else {
-          setTransportes([])
-          setError(err instanceof Error ? err.message : 'Erro ao carregar transportes')
-        }
-      } finally {
-        setLoading(false)
-      }
+      const data = await fetchRealData(filters)
+      const transportesUnicos = Array.from(
+        new Set(
+          (data || [])
+            .map((item) => canonicalizeTransporte(item.transporte))
+            .filter(Boolean),
+        ),
+      )
+      setTransportes(transportesUnicos)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Erro ao carregar transportes'
+      setTransportes([])
+      setError(message)
+    } finally {
+      setLoading(false)
     }
-
-    fetchTransportes()
   }, [destino, dataSaida])
 
-  return { transportes, loading, error }
-} 
+  useEffect(() => {
+    loadTransportes()
+  }, [loadTransportes])
+
+  return { transportes, loading, error, refetch: loadTransportes }
+}
+

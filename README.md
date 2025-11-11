@@ -35,6 +35,42 @@ Nas últimas sessões, implementamos uma série de melhorias significativas, com
 
 - Guia do Smart Filter, regras de cálculo e composição por hotel: [`SMART_FILTER.md`](SMART_FILTER.md)
 - Esquema do banco e colunas necessárias (incluindo Aéreo): [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md)
+- Roteiro completo para o painel admin: [`ADMIN_SPEC.md`](ADMIN_SPEC.md)
+
+## ⚠️ Core que não pode ser alterado
+
+Para manter os resultados aprovados com clientes, estas regras são obrigatórias:
+
+- `computePackageBaseTotal` (em `lib/package-pricing.ts`) define os valores por adulto/criança; nunca altere a fórmula sem atualizar os testes de baseline.
+- `app/resultados/page.tsx` e `app/detalhes/page.tsx` devem continuar gerando os mesmos cards, valores e parcelas para todos os filtros já validados (Bus/Aéreo, múltiplos quartos, hospedagens).
+- O serviço `lib/supabase-service.ts` deve ser a única fonte de dados reais; `NEXT_PUBLIC_ENABLE_FALLBACK` precisa estar `false` em produção.
+- Qualquer refatoração ou otimização só pode ser concluída após rodar `npm run lint`, `npm run test` e comparar os outputs com os fixtures de baseline (`tests/baseline`).
+
+## Migrations do Supabase
+
+As tabelas e policies necessárias para o painel admin ficam versionadas em `supabase/migrations`.
+
+1. Abra o **SQL Editor** do Supabase (ou use o CLI) e execute os arquivos na ordem de data:
+   - `20250215_admin_core.sql` cria as tabelas (`admin_users`, `discount_rules`, `search_events`, etc.).
+   - `20250215_discount_rule_targets.sql` adiciona campos opcionais de targeting.
+   - `20250220_admin_rls.sql` habilita RLS e publica as policies de leitura/escrita.
+2. Depois de aplicar cada arquivo, valide com:
+   ```sql
+   set role anon;
+   select count(*) from public.disponibilidades;
+   reset role;
+   ```
+3. Cadastre o primeiro usuário admin manualmente (via SQL) ou com o serviço `SUPABASE_SERVICE_ROLE_KEY`.
+
+> Dica: mantenha o arquivo `SUPABASE_RLS_ROLLOUT.md` por perto – ele traz blocos de rollback e testes rápidos.
+
+## Checklist antes de publicar
+
+- Confirme que `NEXT_PUBLIC_ENABLE_FALLBACK=false` no ambiente de produção.
+- Execute `npm run lint`, `npm run test` e `npm run test:baseline` – o deploy só pode seguir com a suíte verde.
+- Rode `npm run build` para garantir que não há erros de compilação.
+- Verifique se as migrations acima já estão aplicadas e se existe pelo menos um usuário em `admin_users`.
+- Gere um search/conversion manual no ambiente de staging e confira os contadores em `/admin/analytics` (os testes automatizados cobrem os casos principais, mas a checagem manual evita dados truncados).
 
 ## Como Executar
 
@@ -44,3 +80,4 @@ Para executar o projeto localmente, siga os passos:
 2.  Instale as dependências: `npm install`
 3.  Execute o servidor de desenvolvimento: `npm run dev`
 4.  Abra `http://localhost:3000` no seu navegador.
+5.  Antes de qualquer deploy, rode `npm run lint` **e** `npm run test` para garantir que o baseline (tests/baseline) continua consistente.

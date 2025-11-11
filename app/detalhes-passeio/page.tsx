@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Image, { StaticImageData } from "next/image"
 import { Button } from "@/components/ui/button"
-import { buildWhatsappMessage, openWhatsapp } from "@/lib/whatsapp"
+import { buildWhatsappMessage, openWhatsapp, logWhatsappConversion } from "@/lib/whatsapp"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Paseo, fetchPaseoById } from "@/lib/passeios-service"
@@ -30,6 +30,13 @@ import {
   Info,
 } from 'lucide-react'
 
+type WhatsappParticipant = {
+  label: string
+  quantidade: number
+  unit?: number
+  total?: number
+}
+
 function DetalhesPasseioContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -48,8 +55,6 @@ function DetalhesPasseioContent() {
   
   // ✅ NOVO: Função para formatar mês para exibição
   const formatarMesExibicao = (mesParam: string | null): string => {
-    console.log('📅 DEBUG: mesParam recebido:', mesParam) // Debug
-    
     if (!mesParam) return "Fecha a consultar"
     
     // Se está no formato "2026-01", converter para "Enero de 2026"
@@ -80,6 +85,88 @@ function DetalhesPasseioContent() {
     if (criancas6Filtro > 0) partes.push(`${criancas6Filtro} Niño${criancas6Filtro > 1 ? 's' : ''} (6+)`)
     
     return partes.join(', ')
+  }
+
+  const currencyPasseio = 'USD'
+
+  const formatCurrencyNumber = (value: number): string => {
+    const safe = Number.isFinite(value) ? value : 0
+    return safe.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  }
+
+  const formatPriceWithCurrency = (value: number): string =>
+    `${currencyPasseio} ${formatCurrencyNumber(Math.max(0, value))}`
+
+  const participantesBreakdown: WhatsappParticipant[] = useMemo(() => {
+    if (!passeio) return []
+
+    const items: PaseoParticipant[] = []
+    const addParticipant = (label: string, quantidade: number, unit?: number | null) => {
+      if (!quantidade || quantidade <= 0) return
+      const normalizedUnit = Number.isFinite(Number(unit)) ? Number(unit) : 0
+      items.push({
+        label,
+        quantidade,
+        unit: normalizedUnit,
+        total: quantidade * normalizedUnit,
+      })
+    }
+
+    addParticipant('Adultos', adultosFiltro, passeio.preco_adulto)
+    addParticipant('Niños (0-3)', criancas03Filtro, passeio.preco_crianca_0_3)
+    addParticipant('Niños (4-5)', criancas45Filtro, passeio.preco_crianca_4_5)
+    addParticipant('Niños 6+', criancas6Filtro, passeio.preco_crianca_6_10)
+
+    return items
+  }, [passeio, adultosFiltro, criancas03Filtro, criancas45Filtro, criancas6Filtro])
+
+  const totalPasseio = useMemo(
+    () => participantesBreakdown.reduce((sum, item) => sum + (item.total ?? 0), 0),
+    [participantesBreakdown]
+  )
+
+  const valorTotalDisplay = totalPasseio > 0 ? formatPriceWithCurrency(totalPasseio) : 'A consultar'
+
+  const buildPaseoWhatsappData = () => {
+    const observaciones = passeio?.observacoes
+      ? passeio.observacoes
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : undefined
+
+    return {
+      paseo: passeio?.nome || '-',
+      mes: mesUsuario ? formatarMesExibicao(mesUsuario) : undefined,
+      adultos: adultosFiltro,
+      ninos: criancas03Filtro + criancas45Filtro + criancas6Filtro,
+      participantes: participantesBreakdown,
+      currency: currencyPasseio,
+      total: totalPasseio > 0 ? totalPasseio : undefined,
+      local: passeio?.local_saida,
+      horario: passeio?.horario_saida,
+      punto_encuentro: passeio?.local,
+      observaciones,
+      link: typeof window !== 'undefined' ? window.location.href : '',
+    }
+  }
+
+  const sendPasseioWhatsapp = (origin: string) => {
+    const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+    const payload = buildPaseoWhatsappData()
+    const mensagem = buildWhatsappMessage('paseo', payload)
+
+    logWhatsappConversion({
+      origem: origin,
+      paseo: payload.paseo,
+      mes: payload.mes,
+      adultos: payload.adultos,
+      ninos: payload.ninos,
+      total: payload.total,
+      currency: payload.currency,
+    })
+
+    openWhatsapp(phone, mensagem)
   }
 
   // Suporte a swipe no modal de fotos
@@ -515,23 +602,14 @@ function DetalhesPasseioContent() {
               <div className="space-y-2 border-t pt-4">
                  <div className="flex justify-between items-center font-bold">
                     <span className="text-gray-800">Valor Total</span>
-                    <span className="text-lg text-gray-900">à Consultar</span>
+                    <span className="text-lg text-gray-900">{valorTotalDisplay}</span>
                  </div>
               </div>
 
               <a
-                onClick={(e)=>{
-                  e.preventDefault();
-                  const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-                  const mesSel = mesUsuario ? formatarMesExibicao(mesUsuario) : 'a consultar'
-                  const msg = buildWhatsappMessage('paseo', {
-                    paseo: passeio?.nome || '-',
-                    mes: mesSel,
-                    adultos: adultosFiltro,
-                    ninos: (criancas03Filtro + criancas45Filtro + criancas6Filtro),
-                    link: typeof window!== 'undefined' ? window.location.href : ''
-                  })
-                  openWhatsapp(phone, msg)
+                onClick={(e) => {
+                  e.preventDefault()
+                  sendPasseioWhatsapp('detalhes-passeio')
                 }}
                 className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2"
               >

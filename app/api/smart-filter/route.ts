@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { fetchDataForSmartFilter, SearchFilters } from '@/lib/supabase-service'
+import { createLogger } from '@/lib/logger'
 
 interface RoomConfig {
   adults: number
@@ -19,11 +20,11 @@ interface SmartFilterResult {
   score_otimizacao: number
 }
 
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
+const log = createLogger('api:smart-filter')
 
 export async function POST(request: NextRequest) {
   try {
-    if (DEBUG) console.log('🧠 Smart Filter iniciando...')
+    log.debug('🧠 Smart Filter iniciando...')
     
     const body = await request.json()
     
@@ -31,9 +32,9 @@ export async function POST(request: NextRequest) {
     const filters = body.filters || body
     const roomsConfig = body.roomsConfig || []
     
-    if (DEBUG) console.log('📋 Filtros recebidos:', filters)
-    if (DEBUG) console.log('🏠 Configuração de quartos:', roomsConfig)
-    if (DEBUG) console.log('🔍 Debug detalhado:', {
+    log.debug('📋 Filtros recebidos:', filters)
+    log.debug('🏠 Configuração de quartos:', roomsConfig)
+    log.debug('🔍 Debug detalhado:', {
       destino: filters.destino,
       transporte: filters.transporte,
       data_saida: filters.data_saida,
@@ -47,10 +48,10 @@ export async function POST(request: NextRequest) {
     const totalCriancas = (filters.criancas0a3 || 0) + (filters.criancas4a5 || 0) + (filters.criancas6mais || 0)
     const totalPessoas = totalAdultos + totalCriancas
     
-    if (DEBUG) console.log(`👥 Total: ${totalPessoas} pessoas (${totalAdultos} adultos, ${totalCriancas} crianças)`)    
+    log.debug(`👥 Total: ${totalPessoas} pessoas (${totalAdultos} adultos, ${totalCriancas} crianças)`)
 
     // ✅ USAR NOVO SERVIÇO LIMPO DE DADOS
-    if (DEBUG) console.log('🔄 USANDO NOVO SERVIÇO DE DADOS SUPABASE...')
+    log.debug('🔄 USANDO NOVO SERVIÇO DE DADOS SUPABASE...')
     
     const searchFilters: SearchFilters = {
       destino: filters.destino,
@@ -60,17 +61,17 @@ export async function POST(request: NextRequest) {
     
     const { allData, filteredData, uniqueHotels } = await fetchDataForSmartFilter(searchFilters)
     
-    if (DEBUG) console.log(`🔍 Dados após filtros: ${filteredData.length} registros`)
+    log.debug(`🔍 Dados após filtros: ${filteredData.length} registros`)
     
     // ✅ SE TEMOS DADOS REAIS APÓS FILTROS, USAR ELES!
     if (filteredData && filteredData.length > 0) {
-      if (DEBUG) console.log(`🎯 USANDO DADOS REAIS DO SUPABASE: ${filteredData.length} registros encontrados`)
+      log.debug(`🎯 USANDO DADOS REAIS DO SUPABASE: ${filteredData.length} registros encontrados`)
       
       // Filtrar por data específica se fornecida
       let dadosFiltradosPorData = filteredData
       if (filters.data_saida) {
         dadosFiltradosPorData = filteredData.filter((item: any) => item.data_saida === filters.data_saida)
-        if (DEBUG) console.log(`📅 Filtrados por data ${filters.data_saida}: ${dadosFiltradosPorData.length} registros`)
+        log.debug(`📅 Filtrados por data ${filters.data_saida}: ${dadosFiltradosPorData.length} registros`)
       }
       
       // Agrupar por hotel para obter hotéis únicos NA DATA ESPECÍFICA
@@ -83,10 +84,8 @@ export async function POST(request: NextRequest) {
         }
       })
       
-      if (DEBUG) {
-        console.log(`🏨 Hotéis únicos encontrados na data: ${hoteisUnicos.size}`)
-        console.log(`📋 Hotéis:`, Array.from(hoteisUnicos.keys()))
-      }
+      log.debug(`🏨 Hotéis únicos encontrados na data: ${hoteisUnicos.size}`)
+      log.debug('📋 Hotéis:', Array.from(hoteisUnicos.keys()))
       
       // Processar dados reais - todos os hotéis únicos
       const resultados = Array.from(hoteisUnicos.values()).map((item: any, index: number) => ({
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     
     // ✅ USAR FALLBACK APENAS se não há dados reais
     if (!filteredData || filteredData.length === 0) {
-      if (DEBUG) console.log('Usando dados de fallback...')
+      log.debug('Usando dados de fallback...')
       const ENABLE_FALLBACK = (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
       if (!ENABLE_FALLBACK) {
         return NextResponse.json({ success: true, analysis: { resultados: [], resumo_analise: 'Nenhum resultado encontrado' } })

@@ -6,6 +6,7 @@ Este guia traz SQLs prontos e um passo a passo para habilitar Row Level Security
 - RLS + policy de `SELECT` para o role `anon` mantém os resultados idênticos aos atuais.
 - Bloqueamos `INSERT/UPDATE/DELETE` para `anon` por segurança.
 - Opcional: filtrar somente registros `ativo = true` se desejar ocultar inativos.
+- Para o painel admin, somente usuários cadastrados em `admin_users` podem inserir/editar (`auth.uid()` precisa estar na tabela).
 
 ## Tabelas do projeto
 - `public.cidades_saida`
@@ -15,6 +16,11 @@ Este guia traz SQLs prontos e um passo a passo para habilitar Row Level Security
 - `public.package_content_templates`
 - `public.package_descriptions`
 - `public.voos_aereos`
+- `public.admin_users`
+- `public.discount_rules`
+- `public.search_events`
+- `public.conversion_events`
+- `public.audit_logs`
 
 ## Execução rápida (janela de baixo tráfego)
 1) Abra o SQL Editor do Supabase.
@@ -165,6 +171,96 @@ create policy "Public read" on public.voos_aereos
 -- drop policy if exists "Public read (ativo)" on public.voos_aereos;
 -- create policy "Public read (ativo)" on public.voos_aereos
 --   for select to anon using (ativo is true);
+```
+
+### 8) admin_users (admin somente)
+```sql
+alter table public.admin_users enable row level security;
+
+drop policy if exists "Admin users read" on public.admin_users;
+drop policy if exists "Admin users manage" on public.admin_users;
+
+create policy "Admin users read" on public.admin_users
+  for select
+  to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+
+create policy "Admin users manage" on public.admin_users
+  for all
+  to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+```
+
+### 9) discount_rules (público lê regras ativas, admin gerencia)
+```sql
+alter table public.discount_rules enable row level security;
+
+create policy "Public discount rules" on public.discount_rules
+  for select
+  to anon, authenticated
+  using (
+    is_active = true
+    and (valid_from is null or valid_from <= current_date)
+    and (valid_to is null or valid_to >= current_date)
+  );
+
+create policy "Admin discount rules" on public.discount_rules
+  for all
+  to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  )
+  with check (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+```
+
+### 10) search_events & conversion_events (público insere, admin vê)
+```sql
+alter table public.search_events enable row level security;
+alter table public.conversion_events enable row level security;
+
+create policy "Log search events" on public.search_events
+  for insert to anon, authenticated with check (true);
+
+create policy "Log conversion events" on public.conversion_events
+  for insert to anon, authenticated with check (true);
+
+create policy "Admin search events" on public.search_events
+  for select to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+
+create policy "Admin conversion events" on public.conversion_events
+  for select to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+```
+
+### 11) audit_logs (apenas admin insere/lê)
+```sql
+alter table public.audit_logs enable row level security;
+
+create policy "Insert audit logs" on public.audit_logs
+  for insert to authenticated
+  with check (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
+
+create policy "Read audit logs" on public.audit_logs
+  for select to authenticated
+  using (
+    exists (select 1 from public.admin_users au where au.user_id = auth.uid())
+  );
 ```
 
 ---

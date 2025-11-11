@@ -194,7 +194,7 @@ export function UnifiedSearchFilter({
       })
     }
     return list
-  }, [ENABLE_FALLBACK, errorDestinos, supabaseDestinos, filters.transporte])
+  }, [errorDestinos, supabaseDestinos, filters.transporte])
 
   // Regra de negócio solicitada: "Balneário Camboriú" apenas para Bús
   const destinosFiltrados = destinos
@@ -268,6 +268,10 @@ export function UnifiedSearchFilter({
       // Se chegou aqui, houve mudança manual → permitir ajuste
     }
 
+    if (filters.data) {
+      return
+    }
+
     let novaData: Date | undefined = undefined
     
     // 🎯 REGRAS ESPECÍFICAS baseadas na combinação transporte + destino
@@ -320,7 +324,7 @@ export function UnifiedSearchFilter({
     if (novaData && filters.data && format(filters.data, 'yyyy-MM-dd') !== format(novaData, 'yyyy-MM-dd')) {
       setFilters(prev => ({ ...prev, data: novaData }))
     }
-  }, [filters.transporte, filters.destino, datasDisponiveis, loadingDatas, variant, initialFilters])
+  }, [filters.data, filters.destino, filters.transporte, datasDisponiveis, loadingDatas, variant, initialFilters])
 
   // ✅ CORREÇÃO: Filtros condicionais - transporte filtra cidades disponíveis
   const cidadesDisponiveis = useMemo(() => {

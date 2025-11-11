@@ -50,7 +50,7 @@ import {
 } from "lucide-react"
 import dynamic from 'next/dynamic'
 import { supabase } from "@/lib/supabase" // Importar supabase client
-import { buildWhatsappMessage, openWhatsapp } from "@/lib/whatsapp"
+import { buildWhatsappMessage, openWhatsapp, logWhatsappConversion } from "@/lib/whatsapp"
 
 const MapDisplay = dynamic(() => import('@/components/ui/map-display'), {
   ssr: false,
@@ -509,6 +509,49 @@ export default function DetalhesPage() {
     })) || [],
     condiciones: packageConditions,
     duration: `${noitesCalculadas} noches`
+  }
+
+  const buildHospedagemWhatsappData = () => {
+    const habitaciones = (getQuartosIndividuais() || []).map((quarto: any, index: number) => ({
+      label: `Habitación ${index + 1}`,
+      adultos: Number(quarto.adultos || 0),
+      children0to3: Number(quarto.criancas_0_3 || 0),
+      children4to5: Number(quarto.criancas_4_5 || 0),
+      children6plus: Number(quarto.criancas_6 || 0),
+    }))
+
+    return {
+      destino,
+      hotel: packageData.name,
+      checkin: checkin || undefined,
+      checkout: checkout || undefined,
+      noches: noitesCalculadas || undefined,
+      habitaciones,
+      total: precoTotalReal,
+      currency: 'BRL',
+      extras: packageData.highlights,
+      link: typeof window !== 'undefined' ? window.location.href : '',
+    }
+  }
+
+  const sendHospedagemWhatsapp = (origin: string) => {
+    const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
+    const payload = buildHospedagemWhatsappData()
+    const mensagem = buildWhatsappMessage('habitacion', payload)
+
+    logWhatsappConversion({
+      origem: origin,
+      hotel: payload.hotel,
+      destino: payload.destino,
+      checkin: payload.checkin,
+      checkout: payload.checkout,
+      noites: payload.noches,
+      total: payload.total,
+      currency: payload.currency,
+      habitaciones: payload.habitaciones,
+    })
+
+    openWhatsapp(phone, mensagem)
   }
 
   const nextImage = () => {
@@ -1031,20 +1074,14 @@ export default function DetalhesPage() {
                   
 
                   {/* Book Button */}
-                  <a onClick={(e)=>{
-                        e.preventDefault();
-                        const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-                        const habs = (getQuartosIndividuais() || []).map((q: any) => ({ adultos: q.adultos || 0, niños: (q.criancas_0_3||0)+(q.criancas_4_5||0)+(q.criancas_6||0) }))
-                        const msg = buildWhatsappMessage('habitacion', {
-                          hotel: packageData.name,
-                          checkin: checkin || '-',
-                          checkout: checkout || '-',
-                          habitaciones: habs,
-                          total: Math.round(precoTotalReal),
-                          link: typeof window !== 'undefined' ? window.location.href : ''
-                        })
-                        openWhatsapp(phone, msg)
-                      }} href="#" className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2">
+                  <a
+                    onClick={(e) => {
+                      e.preventDefault()
+                      sendHospedagemWhatsapp('detalhes-hospedagem')
+                    }}
+                    href="#"
+                    className="w-full bg-gradient-to-r from-[#FF6B35] to-[#F7931E] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 mt-5 flex items-center justify-center gap-2"
+                  >
                     <MessageCircle className="w-5 h-5" />
                     Hablar com Operador
                   </a>
@@ -1071,20 +1108,14 @@ export default function DetalhesPage() {
             </div>
           </div>
           <div className="flex flex-col items-center">
-            <a onClick={(e)=>{
-                e.preventDefault();
-                const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-                const habs = (getQuartosIndividuais() || []).map((q: any) => ({ adultos: q.adultos || 0, niños: (q.criancas_0_3||0)+(q.criancas_4_5||0)+(q.criancas_6||0) }))
-                const msg = buildWhatsappMessage('habitacion', {
-                  hotel: packageData.name,
-                  checkin: checkin ? new Date(checkin + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-                  checkout: checkout ? new Date(checkout + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-                  habitaciones: habs,
-                  total: Math.round(precoTotalReal),
-                  link: typeof window !== 'undefined' ? window.location.href : ''
-                })
-                openWhatsapp(phone, msg)
-              }} href="#" className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1">
+            <a
+              onClick={(e) => {
+                e.preventDefault()
+                sendHospedagemWhatsapp('detalhes-hospedagem-mobile')
+              }}
+              href="#"
+              className="relative bg-gradient-to-r from-[#FF6B35] via-[#EE7215] to-[#F7931E] hover:from-[#FF5722] hover:via-[#E65100] hover:to-[#FF8F00] text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1"
+            >
               {/* Shine Effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
               

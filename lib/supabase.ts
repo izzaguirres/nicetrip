@@ -18,23 +18,29 @@ if (supabaseUrl && supabaseAnonKey) {
 } else {
   if (DEBUG) console.warn('Variáveis de ambiente do Supabase não configuradas - usando modo fallback')
   // Criar um mock do cliente Supabase que sempre retorna erro
+  const notConfigured = () =>
+    Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } })
+
+  const chain = {
+    select: () => chain,
+    insert: () => notConfigured(),
+    update: () => notConfigured(),
+    delete: () => notConfigured(),
+    order: () => chain,
+    limit: () => chain,
+    eq: () => chain,
+    gte: () => chain,
+    lte: () => chain,
+    ilike: () => chain,
+    or: () => chain,
+    filter: () => chain,
+    single: () => notConfigured(),
+    maybeSingle: () => notConfigured(),
+    then: (...args: any[]) => notConfigured().then(...args),
+  }
+
   supabase = {
-    from: () => ({
-      select: () => ({
-        order: () => ({
-          limit: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-          eq: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-          ilike: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-          gte: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-          lte: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } })
-        }),
-        eq: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-        ilike: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-        gte: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-        lte: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } }),
-        single: () => Promise.resolve({ data: null, error: { message: 'Supabase não configurado' } })
-      })
-    })
+    from: () => chain,
   }
 }
 
@@ -53,12 +59,23 @@ export type Disponibilidade = {
   preco_crianca_0_3: number
   preco_crianca_4_5: number
   preco_crianca_6_mais: number
+  preco_adulto_aereo?: number | null
+  preco_crianca_0_2_aereo?: number | null
+  preco_crianca_2_5_aereo?: number | null
+  preco_crianca_6_mais_aereo?: number | null
+  taxa_aereo_por_pessoa?: number | null
   noites_hotel: number
   dias_viagem: number
   dias_totais: number
-  link_imagem: string
-  slug: string
+  link_imagem?: string | null
+  slug?: string | null
+  slug_hospedagem?: string | null
+  slug_pacote?: string | null
+  slug_pacote_principal?: string | null
+  cidade_saida?: string | null
+  hospedagem_id?: string | null
   created_at: string
+  updated_at?: string | null
 }
 
 export type CidadeSaida = {
@@ -107,6 +124,52 @@ export interface PrecoPessoas {
   criancas_0_3: number
   criancas_4_5: number
   criancas_6_mais: number
+}
+
+export type DiscountRule = {
+  id: string
+  name: string
+  transport_type: string | null
+  destinations: string[] | null
+  package_slugs: string[] | null
+  hotel_names: string[] | null
+  age_groups: string[] | null
+  age_min: number | null
+  age_max: number | null
+  amount: number
+  amount_currency: string
+  amount_type: 'fixed' | 'percent'
+  valid_from: string | null
+  valid_to: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type SearchEvent = {
+  id: string
+  filters: Record<string, unknown>
+  result_count: number | null
+  user_agent: string | null
+  ip_hash: string | null
+  created_at: string
+}
+
+export type ConversionEvent = {
+  id: string
+  context: Record<string, unknown> | null
+  created_at: string
+}
+
+export type AuditLog = {
+  id: string
+  entity: string
+  entity_id: string | null
+  action: string
+  payload: Record<string, unknown> | null
+  performed_by: string | null
+  created_at: string
 }
 
 // Função helper para calcular preço total

@@ -16,6 +16,7 @@ import { UnifiedSearchFilter } from "@/components/unified-search-filter"
 import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filter"
 import { PaseosSearchFilter } from "@/components/paseos-search-filter"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
+import { TARIFARIOS_PDF_URL } from "@/lib/constants"
 
 
 // Testimonial Badge Component
@@ -133,7 +134,7 @@ export default function HomePage() {
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
                       )}
                       <Bed className="w-3 h-3 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 relative z-10 flex-shrink-0" />
-                      <span className="relative z-10">Habitaciones</span>
+                      <span className="relative z-10">Hospedajes</span>
                     </button>
                     <button
                       onClick={() => setActiveTab("paseos")}
@@ -158,6 +159,15 @@ export default function HomePage() {
                     {activeTab === 'habitaciones' && <HabitacionesSearchFilter variant="homepage" />}
                     {activeTab === 'paseos' && <PaseosSearchFilter variant="homepage" />}
                   </div>
+                </div>
+                <div className="mt-4 text-center md:hidden">
+                  <Link
+                    href={TARIFARIOS_PDF_URL}
+                    download
+                    className="inline-flex items-center justify-center text-white text-sm font-semibold underline underline-offset-4"
+                  >
+                    Descargar Tarifários Completos
+                  </Link>
                 </div>
               </div>
             </div>

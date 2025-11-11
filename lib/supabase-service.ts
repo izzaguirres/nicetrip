@@ -1,4 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Disponibilidade, DiscountRule } from './supabase'
+import { createLogger } from './logger'
+import { FALLBACK_DISPONIBILIDADES } from './fallback-data'
 
 // ✅ SERVIÇO ÚNICO DE DADOS - SEMPRE SUPABASE
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -9,13 +12,14 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey)
+const log = createLogger('supabase-service')
+log.debug('🎯 SUPABASE SERVICE: Inicializado com conexão real')
+log.debug('🔗 URL configured?', !!supabaseUrl)
+log.debug('🔑 Key exists?', !!supabaseKey)
 
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true'
-if (DEBUG) {
-  console.log('🎯 SUPABASE SERVICE: Inicializado com conexão real')
-  console.log('🔗 URL configured?', !!supabaseUrl)
-  console.log('🔑 Key exists?', !!supabaseKey)
-}
+const FALLBACK_ENABLED =
+  typeof process !== 'undefined' &&
+  (process.env.NEXT_PUBLIC_ENABLE_FALLBACK || '').toLowerCase() === 'true'
 
 // ✅ CACHE INTELIGENTE (5 minutos)
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
@@ -25,6 +29,40 @@ let dataCache: {
 } = {
   data: null,
   timestamp: 0
+}
+
+const normalizeText = (value?: string) =>
+  (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+const matchesNormalizedTarget = (value: string | undefined, targets?: string[] | null) => {
+  if (!targets || targets.length === 0) return true
+  if (!value) return false
+  const normalizedValue = normalizeText(value)
+  return targets.map((target) => normalizeText(target)).includes(normalizedValue)
+}
+
+const filterFallbackDisponibilidades = (rows: Disponibilidade[], filters?: SearchFilters) => {
+  if (!filters) return rows
+
+  return rows.filter((row) => {
+    if (filters.destino) {
+      const destino = row.destino?.toLowerCase() || ''
+      if (!destino.includes(filters.destino.toLowerCase())) return false
+    }
+    if (filters.transporte) {
+      const transporte = normalizeText(row.transporte || '')
+      const target = normalizeText(filters.transporte)
+      if (transporte !== target) return false
+    }
+    if (filters.data_saida && row.data_saida < filters.data_saida) return false
+    if (filters.preco_min != null && (row.preco_adulto ?? 0) < filters.preco_min) return false
+    if (filters.preco_max != null && (row.preco_adulto ?? 0) > filters.preco_max) return false
+    if (filters.capacidade_min != null && (row.capacidade ?? 0) < filters.capacidade_min) return false
+    return true
+  })
 }
 
 // ✅ INTERFACE LIMPA PARA FILTROS
@@ -48,22 +86,19 @@ export interface HabitacionSearchFilters {
 // ✅ FUNÇÃO PRINCIPAL: BUSCAR DADOS REAIS
 export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
   try {
-    if (DEBUG) {
-      console.log('🔍 SUPABASE SERVICE: Buscando dados reais...')
-      console.log('📋 Filtros:', filters)
-    }
+    log.debug('🔍 SUPABASE SERVICE: Buscando dados reais...', filters)
 
     // ✅ VERIFICAR CACHE PRIMEIRO
     const now = Date.now()
     const cacheValid = dataCache.data && (now - dataCache.timestamp) < CACHE_DURATION
     
     if (cacheValid && !filters) {
-      if (DEBUG) console.log('⚡ CACHE HIT: Usando dados em cache')
+      log.debug('⚡ CACHE HIT: Usando dados em cache')
       return dataCache.data!
     }
 
     // ✅ BUSCAR DADOS FRESCOS DO SUPABASE
-    if (DEBUG) console.log('🔄 CACHE MISS: Buscando dados frescos do Supabase...')
+    log.debug('🔄 CACHE MISS: Buscando dados frescos do Supabase...')
     
     let query = supabase
       .from('disponibilidades')
@@ -102,33 +137,38 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
     const { data, error } = await query.order('data_saida', { ascending: true })
 
     if (error) {
-      if (DEBUG) console.error('❌ SUPABASE ERROR:', error)
+      log.error('❌ SUPABASE ERROR:', error)
       throw new Error(`Database error: ${error.message}`)
     }
 
     if (!data || data.length === 0) {
-      if (DEBUG) console.log('⚠️ NO DATA FOUND in Supabase with filters:', filters)
+      log.debug('⚠️ NO DATA FOUND in Supabase with filters:', filters)
       return []
     }
 
-    if (DEBUG) {
-      console.log(`✅ SUPABASE SUCCESS: ${data.length} records found`)
-      console.log('📊 Sample data:', data.slice(0, 2))
-    }
+    log.debug(`✅ SUPABASE SUCCESS: ${data.length} records found`, {
+      sample: data.slice(0, 2),
+    })
 
     // ✅ ATUALIZAR CACHE (só para consultas sem filtros)
     if (!filters) {
       dataCache = {
-        data: data,
-        timestamp: now
+        data,
+        timestamp: now,
       }
-      if (DEBUG) console.log('💾 CACHE UPDATED')
+      log.debug('💾 CACHE UPDATED')
     }
 
     return data
 
   } catch (error) {
-    if (DEBUG) console.error('💥 SUPABASE SERVICE ERROR:', error)
+    log.error('💥 SUPABASE SERVICE ERROR:', error)
+    if (FALLBACK_ENABLED) {
+      log.warn('⚠️ ENABLE_FALLBACK ativo – retornando dados mockados', {
+        filters,
+      })
+      return filterFallbackDisponibilidades(FALLBACK_DISPONIBILIDADES, filters)
+    }
     throw error
   }
 }
@@ -136,10 +176,7 @@ export async function fetchRealData(filters?: SearchFilters): Promise<any[]> {
 // ✅ NOVA FUNÇÃO: BUSCAR DADOS DE HABITACIONES
 export async function fetchHabitacionesData(filters?: HabitacionSearchFilters): Promise<any[]> {
   try {
-    if (DEBUG) {
-      console.log('🏨 SUPABASE SERVICE: Buscando diárias de habitaciones...')
-      console.log('📋 Filtros de Habitación:', filters)
-    }
+    log.debug('🏨 SUPABASE SERVICE: Buscando diárias de habitaciones...', filters)
 
     let query = supabase.from('hospedagem_diarias').select('*').eq('ativo', true)
 
@@ -160,20 +197,20 @@ export async function fetchHabitacionesData(filters?: HabitacionSearchFilters): 
     const { data, error } = await query.order('valor_diaria', { ascending: true })
 
     if (error) {
-      if (DEBUG) console.error('❌ SUPABASE ERROR (hospedagem_diarias):', error)
+      log.error('❌ SUPABASE ERROR (hospedagem_diarias):', error)
       throw new Error(`Database error: ${error.message}`)
     }
 
     if (!data || data.length === 0) {
-      if (DEBUG) console.log('⚠️ Nenhuma diária encontrada na tabela `hospedagem_diarias` com os filtros:', filters)
+      log.debug('⚠️ Nenhuma diária encontrada na tabela `hospedagem_diarias` com os filtros:', filters)
       return []
     }
 
-    if (DEBUG) console.log(`✅ SUPABASE SUCCESS (hospedagem_diarias): ${data.length} diárias encontradas`)
+    log.debug(`✅ SUPABASE SUCCESS (hospedagem_diarias): ${data.length} diárias encontradas`)
     return data
 
   } catch (error) {
-    if (DEBUG) console.error('💥 FETCH HABITACIONES DATA ERROR:', error)
+    log.error('💥 FETCH HABITACIONES DATA ERROR:', error)
     throw error
   }
 }
@@ -186,7 +223,7 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
   uniqueHotels: string[]
 }> {
   try {
-    if (DEBUG) console.log('🧠 SMART FILTER DATA SERVICE')
+    log.debug('🧠 SMART FILTER DATA SERVICE')
     
     // Buscar TODOS os dados primeiro
     const allData = await fetchRealData()
@@ -217,13 +254,12 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
 
     const uniqueHotels = [...new Set(filteredData.map(item => item.hotel))].filter(Boolean)
     
-    if (DEBUG) {
-      console.log(`🎯 SMART FILTER RESULTS:`)
-      console.log(`   📊 Total data: ${allData.length}`)
-      console.log(`   🔍 Filtered: ${filteredData.length}`)
-      console.log(`   🏨 Unique hotels: ${uniqueHotels.length}`)
-      console.log(`   🏨 Hotels: ${uniqueHotels.slice(0, 5).join(', ')}`)
-    }
+    log.debug('🎯 SMART FILTER RESULTS', {
+      total: allData.length,
+      filtered: filteredData.length,
+      uniqueHotels: uniqueHotels.length,
+      hotelsPreview: uniqueHotels.slice(0, 5),
+    })
 
     return {
       allData,
@@ -232,21 +268,143 @@ export async function fetchDataForSmartFilter(filters: SearchFilters): Promise<{
     }
 
   } catch (error) {
-    if (DEBUG) console.error('💥 SMART FILTER DATA ERROR:', error)
+    log.error('💥 SMART FILTER DATA ERROR:', error)
     throw error
+  }
+}
+
+export async function fetchDisponibilidadeById(id: string): Promise<Disponibilidade | null> {
+  if (!id) return null
+
+  const { data, error } = await supabase
+    .from<Disponibilidade>('disponibilidades')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+interface DiscountRuleOptions {
+  transportType?: string
+  destination?: string
+  packageSlug?: string
+  hotelName?: string
+  includeInactive?: boolean
+  includeExpired?: boolean
+}
+
+export async function fetchActiveDiscountRules(
+  options: DiscountRuleOptions = {},
+): Promise<DiscountRule[]> {
+  try {
+    let query = supabase.from<DiscountRule>('discount_rules').select('*')
+
+    if (!options.includeInactive) {
+      query = query.eq('is_active', true)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
+
+    if (error) {
+      log.error('❌ Erro ao buscar discount_rules', error)
+      return []
+    }
+
+    const rules = (data || []) as DiscountRule[]
+    const today = new Date().toISOString().slice(0, 10)
+
+    return rules.filter((rule) => {
+      if (!options.includeInactive && !rule.is_active) return false
+      if (!options.includeExpired) {
+        if (rule.valid_from && rule.valid_from > today) return false
+        if (rule.valid_to && rule.valid_to < today) return false
+      }
+      if (options.transportType) {
+        const match = normalizeText(rule.transport_type || '') === normalizeText(options.transportType)
+        if (!match) return false
+      }
+      if (options.destination) {
+        if (rule.destinations && rule.destinations.length > 0) {
+          const destMatch = rule.destinations
+            .map((destination) => normalizeText(destination))
+            .includes(normalizeText(options.destination))
+          if (!destMatch) return false
+        }
+      }
+      if (!matchesNormalizedTarget(options.packageSlug, rule.package_slugs)) return false
+      if (!matchesNormalizedTarget(options.hotelName, rule.hotel_names)) return false
+      return true
+    })
+  } catch (error) {
+    log.error('❌ fetchActiveDiscountRules error', error)
+    return []
+  }
+}
+
+export async function insertSearchEvent(payload: {
+  filters: Record<string, unknown>
+  resultCount?: number
+  userAgent?: string
+  ipHash?: string
+}) {
+  try {
+    await supabase.from('search_events').insert({
+      filters: payload.filters,
+      result_count: payload.resultCount ?? null,
+      user_agent: payload.userAgent ?? null,
+      ip_hash: payload.ipHash ?? null,
+    })
+  } catch (error) {
+    log.error('❌ insertSearchEvent error', error)
+  }
+}
+
+export async function insertConversionEvent(payload: { context?: Record<string, unknown> }) {
+  try {
+    await supabase.from('conversion_events').insert({
+      context: payload.context ?? null,
+    })
+  } catch (error) {
+    log.error('❌ insertConversionEvent error', error)
+  }
+}
+
+export async function insertAuditLog(
+  payload: {
+    entity: string
+    entityId?: string
+    action: string
+    data?: Record<string, unknown>
+    performedBy?: string
+  },
+  client?: SupabaseClient,
+) {
+  const target = client ?? supabase
+  try {
+    await target.from('audit_logs').insert({
+      entity: payload.entity,
+      entity_id: payload.entityId ?? null,
+      action: payload.action,
+      payload: payload.data ?? null,
+      performed_by: payload.performedBy ?? null,
+    })
+  } catch (error) {
+    log.error('❌ insertAuditLog error', error)
   }
 }
 
 // ✅ FUNÇÃO PARA LIMPAR CACHE (útil para desenvolvimento)
 export function clearCache() {
   dataCache = { data: null, timestamp: 0 }
-  if (DEBUG) console.log('🧹 CACHE CLEARED')
+  log.debug('🧹 CACHE CLEARED')
 }
 
 // ✅ NOVA FUNÇÃO: Buscar cidades de saída da tabela específica
 export async function fetchCidadesSaida(transporte?: string): Promise<any[]> {
   try {
-    if (DEBUG) console.log('🏙️ BUSCANDO CIDADES DE SAÍDA...')
+    log.debug('🏙️ BUSCANDO CIDADES DE SAÍDA...')
     
     let query = supabase
       .from('cidades_saida')
@@ -260,15 +418,15 @@ export async function fetchCidadesSaida(transporte?: string): Promise<any[]> {
     const { data, error } = await query
     
     if (error) {
-      if (DEBUG) console.error('❌ SUPABASE ERROR (cidades_saida):', error)
+      log.error('❌ SUPABASE ERROR (cidades_saida):', error)
       throw error
     }
     
-    if (DEBUG) console.log(`✅ CIDADES DE SAÍDA ENCONTRADAS: ${data?.length || 0}`)
+    log.debug(`✅ CIDADES DE SAÍDA ENCONTRADAS: ${data?.length || 0}`)
     return data || []
     
   } catch (error) {
-    if (DEBUG) console.error('❌ FETCH CIDADES SAIDA ERROR:', error)
+    log.error('❌ FETCH CIDADES SAIDA ERROR:', error)
     throw error
   }
 }

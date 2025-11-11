@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight, MessageCircle, X } from "lucide-react"
-import { openWhatsapp } from "@/lib/whatsapp"
+import { openWhatsapp, logWhatsappConversion } from "@/lib/whatsapp"
 
 export default function WhatsappFloat() {
   const [open, setOpen] = useState(false)
@@ -30,6 +30,7 @@ export default function WhatsappFloat() {
       ? message.trim()
       : 'Hola! 👋 Me gustaría hablar con Nice Trip.'
     const encoded = encodeURIComponent(msg)
+    logWhatsappConversion({ origem: 'whatsapp-float', mensagem: msg })
     openWhatsapp('', encoded)
   }
 
@@ -83,5 +84,4 @@ export default function WhatsappFloat() {
     </div>
   )
 }
-
 

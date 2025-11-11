@@ -1,0 +1,44 @@
+{
+  "label": "bus-19-out-2-adultos",
+  "filters": {
+    "destino": "Canasvieiras",
+    "transporte": "Bus",
+    "data_saida": "2025-10-19"
+  },
+  "people": {
+    "adultos": 2,
+    "criancas_0_3": 0,
+    "criancas_4_5": 0,
+    "criancas_6_mais": 0
+  },
+  "supabaseRows": [
+    {
+      "id": 101,
+      "destino": "Canasvieiras",
+      "data_saida": "2025-10-19",
+      "transporte": "Bus",
+      "hotel": "RESIDENCIAL LEÔNIDAS",
+      "quarto_tipo": "Doble",
+      "capacidade": 2,
+      "preco_adulto": 561,
+      "preco_crianca_0_3": 50,
+      "preco_crianca_4_5": 350,
+      "preco_crianca_6_mais": 561,
+      "noites_hotel": 7,
+      "dias_viagem": 8,
+      "dias_totais": 8,
+      "slug": "canasvieiras-residencial-leonidas",
+      "slug_hospedagem": "residencial-leonidas",
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "expectedResults": [
+    {
+      "hotel": "RESIDENCIAL LEÔNIDAS",
+      "total": 1122,
+      "perPerson": 561,
+      "installments": 5,
+      "installmentValue": 224
+    }
+  ]
+}

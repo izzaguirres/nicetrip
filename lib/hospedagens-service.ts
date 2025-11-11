@@ -1,4 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { createLogger } from './logger'
+
+const log = createLogger('hospedagens-service')
 
 // ✅ CACHE INTELIGENTE PARA HOSPEDAGENS
 interface HospedagemCache {
@@ -46,18 +49,14 @@ export async function getHospedagemData(hotelOficial: string): Promise<Hospedage
     const cacheValid = hospedagensCache && (now - hospedagensCache.timestamp) < CACHE_DURATION
     
     if (!cacheValid) {
-      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-        console.log('🏨 CACHE MISS: Buscando dados de hospedagens do Supabase...')
-      }
+      log.debug('🏨 CACHE MISS: Buscando dados de hospedagens do Supabase...')
       await refreshHospedagensCache()
     } else {
-      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-        console.log('⚡ CACHE HIT: Usando dados de hospedagens em cache')
-      }
+      log.debug('⚡ CACHE HIT: Usando dados de hospedagens em cache')
     }
 
     if (!hotelOficial) {
-        console.warn('⚠️ getHospedagemData foi chamado com um nome de hotel nulo ou indefinido.');
+        log.warn('⚠️ getHospedagemData foi chamado com um nome de hotel nulo ou indefinido.')
         return null;
     }
     
@@ -71,21 +70,15 @@ export async function getHospedagemData(hotelOficial: string): Promise<Hospedage
     });
 
     if (hospedagem) {
-      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-        console.log(`✅ Hospedagem encontrada: ${hospedagem.nome} para a busca "${hotelOficial}"`)
-      }
+      log.debug(`✅ Hospedagem encontrada: ${hospedagem.nome} para a busca "${hotelOficial}"`)
       return hospedagem
     } else {
-      if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-        console.log(`⚠️ Hospedagem não encontrada para: ${hotelOficial}`)
-      }
+      log.debug(`⚠️ Hospedagem não encontrada para: ${hotelOficial}`)
       return null
     }
 
   } catch (error) {
-    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-      console.error('❌ Erro ao buscar dados de hospedagem:', error)
-    }
+    log.error('❌ Erro ao buscar dados de hospedagem:', error)
     return null
   }
 }
@@ -116,14 +109,10 @@ async function refreshHospedagensCache(): Promise<void> {
       timestamp: Date.now()
     }
 
-    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-      console.log(`✅ Cache de hospedagens atualizado: ${hospedagens?.length || 0} registros`)
-    }
+    log.debug(`✅ Cache de hospedagens atualizado: ${hospedagens?.length || 0} registros`)
 
   } catch (error) {
-    if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-      console.error('❌ Erro ao atualizar cache de hospedagens:', error)
-    }
+    log.error('❌ Erro ao atualizar cache de hospedagens:', error)
     // Manter cache anterior se houver erro
   }
 }
@@ -187,7 +176,5 @@ export const COMODIDADES_GENERICAS = [
 // ✅ FUNÇÃO PARA LIMPAR CACHE (útil para desenvolvimento)
 export function clearHospedagensCache(): void {
   hospedagensCache = null
-  if ((process.env.NEXT_PUBLIC_DEBUG_LOGS === 'true' || process.env.DEBUG_LOGS === 'true')) {
-    console.log('🧹 Cache de hospedagens limpo')
-  }
-} 
+  log.debug('🧹 Cache de hospedagens limpo')
+}
