@@ -30,6 +30,12 @@ const nextConfig = {
         port: '',
         pathname: '/maps/api/staticmap/**',
       },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
   async headers() {

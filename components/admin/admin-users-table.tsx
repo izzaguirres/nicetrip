@@ -15,9 +15,39 @@ import {
 import { AdminUserForm } from './admin-user-form'
 import { useToast } from '@/hooks/use-toast'
 import { AdminSurface } from '@/components/admin/surface'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  editor: 'Editor',
+  viewer: 'Operação',
+}
+
+const roleBadgeVariant = (role?: string | null) => {
+  switch (role) {
+    case 'admin':
+      return 'default'
+    case 'editor':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+const getInitials = (name?: string | null, email?: string | null) => {
+  const source = name || email || '?'
+  return source
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
 
 interface AdminUsersTableProps {
   users: AdminUser[]
+  currentUserId?: string
 }
 
 const formatDate = (iso: string) =>
@@ -29,10 +59,12 @@ const formatDate = (iso: string) =>
     minute: '2-digit',
   })
 
-export function AdminUsersTable({ users }: AdminUsersTableProps) {
+export function AdminUsersTable({ users, currentUserId }: AdminUsersTableProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
+  const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,6 +97,18 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
     }
   }
 
+  const openCreateForm = () => {
+    setFormMode('create')
+    setSelectedUser(null)
+    setOpen(true)
+  }
+
+  const openEditForm = (user: AdminUser) => {
+    setFormMode('edit')
+    setSelectedUser(user)
+    setOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -75,7 +119,7 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
           </p>
         </div>
         <Button
-          onClick={() => setOpen(true)}
+          onClick={openCreateForm}
           className="rounded-full bg-gradient-to-br from-orange-400 to-orange-500 px-5 text-white shadow-lg hover:from-orange-500 hover:to-orange-600"
         >
           Novo usuário
@@ -88,28 +132,52 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Criado em</TableHead>
+              <TableHead>Usuário</TableHead>
+              <TableHead>Contato</TableHead>
               <TableHead>Função</TableHead>
+              <TableHead>Criado em</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.user_id} className="transition hover:bg-white/70">
-                <TableCell className="font-medium">{user.email || user.user_id}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={user.avatar_url || undefined} alt={user.display_name ?? user.email} />
+                      <AvatarFallback>{getInitials(user.display_name, user.email)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium text-slate-900">{user.display_name || 'Sem nome'}</div>
+                      <div className="text-xs text-muted-foreground">{user.email || user.user_id}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-slate-600">{user.phone || '—'}</div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={roleBadgeVariant(user.role)} className="uppercase tracking-wide">
+                    {ROLE_LABELS[user.role ?? 'admin'] || user.role || 'Admin'}
+                  </Badge>
+                </TableCell>
                 <TableCell>{formatDate(user.created_at)}</TableCell>
-                <TableCell>{user.role ?? 'admin'}</TableCell>
                 <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEditForm(user)}>
+                      Editar
+                    </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemove(user.user_id)}
-                    disabled={removing === user.user_id}
+                    disabled={removing === user.user_id || user.user_id === currentUserId}
                     className="rounded-full text-red-500 hover:bg-red-50"
                   >
                     Revogar
                   </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -124,7 +192,16 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
         </Table>
       </AdminSurface>
 
-      <AdminUserForm open={open} onOpenChange={setOpen} />
+      <AdminUserForm
+        open={open}
+        onOpenChange={(value) => {
+          setOpen(value)
+          if (!value) setSelectedUser(null)
+        }}
+        mode={formMode}
+        initialUser={selectedUser ?? undefined}
+        onSaved={() => router.refresh()}
+      />
     </div>
   )
 }

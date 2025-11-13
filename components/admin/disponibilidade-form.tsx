@@ -104,7 +104,14 @@ interface DisponibilidadeFormProps {
   mode?: FormMode
 }
 
-const defaultTransporteOptions = ['Bus', 'Bús', 'Aéreo']
+const defaultTransporteOptions = ['Bús', 'Aéreo']
+
+const canonicalTransportLabel = (value?: string | null) => {
+  const normalized = normalizeTransport(value ?? '')
+  if (normalized.includes('aereo')) return 'Aéreo'
+  if (normalized.includes('bus')) return 'Bús'
+  return value ?? 'Bús'
+}
 
 export function DisponibilidadeForm({
   open,
@@ -117,11 +124,27 @@ export function DisponibilidadeForm({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const defaultValues = useMemo(
-    () => ({
+  const defaultValues = useMemo(() => {
+    const busFallback = {
+      adulto: initialData?.preco_adulto ?? '',
+      crianca03: initialData?.preco_crianca_0_3 ?? '',
+      crianca45: initialData?.preco_crianca_4_5 ?? '',
+      crianca6: initialData?.preco_crianca_6_mais ?? '',
+    }
+
+    const aereoFallback = {
+      adulto: initialData?.preco_adulto_aereo ?? busFallback.adulto,
+      crianca02: initialData?.preco_crianca_0_2_aereo ?? busFallback.crianca03,
+      crianca25: initialData?.preco_crianca_2_5_aereo ?? busFallback.crianca45,
+      crianca6:
+        initialData?.preco_crianca_6_mais_aereo ?? (busFallback.crianca6 ?? busFallback.adulto ?? ''),
+      taxa: initialData?.taxa_aereo_por_pessoa ?? '',
+    }
+
+    return {
       destino: initialData?.destino ?? '',
       data_saida: initialData?.data_saida ?? '',
-      transporte: initialData?.transporte ?? 'Bus',
+      transporte: canonicalTransportLabel(initialData?.transporte ?? 'Bus'),
       hotel: initialData?.hotel ?? '',
       quarto_tipo: initialData?.quarto_tipo ?? '',
       slug: initialData?.slug ?? '',
@@ -129,21 +152,20 @@ export function DisponibilidadeForm({
       slug_pacote: initialData?.slug_pacote ?? '',
       slug_pacote_principal: initialData?.slug_pacote_principal ?? '',
       capacidade: initialData?.capacidade ?? '',
-      preco_adulto: initialData?.preco_adulto ?? '',
-      preco_crianca_0_3: initialData?.preco_crianca_0_3 ?? '',
-      preco_crianca_4_5: initialData?.preco_crianca_4_5 ?? '',
-      preco_crianca_6_mais: initialData?.preco_crianca_6_mais ?? '',
-      preco_adulto_aereo: initialData?.preco_adulto_aereo ?? '',
-      preco_crianca_0_2_aereo: initialData?.preco_crianca_0_2_aereo ?? '',
-      preco_crianca_2_5_aereo: initialData?.preco_crianca_2_5_aereo ?? '',
-      preco_crianca_6_mais_aereo: initialData?.preco_crianca_6_mais_aereo ?? '',
-      taxa_aereo_por_pessoa: initialData?.taxa_aereo_por_pessoa ?? '',
+      preco_adulto: busFallback.adulto,
+      preco_crianca_0_3: busFallback.crianca03,
+      preco_crianca_4_5: busFallback.crianca45,
+      preco_crianca_6_mais: busFallback.crianca6,
+      preco_adulto_aereo: aereoFallback.adulto ?? '',
+      preco_crianca_0_2_aereo: aereoFallback.crianca02 ?? '',
+      preco_crianca_2_5_aereo: aereoFallback.crianca25 ?? '',
+      preco_crianca_6_mais_aereo: aereoFallback.crianca6 ?? '',
+      taxa_aereo_por_pessoa: aereoFallback.taxa,
       noites_hotel: initialData?.noites_hotel ?? '',
       dias_viagem: initialData?.dias_viagem ?? '',
       dias_totais: initialData?.dias_totais ?? '',
-    }),
-    [initialData],
-  )
+    }
+  }, [initialData])
 
   const [transporteSelecionado, setTransporteSelecionado] = useState(defaultValues.transporte)
   const [destinoValue, setDestinoValue] = useState(defaultValues.destino)
@@ -372,7 +394,7 @@ export function DisponibilidadeForm({
 
       const destino = stringValue('destino')
       const dataSaida = stringValue('data_saida')
-      const transporte = stringValue('transporte')
+      const transporte = canonicalTransportLabel(stringValue('transporte'))
       const hotel = stringValue('hotel')
       const autoSlug = slugify([hotel, destino, dataSaida].filter(Boolean).join('-'))
       const autoHotelSlug = slugify(hotel)
@@ -409,11 +431,58 @@ export function DisponibilidadeForm({
       }
 
       const parsed = formSchema.parse(payload)
+      const finalPayload = { ...parsed }
+
+      const normalizedTransportKey = normalizeTransport(transporte)
+      if (normalizedTransportKey.includes('aereo')) {
+        const pickNumber = (...values: Array<number | null | undefined>) => {
+          for (const value of values) {
+            if (typeof value === 'number' && !Number.isNaN(value)) {
+              return value
+            }
+          }
+          return null
+        }
+
+        const ensureBaseValue = (
+          field: 'preco_adulto' | 'preco_crianca_0_3' | 'preco_crianca_4_5' | 'preco_crianca_6_mais',
+          ...candidates: Array<number | null | undefined>
+        ) => {
+          if (finalPayload[field] == null) {
+            const fallback = pickNumber(...candidates)
+            if (fallback != null) {
+              finalPayload[field] = fallback
+            }
+          }
+        }
+
+        ensureBaseValue(
+          'preco_adulto',
+          finalPayload.preco_adulto_aereo,
+          initialData?.preco_adulto ?? null,
+        )
+        ensureBaseValue(
+          'preco_crianca_0_3',
+          finalPayload.preco_crianca_0_2_aereo,
+          initialData?.preco_crianca_0_3 ?? null,
+        )
+        ensureBaseValue(
+          'preco_crianca_4_5',
+          finalPayload.preco_crianca_2_5_aereo,
+          initialData?.preco_crianca_4_5 ?? null,
+        )
+        ensureBaseValue(
+          'preco_crianca_6_mais',
+          finalPayload.preco_crianca_6_mais_aereo,
+          finalPayload.preco_adulto_aereo,
+          initialData?.preco_crianca_6_mais ?? null,
+        )
+      }
 
       const response = await fetch('/api/admin/disponibilidades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsed),
+        body: JSON.stringify(finalPayload),
       })
 
       if (!response.ok) {
@@ -445,6 +514,7 @@ export function DisponibilidadeForm({
   return (
     <Dialog open={open} onOpenChange={(value) => !saving && onOpenChange(value)}>
       <DialogContent
+        key={initialData ? `form-${initialData.id ?? initialData.slug ?? initialData.hotel ?? 'copy'}` : 'form-new'}
         ref={setDialogContainer}
         className="w-[min(94vw,860px)] max-w-3xl overflow-hidden rounded-[28px] border border-white/60 bg-white/85 p-0 shadow-[0_36px_120px_rgba(15,23,42,0.18)] backdrop-blur-2xl"
       >

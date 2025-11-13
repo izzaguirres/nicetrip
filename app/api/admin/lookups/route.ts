@@ -12,6 +12,8 @@ type LookupRow = {
   slug?: string | null
   slug_pacote?: string | null
   slug_pacote_principal?: string | null
+  slug_hospedagem?: string | null
+  link_imagem?: string | null
 }
 
 type SupabaseError = { code?: string; message: string }
@@ -24,13 +26,18 @@ const normalizeKey = (value?: string | null) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
 
+const normalizeTransportLabel = (value?: string | null) => {
+  const normalized = normalizeKey(value).replace(/[^a-z]/g, '')
+  if (!normalized) return { key: '', label: value || '' }
+  if (normalized.includes('aer')) return { key: 'aereo', label: 'Aéreo' }
+  if (normalized.includes('bus')) return { key: 'bus', label: 'Bús' }
+  return { key: normalized, label: value || '' }
+}
+
 const cleanValue = (value?: string | null) => {
   const normalized = value?.trim()
   return normalized && normalized.length > 0 ? normalized : null
 }
-
-const normalizeTransportKey = (value?: string | null) =>
-  normalizeKey(value).replace(/[^a-z]/g, '')
 
 const formatDate = (value?: string | null) => {
   if (!value) return null
@@ -82,9 +89,10 @@ export async function GET() {
 
     const baseColumns = ['destino', 'hotel', 'transporte', 'quarto_tipo', 'capacidade', 'data_saida'] as const
     const selectCandidates = [
-      [...baseColumns, 'slug', 'slug_pacote', 'slug_pacote_principal'],
-      [...baseColumns, 'slug', 'slug_pacote_principal'],
-      [...baseColumns, 'slug'],
+      [...baseColumns, 'slug', 'slug_pacote', 'slug_pacote_principal', 'slug_hospedagem', 'link_imagem'],
+      [...baseColumns, 'slug', 'slug_pacote_principal', 'slug_hospedagem', 'link_imagem'],
+      [...baseColumns, 'slug', 'slug_hospedagem', 'link_imagem'],
+      [...baseColumns, 'slug', 'slug_hospedagem'],
       baseColumns,
     ] as const
 
@@ -143,13 +151,30 @@ export async function GET() {
           quarto_tipo?: string | null
           capacidade?: number | null
           data_saida?: string | null
+          slug_hospedagem?: string | null
+          image_url?: string | null
+        }
+      }
+    >()
+    const hospedagemMap = new Map<
+      string,
+      {
+        value: string
+        label: string
+        destination?: string | null
+        description?: string | null
+        meta: {
+          destino?: string | null
+          hotel?: string | null
+          transporte?: string | null
+          image_url?: string | null
         }
       }
     >()
     const roomTypeSet = new Set<string>()
     const capacitySet = new Set<number>()
 
-    const registerPackage = (slug: string | null | undefined, row: LookupRow) => {
+    const registerPackage = (slug: string | null | undefined, row: LookupRow, tag?: string) => {
       if (!slug || packageMap.has(slug)) return
 
       const parts = [
@@ -165,19 +190,25 @@ export async function GET() {
         row.destino && cleanValue(row.destino),
         row.transporte && cleanValue(row.transporte),
         typeof row.capacidade === 'number' ? `${row.capacidade} pax` : null,
+        tag,
       ].filter(Boolean)
 
-      packageMap.set(slug, {
+      packageMap.set(tag ? `${slug}::${tag}` : slug, {
         value: slug,
         label,
         description: descriptionParts.length ? descriptionParts.join(' • ') : undefined,
         meta: {
           destino: cleanValue(row.destino),
+          destino_key: normalizeKey(row.destino),
           hotel: cleanValue(row.hotel),
+          hotel_key: normalizeKey(row.hotel),
           transporte: cleanValue(row.transporte),
+          transport_info: normalizeTransportLabel(row.transporte),
           quarto_tipo: cleanValue(row.quarto_tipo),
           capacidade: row.capacidade ?? null,
           data_saida: row.data_saida ?? null,
+          slug_hospedagem: cleanValue(row.slug_hospedagem),
+          image_url: cleanValue(row.link_imagem),
         },
       })
     }
@@ -186,7 +217,7 @@ export async function GET() {
       const destino = cleanValue(row.destino)
       const destinoKey = normalizeKey(destino)
       const transporte = cleanValue(row.transporte)
-      const transporteKey = normalizeTransportKey(transporte)
+      const transportInfo = normalizeTransportLabel(row.transporte)
       const hotel = cleanValue(row.hotel)
       const quartoTipo = cleanValue(row.quarto_tipo)
 
@@ -194,8 +225,8 @@ export async function GET() {
         const current = destinationMap.get(destinoKey)
         const transports = current?.transports ?? new Set<string>()
         const transportKeys = current?.transportKeys ?? new Set<string>()
-        if (transporte) transports.add(transporte)
-        if (transporteKey) transportKeys.add(transporteKey)
+        if (transportInfo.label) transports.add(transportInfo.label)
+        if (transportInfo.key) transportKeys.add(transportInfo.key)
 
         if (!current || destino.length > current.label.length) {
           destinationMap.set(destinoKey, {
@@ -215,8 +246,8 @@ export async function GET() {
         const mapKey = `${normalizeKey(hotel)}::${destinationKey}`
         const transports = hotelMap.get(mapKey)?.transports ?? new Set<string>()
         const transportKeys = hotelMap.get(mapKey)?.transportKeys ?? new Set<string>()
-        if (transporte) transports.add(transporte)
-        if (transporteKey) transportKeys.add(transporteKey)
+        if (transportInfo.label) transports.add(transportInfo.label)
+        if (transportInfo.key) transportKeys.add(transportInfo.key)
 
         const shouldReplace = !hotelMap.has(mapKey) || (destino && destino.length > (hotelMap.get(mapKey)?.destination?.length ?? 0))
 
@@ -244,9 +275,25 @@ export async function GET() {
         capacitySet.add(row.capacidade)
       }
 
-      registerPackage(row.slug_pacote, row)
-      registerPackage(row.slug_pacote_principal, row)
+      registerPackage(row.slug_pacote, row, 'pacote')
+      registerPackage(row.slug_pacote_principal, row, 'principal')
       registerPackage(row.slug, row)
+
+      const slugHosp = cleanValue(row.slug_hospedagem)
+      if (slugHosp && !hospedagemMap.has(slugHosp)) {
+        hospedagemMap.set(slugHosp, {
+          value: slugHosp,
+          label: cleanValue(row.hotel) || slugHosp,
+          destination: cleanValue(row.destino),
+          description: row.destino ? `${row.destino}${row.transporte ? ` • ${row.transporte}` : ''}` : undefined,
+          meta: {
+            destino: cleanValue(row.destino),
+            hotel: cleanValue(row.hotel),
+            transporte: cleanValue(row.transporte),
+            image_url: cleanValue(row.link_imagem),
+          },
+        })
+      }
     }
 
     const destinations = Array.from(destinationMap.values())
@@ -281,6 +328,7 @@ export async function GET() {
       packages,
       room_types: Array.from(roomTypeSet).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })),
       capacities: Array.from(capacitySet).sort((a, b) => a - b),
+      hospedagens: Array.from(hospedagemMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })),
     })
   } catch (error) {
     console.error('[admin/lookups] failed to load references:', error)

@@ -109,30 +109,37 @@ export function SingleSelectCombobox({
             aria-expanded={open}
             disabled={disabled}
             className={cn(
-              "w-full justify-between py-5 text-left",
+              "w-full justify-between py-5 text-left min-h-[48px]",
               adminFieldClass,
               disabled && "opacity-70",
             )}
           >
-            <span className="flex flex-1 items-center gap-2">
-              <span className={cn("truncate text-sm", value ? "text-slate-700" : "text-muted-foreground")}>
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className={cn("truncate text-sm", value ? "text-slate-700" : "text-muted-foreground")}> 
                 {displayLabel}
               </span>
             </span>
             <div className="flex items-center gap-1">
               {clearable && value && (
-                <button
-                  type="button"
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()
                     handleClear()
                   }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      handleClear()
+                    }
+                  }}
                   className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                   aria-label="Limpar seleção"
                 >
                   <X className="h-3.5 w-3.5" />
-                </button>
+                </span>
               )}
               <ChevronsUpDown className="h-4 w-4 text-slate-400" />
             </div>

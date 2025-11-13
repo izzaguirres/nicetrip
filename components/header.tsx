@@ -98,7 +98,8 @@ export function Header() {
               <Link
                 href={TARIFARIOS_PDF_URL}
                 className={getLinkClasses("/tarifarios")}
-                download
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 Tarifários Completos
               </Link>

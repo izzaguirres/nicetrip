@@ -32,7 +32,26 @@ interface DisponibilidadesTableProps {
     destino?: string
     transporte?: string
     data_saida?: string
+    hotel?: string
   }
+  lookupDestinos: string[]
+  lookupHoteis: string[]
+}
+
+const TRANSPORT_OPTIONS = [
+  { value: 'bus', label: 'Bús' },
+  { value: 'aereo', label: 'Aéreo' },
+]
+
+const normalizeTransportFilter = (value?: string) => {
+  if (!value) return ''
+  const normalized = value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[^a-z]/g, '')
+  if (normalized.includes('aer')) return 'aereo'
+  if (normalized.includes('bus')) return 'bus'
+  return value
 }
 
 const formatDate = (value?: string | null) => {
@@ -57,6 +76,8 @@ export function DisponibilidadesTable({
   page,
   limit,
   filters,
+  lookupDestinos,
+  lookupHoteis,
 }: DisponibilidadesTableProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -68,7 +89,8 @@ export function DisponibilidadesTable({
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const [filterDestino, setFilterDestino] = useState(filters.destino ?? '')
-  const [filterTransporte, setFilterTransporte] = useState(filters.transporte ?? '')
+  const [filterHotel, setFilterHotel] = useState(filters.hotel ?? '')
+  const [filterTransporte, setFilterTransporte] = useState(normalizeTransportFilter(filters.transporte))
   const [filterData, setFilterData] = useState(filters.data_saida ?? '')
 
   const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)))
@@ -116,6 +138,7 @@ export function DisponibilidadesTable({
     event.preventDefault()
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     filterDestino ? params.set('destino', filterDestino) : params.delete('destino')
+    filterHotel ? params.set('hotel', filterHotel) : params.delete('hotel')
     filterTransporte ? params.set('transporte', filterTransporte) : params.delete('transporte')
     filterData ? params.set('data_saida', filterData) : params.delete('data_saida')
     params.delete('page')
@@ -129,14 +152,6 @@ export function DisponibilidadesTable({
     params.set('limit', String(limit))
     router.replace(`/admin/disponibilidades?${params.toString()}`)
   }
-
-  const transporteOptions = useMemo(() => {
-    const base = new Set<string>(['Bus', 'Bús', 'Aéreo'])
-    records.forEach((record) => {
-      if (record.transporte) base.add(record.transporte)
-    })
-    return Array.from(base)
-  }, [records])
 
   return (
     <div className="space-y-6">
@@ -157,17 +172,64 @@ export function DisponibilidadesTable({
 
       <AdminSurface className="p-5">
         <form
-          className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]"
+          className="grid gap-3 md:grid-cols-[2fr_2fr_1fr_1fr_auto]"
           onSubmit={handleFilterSubmit}
         >
         <div className="grid gap-2">
           <LabelSmall>Destino</LabelSmall>
-          <Input
-            placeholder="Ex.: Florianópolis"
-            value={filterDestino}
-            onChange={(event) => setFilterDestino(event.target.value)}
-            className={adminInputClass}
-          />
+          {lookupDestinos.length > 0 ? (
+            <Select
+              value={filterDestino ? filterDestino : 'all'}
+              onValueChange={(value) => setFilterDestino(value === 'all' ? '' : value)}
+            >
+              <SelectTrigger className={adminSelectTriggerClass}>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {lookupDestinos.map((destino) => (
+                  <SelectItem key={destino} value={destino}>
+                    {destino}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              placeholder="Ex.: Florianópolis"
+              value={filterDestino}
+              onChange={(event) => setFilterDestino(event.target.value)}
+              className={adminInputClass}
+            />
+          )}
+        </div>
+        <div className="grid gap-2">
+          <LabelSmall>Hotel</LabelSmall>
+          {lookupHoteis.length > 0 ? (
+            <Select
+              value={filterHotel ? filterHotel : 'all'}
+              onValueChange={(value) => setFilterHotel(value === 'all' ? '' : value)}
+            >
+              <SelectTrigger className={adminSelectTriggerClass}>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {lookupHoteis.map((hotel) => (
+                  <SelectItem key={hotel} value={hotel}>
+                    {hotel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              placeholder="Hotel ou pousada"
+              value={filterHotel}
+              onChange={(event) => setFilterHotel(event.target.value)}
+              className={adminInputClass}
+            />
+          )}
         </div>
         <div className="grid gap-2">
           <LabelSmall>Transporte</LabelSmall>
@@ -180,9 +242,9 @@ export function DisponibilidadesTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {transporteOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
+              {TRANSPORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -206,6 +268,7 @@ export function DisponibilidadesTable({
             variant="outline"
             onClick={() => {
               setFilterDestino('')
+              setFilterHotel('')
               setFilterTransporte('')
               setFilterData('')
               router.replace('/admin/disponibilidades')

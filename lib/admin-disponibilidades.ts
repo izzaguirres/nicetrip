@@ -6,8 +6,14 @@ export interface DisponibilidadeListOptions {
   destino?: string
   transporte?: string
   data_saida?: string
+  hotel?: string
   limit?: number
   offset?: number
+}
+
+export interface DisponibilidadeLookups {
+  destinos: string[]
+  hoteis: string[]
 }
 
 export interface DisponibilidadeUpsertInput {
@@ -72,6 +78,29 @@ const slugify = (value: string | null | undefined) =>
     .normalize('NFD')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '')
+
+const TRACKED_FIELDS = [
+  'destino',
+  'hotel',
+  'transporte',
+  'data_saida',
+  'quarto_tipo',
+  'capacidade',
+  'preco_adulto',
+  'preco_adulto_aereo',
+  'taxa_aereo_por_pessoa',
+]
+
+const SUMMARY_FIELDS = ['slug', 'hotel', 'destino', 'transporte', 'capacidade', 'data_saida']
+
+const valueEquals = (a: unknown, b: unknown) => {
+  if (a === b) return true
+  if (a == null && b == null) return true
+  if (typeof a === 'number' && typeof b === 'number') {
+    return Number.isNaN(a) && Number.isNaN(b) ? true : a === b
+  }
+  return false
+}
 
 const isMissingSlugColumnError = (error: { message?: string | null; code?: string | null } | null) => {
   if (!error) return false
@@ -143,6 +172,7 @@ export async function listAdminDisponibilidades({
   destino,
   transporte,
   data_saida,
+  hotel,
   limit = 50,
   offset = 0,
 }: DisponibilidadeListOptions = {}) {
@@ -152,15 +182,29 @@ export async function listAdminDisponibilidades({
     .from('disponibilidades')
     .select('*', { count: 'exact' })
     .order('data_saida', { ascending: true })
+    .order('id', { ascending: true })
 
   if (destino) {
     query = query.ilike('destino', `%${destino}%`)
   }
   if (transporte) {
-    query = query.ilike('transporte', `%${transporte}%`)
+    const normalized = transporte
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[^a-z]/g, '')
+    if (normalized.includes('aer')) {
+      query = query.or("transporte.ilike.%Aéreo%,transporte.ilike.%Aereo%")
+    } else if (normalized.includes('bus')) {
+      query = query.or("transporte.ilike.%Bús%,transporte.ilike.%Bus%")
+    } else {
+      query = query.ilike('transporte', `%${transporte}%`)
+    }
   }
   if (data_saida) {
     query = query.eq('data_saida', data_saida)
+  }
+  if (hotel) {
+    query = query.ilike('hotel', `%${hotel}%`)
   }
 
   const to = offset + limit - 1
@@ -178,11 +222,45 @@ export async function listAdminDisponibilidades({
   }
 }
 
+export async function listDisponibilidadeLookups(): Promise<DisponibilidadeLookups> {
+  const supabase = await supabaseServer()
+
+  const [{ data: destinosData }, { data: hotelData }] = await Promise.all([
+    supabase.from('disponibilidades').select('destino', { distinct: true }).order('destino', { ascending: true }),
+    supabase.from('disponibilidades').select('hotel', { distinct: true }).order('hotel', { ascending: true }),
+  ])
+
+  const normalize = (value?: string | null) => (value || '').trim()
+  const uniqueValues = (items: any[], key: string) =>
+    Array.from(
+      new Set(
+        (items || [])
+          .map((item) => normalize(item?.[key]))
+          .filter((value): value is string => Boolean(value)),
+      ),
+    )
+
+  return {
+    destinos: uniqueValues(destinosData || [], 'destino'),
+    hoteis: uniqueValues(hotelData || [], 'hotel'),
+  }
+}
+
 export async function upsertDisponibilidade(
   payload: DisponibilidadeUpsertInput,
   userId?: string,
 ) {
   const supabase = await supabaseServer()
+
+  let previousRecord: Disponibilidade | null = null
+  if (payload.id) {
+    const { data: existing } = await supabase
+      .from('disponibilidades')
+      .select('*')
+      .eq('id', payload.id)
+      .maybeSingle()
+    if (existing) previousRecord = existing as Disponibilidade
+  }
 
   const autoSlug = slugify(`${payload.hotel}-${payload.destino}-${payload.data_saida}`)
   const autoHotelSlug = slugify(payload.hotel)
@@ -260,12 +338,40 @@ export async function upsertDisponibilidade(
     throw new Error(`Erro ao salvar disponibilidade: ${response.error.message}`)
   }
 
+  const action = payload.id ? 'update' : 'insert'
+  const summary: Record<string, unknown> = {}
+  SUMMARY_FIELDS.forEach((field) => {
+    const value = (recordData as any)[field]
+    if (value !== undefined) {
+      summary[field] = value
+    }
+  })
+
+  const auditPayload: Record<string, unknown> = { summary }
+  if (action === 'update' && previousRecord) {
+    const changes: Record<string, { before: unknown; after: unknown }> = {}
+    TRACKED_FIELDS.forEach((field) => {
+      const before = (previousRecord as any)[field]
+      const after = (recordData as any)[field]
+      if (!valueEquals(before, after)) {
+        changes[field] = { before: before ?? null, after: after ?? null }
+      }
+    })
+    if (Object.keys(changes).length) {
+      auditPayload.changes = changes
+    }
+  }
+
+  if (action === 'insert') {
+    auditPayload.snapshot = summary
+  }
+
   await insertAuditLog(
     {
       entity: 'disponibilidade',
       entityId: String(response.data?.id ?? payload.id ?? ''),
-      action: payload.id ? 'update' : 'insert',
-      data: recordData,
+      action,
+      data: auditPayload,
       performedBy: userId,
     },
     supabase,

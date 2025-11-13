@@ -18,6 +18,20 @@ const formatDateTime = (iso: string) =>
     minute: '2-digit',
 })
 
+const formatValue = (value: unknown) => {
+  if (value == null || value === '') return '—'
+  if (typeof value === 'number') return value
+  return String(value)
+}
+
+const interestingFields = ['slug', 'hotel', 'destino', 'transporte', 'capacidade', 'data_saida']
+
+const renderSummary = (summary: Record<string, unknown>) =>
+  interestingFields
+    .filter((field) => summary[field] !== undefined)
+    .map((field) => `${field}: ${formatValue(summary[field])}`)
+    .join(' · ')
+
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
@@ -107,9 +121,34 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {entry.payload ? (
-                    <code className="block max-w-md overflow-hidden text-ellipsis whitespace-pre-wrap">
-                      {JSON.stringify(entry.payload, null, 2)}
-                    </code>
+                    <div className="space-y-2">
+                      {entry.payload.summary && (
+                        <div>
+                          <p className="font-semibold text-slate-700">Resumo</p>
+                          <p>{renderSummary(entry.payload.summary)}</p>
+                        </div>
+                      )}
+                      {entry.payload.changes && (
+                        <div>
+                          <p className="font-semibold text-slate-700">Alterações</p>
+                          <ul className="list-disc pl-4">
+                            {Object.entries(entry.payload.changes as Record<string, { before: unknown; after: unknown }>).map(
+                              ([field, diff]) => (
+                                <li key={field}>
+                                  <span className="font-semibold">{field}</span>: {formatValue(diff.before)} → {formatValue(diff.after)}
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                      {!entry.payload.summary && !entry.payload.changes && entry.payload.snapshot && (
+                        <div>
+                          <p className="font-semibold text-slate-700">Snapshot</p>
+                          <p>{renderSummary(entry.payload.snapshot)}</p>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     '—'
                   )}

@@ -17,6 +17,7 @@ import { HabitacionesSearchFilter } from "@/components/habitaciones-search-filte
 import { PaseosSearchFilter } from "@/components/paseos-search-filter"
 import { Avatar, AvatarImage } from "@/components/ui/avatar"
 import { TARIFARIOS_PDF_URL } from "@/lib/constants"
+import { PromotionsSection } from "@/components/promotions-section"
 
 
 // Testimonial Badge Component
@@ -164,6 +165,8 @@ export default function HomePage() {
                   <Link
                     href={TARIFARIOS_PDF_URL}
                     download
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="inline-flex items-center justify-center text-white text-sm font-semibold underline underline-offset-4"
                   >
                     Descargar Tarifários Completos
@@ -189,6 +192,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        <PromotionsSection />
         <BenefitsSection />
         <TestimonialsSection />
         <QuemSomosSection />

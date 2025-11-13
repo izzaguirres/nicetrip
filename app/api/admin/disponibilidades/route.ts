@@ -42,6 +42,7 @@ export async function GET(request: Request) {
     const destino = searchParams.get('destino') || undefined
     const transporte = searchParams.get('transporte') || undefined
     const data_saida = searchParams.get('data_saida') || undefined
+    const hotel = searchParams.get('hotel') || undefined
     const limit = Number(searchParams.get('limit') || '50')
     const page = Number(searchParams.get('page') || '1')
     const offset = Math.max(0, (page - 1) * limit)
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
       destino,
       transporte,
       data_saida,
+      hotel,
       limit,
       offset,
     })

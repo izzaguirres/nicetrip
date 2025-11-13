@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Disponibilidade, DiscountRule } from './supabase'
+import type { Disponibilidade, DiscountRule, Promotion, PromotionType } from './supabase'
 import { createLogger } from './logger'
 import { FALLBACK_DISPONIBILIDADES } from './fallback-data'
 
@@ -30,6 +30,9 @@ let dataCache: {
   data: null,
   timestamp: 0
 }
+
+const PROMOTION_CACHE_DURATION = 60 * 1000
+const promotionCache = new Map<string, { timestamp: number; data: Promotion[] }>()
 
 const normalizeText = (value?: string) =>
   (value || '')
@@ -339,6 +342,48 @@ export async function fetchActiveDiscountRules(
     })
   } catch (error) {
     log.error('❌ fetchActiveDiscountRules error', error)
+    return []
+  }
+}
+
+interface PromotionQueryOptions {
+  type?: PromotionType
+  limit?: number
+  includeInactive?: boolean
+}
+
+export async function fetchPromotions(options: PromotionQueryOptions = {}): Promise<Promotion[]> {
+  try {
+    const cacheKey = `${options.type || 'all'}_${options.includeInactive ? 'all' : 'active'}_${options.limit || 'all'}`
+    const cached = promotionCache.get(cacheKey)
+    const now = Date.now()
+    if (cached && now - cached.timestamp < PROMOTION_CACHE_DURATION) {
+      return cached.data
+    }
+
+    let query = supabase.from<Promotion>('promotions').select('*')
+    if (options.type) {
+      query = query.eq('type', options.type)
+    }
+    if (!options.includeInactive) {
+      query = query.eq('is_active', true)
+    }
+    query = query.order('position', { ascending: true }).order('created_at', { ascending: true })
+    if (options.limit) {
+      query = query.limit(options.limit)
+    }
+
+    const { data, error } = await query
+    if (error) {
+      log.error('❌ Erro ao buscar promoções', error)
+      return []
+    }
+
+    const result = (data || []) as Promotion[]
+    promotionCache.set(cacheKey, { timestamp: now, data: result })
+    return result
+  } catch (error) {
+    log.error('❌ fetchPromotions error', error)
     return []
   }
 }

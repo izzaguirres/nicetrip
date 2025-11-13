@@ -147,6 +147,34 @@ export type DiscountRule = {
   updated_at: string
 }
 
+export type PromotionType = 'paquete' | 'hospedaje' | 'paseo'
+
+export type Promotion = {
+  id: string
+  type: PromotionType
+  position: number
+  title: string
+  subtitle: string | null
+  destino: string | null
+  hotel: string | null
+  transporte: string | null
+  slug_disponibilidade: string | null
+  slug_hospedagem: string | null
+  slug_paseo: string | null
+  price_single: number | null
+  price_double: number | null
+  price_triple: number | null
+  price_quad: number | null
+  price_quint: number | null
+  cta_label: string | null
+  cta_url: string | null
+  image_url: string | null
+  departure_date: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export type SearchEvent = {
   id: string
   filters: Record<string, unknown>

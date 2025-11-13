@@ -5,11 +5,12 @@ import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { LayoutDashboard, Percent, CalendarDays, BarChart3, LogOut, Users } from 'lucide-react'
+import { LayoutDashboard, Percent, CalendarDays, BarChart3, LogOut, Users, Sparkles } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/discounts', label: 'Regras de desconto', icon: Percent },
+  { href: '/admin/promotions', label: 'Promoções', icon: Sparkles },
   { href: '/admin/disponibilidades', label: 'Disponibilidades', icon: CalendarDays },
   { href: '/admin/users', label: 'Usuários', icon: Users },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
