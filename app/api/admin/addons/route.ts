@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { upsertAddon, deleteAddon } from "@/lib/admin-addons"
-
-// Inicializar cliente Supabase com Service Role para admin
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
 export async function POST(req: NextRequest) {
   try {
