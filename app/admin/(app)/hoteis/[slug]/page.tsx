@@ -47,6 +47,16 @@ export default async function HotelManagerPage({ params, searchParams }: PagePro
           images: fromDb.images || [],
           amenities: fromDb.comodidades || fromDb.amenities || []
         }
+
+        // Se não tem imagens no banco, tentar puxar do hardcoded como "seed"
+        if (hotelData.images.length === 0) {
+           const fromHardcoded = getHotelData(slug)
+           if (fromHardcoded && fromHardcoded.displayName !== "Hotel não encontrado") {
+              hotelData.images = fromHardcoded.imageFiles.map((img: any) => 
+                typeof img === 'string' ? img : (img.src || "")
+              ).filter(Boolean)
+           }
+        }
       } else {
         // 3. Se não achou no banco, tentar Hardcoded (Migração)
         const fromHardcoded = getHotelData(slug)
