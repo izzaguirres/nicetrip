@@ -4,14 +4,15 @@ import { createLogger } from './logger'
 import { FALLBACK_DISPONIBILIDADES, FALLBACK_ADDONS } from './fallback-data'
 
 // ✅ SERVIÇO ÚNICO DE DADOS - SEMPRE SUPABASE
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('❌ SUPABASE CREDENTIALS MISSING - System cannot work without database')
+// Evita crash no build time se variáveis não existirem
+if ((!supabaseUrl || !supabaseKey) && process.env.NODE_ENV !== 'production') {
+  console.warn('⚠️ SUPABASE CREDENTIALS MISSING - Operations will fail')
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder')
 const log = createLogger('supabase-service')
 log.debug('🎯 SUPABASE SERVICE: Inicializado com conexão real')
 log.debug('🔗 URL configured?', !!supabaseUrl)
