@@ -57,8 +57,14 @@ export async function getAdminDashboardData() {
 
   searches?.forEach((s: any) => {
     const f = s.filters || {}
-    const dest = f.destino || f.destination || 'Destino geral'
-    const trans = f.transporte || f.transport || 'Busca'
+    // Ignorar buscas vazias (navegação pura)
+    if (!f.destino && !f.destination && !f.transporte && !f.transport && !f.data_saida && !f.dateRange) {
+       return
+    }
+
+    const dest = f.destino || f.destination || 'Todos los destinos'
+    const trans = f.transporte || f.transport || 'Filtro geral'
+    
     activityFeed.push({
       id: s.id,
       type: 'search',

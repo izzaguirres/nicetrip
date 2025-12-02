@@ -458,19 +458,102 @@ export default function DetalhesPage() {
 
   const toISODate = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
   
-  const buildPackageWhatsappData = () => {
-    // ... Lógica de WhatsApp simplificada aqui se necessário, ou extrair também ...
-    // Para manter o arquivo pequeno, o ideal seria extrair, mas vou manter aqui por enquanto.
-    return {
-        destino, hotel: displayName, transporte, total: precoTotalReal
-    }
-  }
-  
   const sendPackageWhatsapp = (origin: string) => {
     const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || ''
-    // Reconstruir a mensagem completa (simplificada para o exemplo)
-    const mensagem = `Hola! Quiero reservar ${displayName} en ${destino}. Total: ${formatPriceWithCurrency(precoTotalReal)}`
-    openWhatsapp(phone, encodeURIComponent(mensagem))
+    
+    // Mapear quartos para o formato do helper
+    const quartosNormalizados = quartosIndividuais.map(q => ({
+      label: `Habitación ${q.numero}`,
+      adultos: q.adultos,
+      children0to3: q.criancas_0_3,
+      children4to5: q.criancas_4_5,
+      children6plus: q.criancas_6,
+      tipo: quartosDetalhados[q.numero - 1]?.tipo || 'Estándar'
+    }))
+
+    // Calcular data de volta aproximada se não tivermos
+    let dataIda = dataViagem;
+    let dataVoltaStr = '';
+    
+    if (dataFiltro) {
+       const [ano, mes, dia] = dataFiltro.split('-').map(Number);
+       dataIda = new Date(ano, mes - 1, dia);
+       const diasTotais = diasNoites.dias;
+       const volta = new Date(dataIda);
+       volta.setDate(volta.getDate() + diasTotais);
+       dataVoltaStr = toISODate(volta);
+    }
+
+    // Formatar descontos
+    const descontosFormatados = appliedDiscountRules.map(rule => ({
+      name: rule.ruleName,
+      amount: rule.discountAmount
+    }))
+
+    // Formatar extras (addons)
+    const extrasNomes = selectedAddonsDetails.map(addon => `${addon.name} ($ ${formatPrice(addon.price)})`)
+    if (taxesAereo > 0) {
+      extrasNomes.push(`Tasas e impuestos aéreos ($ ${formatPrice(taxesAereo)})`)
+    }
+
+    // Preparar payload
+    const payload: any = {
+      destino,
+      hotel: displayName,
+      transporte: `${transporte}${saida ? ` desde ${saida}` : ''}`,
+      fecha_salida: dataFiltro,
+      fecha_regreso: dataVoltaStr,
+      noches: diasNoites.noites,
+      habitaciones: quartosNormalizados,
+      total: precoTotalReal,
+      total_original: packageBaseOriginal + addonsPrice + taxesAereo, // Aproximação do original total
+      currency: 'USD',
+      installments: {
+        count: installments,
+        value: installmentValue,
+        currency: 'USD' // Assumindo USD para parcelas conforme contexto, ou BRL se for o caso (aqui mantive USD pois o preço base é USD)
+      },
+      descuentos: descontosFormatados,
+      extras: extrasNomes,
+      link: typeof window !== 'undefined' ? window.location.href : '',
+    }
+
+    // Adicionar voos se tiver
+    if (voosInfo) {
+      payload.voos = [
+        ...voosInfo.ida.map(v => ({ 
+          data: v.departure_time?.split('T')[0], 
+          origem_iata: v.origin_airport_code, 
+          destino_iata: v.destination_airport_code, 
+          saida: v.departure_time?.split('T')[1]?.slice(0,5), 
+          chegada: v.arrival_time?.split('T')[1]?.slice(0,5) 
+        })),
+        ...voosInfo.volta.map(v => ({ 
+          data: v.departure_time?.split('T')[0], 
+          origem_iata: v.origin_airport_code, 
+          destino_iata: v.destination_airport_code, 
+          saida: v.departure_time?.split('T')[1]?.slice(0,5), 
+          chegada: v.arrival_time?.split('T')[1]?.slice(0,5) 
+        }))
+      ]
+      if (voosInfo.bagagem) {
+        payload.bagagem = voosInfo.bagagem
+      }
+    }
+
+    // Gerar mensagem
+    const mensagemCodificada = buildWhatsappMessage('paquete', payload)
+    
+    // Log de conversão
+    logWhatsappConversion({
+      tipo: 'whatsapp_click',
+      origin,
+      destino,
+      hotel: displayName,
+      valor: precoTotalReal
+    })
+
+    openWhatsapp(phone, mensagemCodificada)
   }
 
   return (
