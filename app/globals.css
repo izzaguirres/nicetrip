@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    
+    /* Vibrant Orange Brand Colors */
+    --brand-50: 30 100% 97%;
+    --brand-100: 30 100% 94%;
+    --brand-200: 30 100% 88%;
+    --brand-300: 30 100% 78%;
+    --brand-400: 30 98% 65%;
+    --brand-500: 27 96% 61%; /* Main Brand Color #FF6B35 approx */
+    --brand-600: 24 94% 50%;
+    --brand-700: 20 88% 40%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 27 96% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 27 96% 61%;
+    --radius: 1rem; /* More rounded overall */
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 27 96% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 27 96% 61%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+}
+
+@layer components {
+  /* Ultra-Premium Glassmorphism */
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.08)];
+  }
+  
+  .glass-card {
+    @apply bg-white rounded-3xl shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-slate-100 transition-all duration-300 hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:-translate-y-1;
+  }
+
+  /* Liquid Orange Button - O destaque */
+  .btn-liquid-orange {
+    @apply relative overflow-hidden bg-gradient-to-br from-[#FF8F00] via-[#FF6B35] to-[#FF5722] text-white font-bold shadow-[0_4px_14px_rgba(255,107,53,0.4)] transition-all duration-300 hover:shadow-[0_6px_20px_rgba(255,107,53,0.6)] hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  .btn-liquid-orange::after {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] transition-transform duration-700 ease-in-out;
+  }
+  
+  .btn-liquid-orange:hover::after {
+    @apply translate-x-[100%];
+  }
+
+  /* Clean Search Inputs */
+  .search-input-wrapper {
+    @apply relative bg-white border border-slate-200 rounded-2xl shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-[#FF6B35]/20 focus-within:border-[#FF6B35];
+  }
+}
+
+@layer utilities {
+  .navbar-fixed {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+    width: 100% !important;
+  }
+
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

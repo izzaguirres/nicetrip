@@ -1,0 +1,44 @@
+{
+  "label": "aereo-04-jan-2-adultos-2-criancas",
+  "filters": {
+    "destino": "Canasvieiras",
+    "transporte": "Aéreo",
+    "data_saida": "2026-01-04"
+  },
+  "people": {
+    "adultos": 2,
+    "criancas_0_3": 1,
+    "criancas_4_5": 1,
+    "criancas_6_mais": 0
+  },
+  "supabaseRows": [
+    {
+      "id": 202,
+      "destino": "Canasvieiras",
+      "data_saida": "2026-01-04",
+      "transporte": "Aéreo",
+      "hotel": "HOTEL FÊNIX",
+      "quarto_tipo": "Triple",
+      "capacidade": 3,
+      "preco_adulto": 800,
+      "preco_crianca_0_3": 160,
+      "preco_crianca_4_5": 500,
+      "preco_crianca_6_mais": 800,
+      "noites_hotel": 7,
+      "dias_viagem": 8,
+      "dias_totais": 8,
+      "slug": "canasvieiras-hotel-fenix",
+      "slug_hospedagem": "hotel-fenix",
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "expectedResults": [
+    {
+      "hotel": "HOTEL FÊNIX",
+      "total": 2560,
+      "perPerson": 640,
+      "installments": 8,
+      "installmentValue": 320
+    }
+  ]
+}

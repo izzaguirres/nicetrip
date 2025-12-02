@@ -1,0 +1,3 @@
+destino,data_saida,transporte,hotel,quarto_tipo,capacidade,preco_adulto,preco_crianca_0_3,preco_crianca_4_5,preco_crianca_6_mais,noites_hotel,dias_viagem,dias_totais,slug,slug_hospedagem,slug_pacote,slug_pacote_principal
+Canasvieiras,2025-10-19,Bus,Residencial Terrazas,Cuádruple,4,490,50,350,490,7,3,10,residencial-terrazas-canasvieiras-19-out,terrazas-canasvieiras,residencial-terrazas-2025,terrazas-main,Buenos Aires
+Florianópolis,2025-11-02,Aéreo,Hotel Fenix,Doble,2,680,160,500,680,5,2,7,hotel-fenix-floripa-02-nov,hotel-fenix,hotel-fenix-2025-11,hotel-fenix-master,Córdoba

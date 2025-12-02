@@ -1,0 +1,27 @@
+{
+  "label": "hospedagem-canasvieiras-checkin",
+  "filters": {
+    "destino": "Canasvieiras",
+    "checkin": "2025-01-10",
+    "checkout": "2025-01-15"
+  },
+  "room": {
+    "adultos": 2,
+    "criancas_0_3": 1,
+    "criancas_4_5": 0,
+    "criancas_6": 0
+  },
+  "daily": {
+    "slug_hospedagem": "residencial-terrazas",
+    "hotel": "Residencial Terrazas",
+    "tipo_quarto": "Habitación Triple",
+    "capacidade": 3,
+    "valor_diaria": 180,
+    "noites": 5
+  },
+  "expected": {
+    "total": 900,
+    "preco_por_noite": 180,
+    "tipo_quarto": "Doble"
+  }
+}
