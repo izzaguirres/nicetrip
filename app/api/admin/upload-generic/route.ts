@@ -34,9 +34,11 @@ export async function POST(request: Request) {
     await ensureAdmin()
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error('Configuração de servidor incompleta')
+    // Tentar Service Role (Admin total) -> Fallback para Anon Key (RLS)
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Configuração de servidor incompleta: Faltam chaves do Supabase')
     }
 
     const formData = await request.formData()
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Arquivo inválido' }, { status: 400 })
     }
 
-    const client = createClient(supabaseUrl, serviceRoleKey)
+    const client = createClient(supabaseUrl, supabaseKey)
     await ensureBucket(client, bucketName)
 
     // Sanitizar nome e criar path único
