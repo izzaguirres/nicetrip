@@ -84,12 +84,17 @@ export function HotelForm({ initialData, isNew = false, disponibilidades = [] }:
     if (!files || files.length === 0) return
 
     setUploading(true)
+    console.log('Iniciando upload de', files.length, 'arquivos...')
+
     try {
       const newImages = [...data.images]
       
       for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        console.log(`Enviando arquivo ${i + 1}/${files.length}:`, file.name)
+
         const formData = new FormData()
-        formData.append("file", files[i])
+        formData.append("file", file)
         formData.append("bucket", "hotel-images")
         formData.append("folder", data.slug)
 
@@ -98,15 +103,33 @@ export function HotelForm({ initialData, isNew = false, disponibilidades = [] }:
           body: formData,
         })
 
-        if (!res.ok) throw new Error(`Falha no arquivo ${files[i].name}`)
-        const { url } = await res.json()
-        newImages.push(url)
+        console.log('Status resposta:', res.status)
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            console.error('Erro no upload:', errData)
+            throw new Error(errData.error || `Falha no arquivo ${file.name} (${res.status})`)
+        }
+        
+        const json = await res.json()
+        console.log('Sucesso:', json)
+        
+        if (json.url) {
+            newImages.push(json.url)
+        } else {
+            console.warn('Resposta sem URL:', json)
+        }
       }
 
       setData({ ...data, images: newImages })
-      toast({ title: "Imagens enviadas!" })
+      toast({ title: "Imagens enviadas com sucesso!" })
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro no upload" })
+      console.error('Erro fatal no upload:', error)
+      toast({ 
+        variant: "destructive", 
+        title: "Erro no upload", 
+        description: error instanceof Error ? error.message : "Falha desconhecida ao enviar imagem"
+      })
     } finally {
       setUploading(false)
       e.target.value = ""
