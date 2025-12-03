@@ -1,23 +1,32 @@
-import type { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next'
+
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nicetrip.com.br'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://nicetrip.example'
-  const lastmod = new Date()
-  const staticPaths = [
-    '/',
-    '/resultados',
-    '/detalhes',
-    '/detalhes-hospedagem',
-    '/detalhes-passeio',
-    '/contacto',
-    '/condiciones',
+  return [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/resultados`,
+      lastModified: new Date(),
+      changeFrequency: 'always', // Conteúdo dinâmico
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/condiciones`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/contacto`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.7,
+    },
   ]
-  return staticPaths.map((path) => ({
-    url: `${base}${path}`,
-    lastModified: lastmod,
-    changeFrequency: 'weekly',
-    priority: path === '/' ? 1 : 0.7,
-  }))
 }
-
-

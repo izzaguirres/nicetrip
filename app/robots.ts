@@ -1,14 +1,14 @@
-import type { MetadataRoute } from 'next'
+import { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://nicetrip.example'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://nicetrip.com.br'
+
   return {
     rules: {
       userAgent: '*',
       allow: '/',
+      disallow: ['/admin/', '/api/'], // Proteger admin e API
     },
-    sitemap: `${base}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.xml`,
   }
 }
-
-

@@ -157,7 +157,7 @@ export interface HotelData {
   imageFiles: (StaticImageData | string)[]; // Permite strings como fallback
 }
 
-const hotelDataMap: Record<string, HotelData> = {
+export const hotelDataMap: Record<string, HotelData> = {
   // Hotéis existentes (convertidos para usar as variáveis importadas)
   "bombinhas-palace-hotel": { displayName: "Bombinhas Palace Hotel", imageFiles: [bph1, bph2, bph3, bph4, bph5, bph6, bph7] },
   "canas-gold-hotel": { displayName: "Canas Gold Hotel", imageFiles: [cgh1, cgh2, cgh3, cgh4, cgh5, cgh6, cgh7, cgh8] },

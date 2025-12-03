@@ -663,6 +663,18 @@ export default function ResultadosPage() {
     }
 
     const quartosSolicitados: Room[] = getQuartosIndividuais()
+
+    let expectedNights = 0
+    if (activeTab === 'habitaciones') {
+      const checkin = searchParams.get("checkin")
+      const checkout = searchParams.get("checkout")
+      if (checkin && checkout) {
+        const d1 = new Date(checkin + "T00:00:00")
+        const d2 = new Date(checkout + "T00:00:00")
+        expectedNights = Math.max(1, Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24)))
+      }
+    }
+
     const porHotel: Map<string, Map<string, any>> = new Map()
     itemsFiltrados.forEach((diaria: any) => {
       const hotel = diaria.slug_hospedagem || diaria.hotel
@@ -713,6 +725,12 @@ export default function ResultadosPage() {
           valido = false
           return
         }
+
+        if (activeTab === 'habitaciones' && expectedNights > 0 && (match.noites || 0) < expectedNights) {
+           valido = false
+           return
+        }
+
         const noites = match.noites || 1
         const diaria = Number(match.valor_total && match.noites ? match.valor_total / match.noites : match.valor_diaria) || 0
         linhasSelecionadas.push({
@@ -1014,8 +1032,20 @@ export default function ResultadosPage() {
       if (disponibilidade.dias_viagem) params.set('dias_viagem', disponibilidade.dias_viagem.toString())
       if (disponibilidade.slug_pacote) params.set('slug_pacote', disponibilidade.slug_pacote)
       if (disponibilidade.slug) params.set('slug', disponibilidade.slug)
-    } else if (disponibilidade.valor_diaria) {
-      params.set('valor_diaria', disponibilidade.valor_diaria.toString());
+    } else {
+      // Para hospedagem, o valor diária deve ser a média para bater com o total
+      // Se temos checkin/checkout, calculamos as noites.
+      let nights = 1;
+      const checkin = searchParams.get("checkin");
+      const checkout = searchParams.get("checkout");
+      if (checkin && checkout) {
+         nights = Math.max(1, Math.ceil((new Date(checkout + "T00:00:00").getTime() - new Date(checkin + "T00:00:00").getTime()) / (1000 * 3600 * 24)))
+      } else if (disponibilidade.noites) {
+         nights = disponibilidade.noites
+      }
+      
+      const avgDailyRate = basePrice / nights;
+      params.set('valor_diaria', avgDailyRate.toString());
     }
     if (disponibilidade.quarto_tipo || disponibilidade.tipo_quarto) {
       params.set('quarto_tipo', disponibilidade.tipo_quarto || disponibilidade.quarto_tipo)
@@ -1298,6 +1328,17 @@ export default function ResultadosPage() {
                   let installments = 1
                   let installmentValue = 0
                   
+                  let nights = 1
+                  if (activeTab === 'habitaciones') {
+                     if (filters.dateRange?.from && filters.dateRange?.to) {
+                        nights = Math.max(1, Math.ceil((filters.dateRange.to.getTime() - filters.dateRange.from.getTime()) / (1000 * 3600 * 24)))
+                     } else if (disponibilidade.noites) {
+                        nights = disponibilidade.noites
+                     }
+                  } else if (disponibilidade.noites_hotel) {
+                     nights = disponibilidade.noites_hotel
+                  }
+
                   if (activeTab === 'habitaciones') {
                     if (Array.isArray(disponibilidade.__linhas_compostas) && disponibilidade.__linhas_compostas.length > 0) {
                       finalPrice = Number(disponibilidade.__total_composto) || disponibilidade.__linhas_compostas.reduce((s: number, l: any) => s + (Number(l.subtotal) || 0), 0)
@@ -1308,8 +1349,8 @@ export default function ResultadosPage() {
                       const criancas_6_mais = quartosIndividuais.reduce((sum, q) => sum + q.children6plus, 0)
                       const calculoPagantes = calcularPagantesHospedagem(adultos, criancas_0_3, criancas_4_5, criancas_6_mais)
                       const precoHospedagem = calcularPrecoHospedagem(
-                        disponibilidade.valor_diaria || (disponibilidade.valor_total / disponibilidade.noites) || 0,
-                        disponibilidade.noites || 1,
+                        disponibilidade.valor_diaria || (disponibilidade.valor_total / (disponibilidade.noites || 1)) || 0,
+                        nights,
                         calculoPagantes,
                       )
                       finalPrice = precoHospedagem.precoTotal
@@ -1357,6 +1398,12 @@ export default function ResultadosPage() {
 
                   let displayPrice = finalPrice
                   let originalDisplayPrice = originalTotal
+
+                  if (activeTab === 'habitaciones') {
+                     displayPrice = finalPrice / nights
+                     originalDisplayPrice = originalTotal / nights
+                  }
+
                   if (activeTab === 'paquetes') {
                     const totalPeople = (pessoas.adultos || 0) + (pessoas.criancas_0_3 || 0) + (pessoas.criancas_4_5 || 0) + (pessoas.criancas_6_mais || 0)
                     const perPersonFinal = totalPeople > 0 ? finalPrice / totalPeople : finalPrice

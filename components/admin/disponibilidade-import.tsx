@@ -1,189 +1,260 @@
 "use client"
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/hooks/use-toast'
-import { AdminSurface } from '@/components/admin/surface'
-import { adminFieldClass, adminInputClass } from '@/components/admin/styles'
-import { UploadCloud, FileText, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { upsertHospedagemDiarias, type CreateHospedagemDiariaDTO } from "@/lib/admin-hoteis"
+import { Loader2, Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Info } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { format } from "date-fns"
+import { hotelDataMap } from "@/lib/hotel-data"
+import { HOSPEDAGENS_PERMITIDAS } from "@/lib/constants-hoteis"
 
-export function DisponibilidadeImport() {
+interface DisponibilidadeImportProps {
+  onSuccess: () => void
+}
+
+export function DisponibilidadeImport({ onSuccess }: DisponibilidadeImportProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [file, setFile] = useState<File | null>(null)
-  const [csvPreview, setCsvPreview] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [previewData, setPreviewData] = useState<CreateHospedagemDiariaDTO[]>([])
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0]
-    setFile(nextFile ?? null)
-    setResult(null)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLoading(true)
     setError(null)
-    if (nextFile) {
-      const text = await nextFile.text()
-      setCsvPreview(text.slice(0, 800))
-    } else {
-      setCsvPreview('')
+    setPreviewData([])
+
+    try {
+      const text = await file.text()
+      const rows = text.split('\n').map(row => row.trim()).filter(Boolean)
+      
+      // Assumindo formato CSV: DATA;HOTEL_SLUG;TIPO_QUARTO;CAPACIDADE;VALOR;ATIVO
+      // Ignorar header se existir
+      const parsedData: CreateHospedagemDiariaDTO[] = []
+      let errors: string[] = []
+
+      // Detectar separador (; ou ,)
+      const firstLine = rows[0]
+      const separator = firstLine.includes(';') ? ';' : ','
+      
+      // Começa do indice 1 se tiver cabeçalho (verificação simples)
+      const startIndex = (firstLine.toLowerCase().includes('data') || firstLine.toLowerCase().includes('date')) ? 1 : 0
+
+      for (let i = startIndex; i < rows.length; i++) {
+        const cols = rows[i].split(separator).map(c => c.trim().replace(/"/g, ''))
+        
+        // Validação básica de colunas (espera 6 colunas)
+        if (cols.length < 5) continue
+
+        // Estrutura: data;slug_hospedagem;tipo_quarto;capacidade;valor_diaria;descricao
+        const [dataRaw, hotelSlug, tipoQuarto, capacidade, valor, descricao] = cols
+
+        // Normalizar data (aceita YYYY-MM-DD ou DD/MM/YYYY)
+        let dataFormatada = dataRaw
+        if (dataRaw.includes('/')) {
+          const [d, m, y] = dataRaw.split('/')
+          dataFormatada = `${y}-${m}-${d}`
+        }
+
+        // Validar Hotel
+        const normalizedSlug = hotelSlug.toLowerCase().replace(/\s+/g, '-')
+        // Tenta achar match exato ou parcial nos permitidos
+        let finalSlug = HOSPEDAGENS_PERMITIDAS.find(h => h === normalizedSlug || h.includes(normalizedSlug))
+        
+        if (!finalSlug) {
+           // Tenta buscar pelo nome no map
+           const foundEntry = Object.entries(hotelDataMap).find(([k, v]) => v.displayName.toLowerCase() === hotelSlug.toLowerCase())
+           if (foundEntry && HOSPEDAGENS_PERMITIDAS.includes(foundEntry[0])) {
+              finalSlug = foundEntry[0]
+           }
+        }
+
+        // Se ainda não achou, tenta usar o slug direto se for um dos permitidos exatos
+        if (!finalSlug && HOSPEDAGENS_PERMITIDAS.includes(hotelSlug)) {
+           finalSlug = hotelSlug
+        }
+
+        if (!finalSlug) {
+          errors.push(`Linha ${i+1}: Hotel '${hotelSlug}' inválido ou não permitido.`) 
+          continue
+        }
+
+        const valorNum = parseFloat(valor.replace('R$', '').replace('USD', '').trim())
+        const capNum = parseInt(capacidade)
+
+        if (isNaN(valorNum) || isNaN(capNum)) {
+           errors.push(`Linha ${i+1}: Valor ou Capacidade inválidos.`) 
+           continue
+        }
+
+        parsedData.push({
+          data: dataFormatada,
+          slug_hospedagem: finalSlug,
+          tipo_quarto: tipoQuarto,
+          capacidade: capNum,
+          valor_diaria: valorNum,
+          ativo: true, // Default true
+          descricao: descricao || null
+        })
+      }
+
+      if (errors.length > 0 && parsedData.length === 0) {
+        throw new Error(`Falha ao ler CSV:\n${errors.slice(0, 3).join('\n')}...`)
+      }
+
+      setPreviewData(parsedData)
+      if (errors.length > 0) {
+         toast({
+            variant: "warning",
+            title: "Aviso de Importação",
+            description: `${errors.length} linhas foram ignoradas por erros. ${parsedData.length} linhas válidas.`
+         })
+      }
+
+    } catch (err: any) {
+      setError(err.message)
+      setPreviewData([])
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!file) {
-      setError('Selecione um arquivo CSV primeiro.')
-      return
-    }
+  const handleDownloadTemplate = () => {
+    // Colunas exatas solicitadas: data;slug_hospedagem;tipo_quarto;capacidade;valor_diaria;descricao
+    const headers = ["data", "slug_hospedagem", "tipo_quarto", "capacidade", "valor_diaria", "descricao"]
+    const exampleRow = ["2026-01-01", "hotel-fenix", "Double", "2", "450.00", "Tarifa padrão"]
+    const csvContent = [headers.join(";"), exampleRow.join(";")].join("\n")
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'modelo_tarifario_supa.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleImport = async () => {
+    if (previewData.length === 0) return
     setLoading(true)
-    setError(null)
-    setResult(null)
     try {
-      const csv = await file.text()
-      const response = await fetch('/api/admin/disponibilidades/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || 'Erro ao importar CSV')
-      }
-
-      const data = await response.json()
-      const { imported, errors } = data as { imported: number; errors?: Array<{ index: number; error: string }> }
-      if (errors && errors.length > 0) {
-        setResult(`Importados ${imported} registros com ${errors.length} erro(s). Consulte a lista abaixo.`)
-        setError(errors.map((e) => `Linha ${e.index}: ${e.error}`).join('\n'))
-        toast({
-          variant: 'destructive',
-          title: 'Importação concluída com avisos',
-          description: `Arquivos importados: ${imported}. Verifique os ${errors.length} erros listados.`,
-        })
-      } else {
-        setResult(`Importados ${imported} registros com sucesso.`)
-        toast({
-          title: 'Importação concluída',
-          description: `Arquivos importados: ${imported}.`,
-        })
-        // Reset after success
-        setTimeout(() => {
-             setFile(null)
-             setCsvPreview('')
-             setResult(null)
-             setIsOpen(false)
-        }, 2000)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro inesperado')
+      await upsertHospedagemDiarias(previewData, "admin-importer")
       toast({
-        variant: 'destructive',
-        title: 'Falha na importação',
-        description: err instanceof Error ? err.message : 'Erro inesperado',
+        title: "Importação Concluída",
+        description: `${previewData.length} diárias foram atualizadas/criadas.`
       })
+      setIsOpen(false)
+      onSuccess()
+    } catch (err: any) {
+      setError("Erro ao salvar no banco de dados: " + err.message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <AdminSurface className="overflow-hidden p-0">
-      <div 
-        className={cn(
-            "flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-slate-50 transition-colors",
-            isOpen && "border-b border-slate-100 bg-slate-50/50"
-        )}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-            <UploadCloud className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-slate-900">Importação em Massa</h2>
-            <p className="text-xs text-slate-500">
-              Carregue novas disponibilidades via CSV
-            </p>
-          </div>
-        </div>
-        <Button variant="ghost" size="sm" className="text-slate-400">
-            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <FileSpreadsheet className="w-4 h-4 text-green-600" />
+          Importar CSV
         </Button>
-      </div>
-
-      {isOpen && (
-        <div className="p-6 bg-slate-50/30 animate-in slide-in-from-top-2 duration-200">
-            <div className="mb-4 rounded-md bg-blue-50 p-4 border border-blue-100">
-                <div className="flex gap-3">
-                    <FileText className="h-5 w-5 text-blue-600 shrink-0" />
-                    <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">Requisitos do Arquivo</p>
-                        <p className="opacity-90 leading-relaxed">
-                            O arquivo deve estar no formato <code>.csv</code>. Colunas obrigatórias: 
-                            <strong> destino, data_saida, transporte, hotel</strong>.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="grid gap-2">
-              <Label htmlFor="csv-file" className="text-xs font-medium uppercase tracking-wide text-slate-500">Selecione o arquivo</Label>
-              <Input
-                id="csv-file"
-                name="csv-file"
-                type="file"
-                accept=".csv,text/csv"
-                onChange={handleFileChange}
-                className={cn(adminInputClass, "file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100")}
-              />
-            </div>
-
-            {csvPreview && (
-              <div className="grid gap-2">
-                <Label className="text-xs font-medium uppercase tracking-wide text-slate-500">Pré-visualização (Primeiras linhas)</Label>
-                <Textarea
-                  value={csvPreview}
-                  readOnly
-                  rows={5}
-                  className={`${adminFieldClass} font-mono text-[10px] leading-relaxed resize-none bg-slate-900 text-slate-50 border-slate-800`}
-                />
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-               {result && (
-                 <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium mr-auto">
-                    <CheckCircle className="h-4 w-4" />
-                    {result}
-                 </div>
-               )}
-              <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>
-                Cancelar
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Importar Tarifário CSV</DialogTitle>
+          <DialogDescription>
+            Atualize valores em massa usando um arquivo Excel/CSV.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          {!previewData.length ? (
+            <div className="grid w-full max-w-sm items-center gap-4">
+              <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="w-full border-dashed text-slate-600">
+                <FileSpreadsheet className="w-4 h-4 mr-2" /> Baixar Modelo de Planilha
               </Button>
-              <Button type="submit" disabled={loading || !file} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                {loading ? 'Processando...' : 'Iniciar Importação'}
-              </Button>
-            </div>
-            
-            {error && (
-              <div className="rounded-lg bg-red-50 p-4 border border-red-200 flex gap-3 items-start">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                    <p className="text-sm font-semibold text-red-800">Falha na importação</p>
-                    <pre className="whitespace-pre-wrap text-xs text-red-600 font-mono">
-                        {error}
-                    </pre>
-                </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="csv-upload">Selecione o arquivo preenchido</Label>
+              <div className="flex items-center gap-2">
+                 <Input id="csv-upload" type="file" accept=".csv,.txt" onChange={handleFileUpload} disabled={loading} />
+                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               </div>
-            )}
-          </form>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-md text-xs text-muted-foreground mt-2 border border-dashed border-slate-300">
+                <strong>Formato esperado (CSV):</strong><br/>
+                data; slug_hospedagem; tipo_quarto; capacidade; valor_diaria; descricao<br/>
+                <span className="font-mono mt-1 block text-slate-600">2026-01-01; hotel-fenix; Double; 2; 450.00; Tarifa Padrão</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+               <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-md border border-green-100">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span className="font-medium">{previewData.length} registros encontrados.</span>
+               </div>
+               <div className="max-h-[200px] overflow-y-auto border rounded-md text-xs">
+                  <table className="w-full text-left p-2">
+                     <thead className="bg-slate-100 sticky top-0">
+                        <tr>
+                           <th className="p-2">Data</th>
+                           <th className="p-2">Hotel</th>
+                           <th className="p-2">Quarto</th>
+                           <th className="p-2">Valor</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        {previewData.slice(0, 20).map((row, i) => (
+                           <tr key={i} className="border-b">
+                              <td className="p-2">{row.data}</td>
+                              <td className="p-2 truncate max-w-[80px]">{row.slug_hospedagem}</td>
+                              <td className="p-2">{row.tipo_quarto}</td>
+                              <td className="p-2 font-bold">USD {row.valor_diaria}</td>
+                           </tr>
+                        ))}
+                        {previewData.length > 20 && (
+                           <tr><td colSpan={4} className="p-2 text-center text-slate-400 italic">...e mais {previewData.length - 20} linhas</td></tr>
+                        )}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+          )}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </div>
-      )}
-    </AdminSurface>
-  )}
+
+        <DialogFooter className="sm:justify-between items-center">
+          <Button variant="ghost" onClick={() => {
+             setIsOpen(false)
+             setPreviewData([])
+             setError(null)
+          }}>Cancelar</Button>
+          
+          {previewData.length > 0 && (
+             <Button onClick={handleImport} disabled={loading} className="bg-green-600 hover:bg-green-700">
+               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+               <Upload className="w-4 h-4 mr-2" /> Confirmar Importação
+             </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

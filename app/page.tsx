@@ -18,12 +18,14 @@ import { PaseosSearchFilter } from "@/components/paseos-search-filter"
 import { TARIFARIOS_PDF_URL } from "@/lib/constants"
 import { PromotionsSection } from "@/components/promotions-section"
 import { cn } from "@/lib/utils"
+import SchemaMarkup from "@/components/seo/schema-markup"
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("paquetes")
 
   return (
     <div className="bg-white min-h-screen flex flex-col font-sans">
+      <SchemaMarkup />
       <Header />
 
       <main className="flex-1 bg-white p-2 md:p-4">

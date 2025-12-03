@@ -4,10 +4,9 @@ export interface Paseo {
   id: string;
   created_at: string;
   nome: string;
-  subtitulo: string | null;
+  subtitulo: string | null; // Usado como Local (Cidade/Praia)
   imagem_url: string | null;
   imagens_galeria: string[] | null;
-  local: string | null;
   tempo_de_passeio: string | null;
 
   // Duração em horas (ex.: "8 horas")
@@ -48,6 +47,7 @@ export interface Paseo {
 
   // Campos de controle
   ativo: boolean;
+  sob_consulta?: boolean;
   
   // Campos que podem ser removidos se não forem mais usados
   avaliacao_media: number | null;

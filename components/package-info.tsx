@@ -23,6 +23,7 @@ interface PackageInfoProps {
   addons: any[]
   selectedAddons: string[]
   onAddonToggle: (id: string) => void
+  context?: 'package' | 'hotel'
 }
 
 export function PackageInfo({
@@ -36,7 +37,8 @@ export function PackageInfo({
   voosInfo,
   addons,
   selectedAddons,
-  onAddonToggle
+  onAddonToggle,
+  context = 'package'
 }: PackageInfoProps) {
   const [activeTab, setActiveTab] = useState("descripcion")
   const [showConditionsModal, setShowConditionsModal] = useState(false)
@@ -73,6 +75,13 @@ export function PackageInfo({
     }
   }, [showConditionsModal])
 
+  const labels = {
+    badge: context === 'package' ? (transporte || 'Paquete') : 'Alojamiento',
+    tabDesc: context === 'package' ? 'Sobre el paquete' : 'Sobre el alojamiento',
+    highlightsTitle: context === 'package' ? 'Destacados del paquete' : 'Destacados del alojamiento',
+    transportSection: context === 'package' ? true : false
+  }
+
   return (
     <div className="space-y-10">
       
@@ -81,7 +90,7 @@ export function PackageInfo({
         <div className="flex flex-col space-y-2">
           <div className="flex items-center gap-3">
              <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase tracking-wider border border-orange-100">
-                {transporte || 'Paquete'}
+                {labels.badge}
              </span>
              {reviewsData.averageRating > 4.5 && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
@@ -107,10 +116,12 @@ export function PackageInfo({
            </div>
            <div className="h-8 w-px bg-slate-200"></div>
            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                 <div className="p-2 bg-slate-50 rounded-full"><Sun className="w-4 h-4 text-slate-700" /></div>
-                 <span className="text-sm font-medium text-slate-700">{diasNoites.dias} días</span>
-              </div>
+              {context === 'package' && (
+                <div className="flex items-center gap-2">
+                   <div className="p-2 bg-slate-50 rounded-full"><Sun className="w-4 h-4 text-slate-700" /></div>
+                   <span className="text-sm font-medium text-slate-700">{diasNoites.dias} días</span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                  <div className="p-2 bg-slate-50 rounded-full"><Moon className="w-4 h-4 text-slate-700" /></div>
                  <span className="text-sm font-medium text-slate-700">{diasNoites.noites} noches</span>
@@ -145,7 +156,7 @@ export function PackageInfo({
                onClick={() => setActiveTab("descripcion")}
                className={`pb-4 text-sm font-bold tracking-wide transition-all duration-300 border-b-2 whitespace-nowrap ${activeTab === "descripcion" ? "border-orange-600 text-orange-600" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"}`}
             >
-               Sobre el paquete
+               {labels.tabDesc}
             </button>
             <button 
                onClick={() => setActiveTab("condiciones")}
@@ -175,7 +186,7 @@ export function PackageInfo({
               {/* Highlights Integrados na Descrição */}
               <div className="bg-slate-50 rounded-2xl p-6 mt-6">
                  <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-orange-500" /> Destacados del paquete
+                    <Sparkles className="w-4 h-4 text-orange-500" /> {labels.highlightsTitle}
                  </h4>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {(packageData.highlights || []).map((highlight: string, index: number) => (
@@ -315,139 +326,141 @@ export function PackageInfo({
       {/* 4. Vuelos e Info Adicional */}
       <div className="border-t border-slate-200 pt-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Coluna Voo / Info */}
-          <div className="space-y-8">
-             {transporte === 'Aéreo' && (
-                <div>
-                   <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                      <Plane className="w-5 h-5 text-orange-500" /> Información de Vuelos
-                   </h3>
-                   <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                      {!voosInfo && (<div className="text-sm text-slate-500 italic">Cargando horarios...</div>)}
-                      {voosInfo && (
-                         <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                               <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-full">{saida} ⇄ {packageData.location.split(',')[0]}</span>
-                            </div>
-                            
-                            {/* Ida */}
-                            {voosInfo.ida.length > 0 && (
-                               <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                     <span className="w-2 h-2 bg-green-500 rounded-full"></span> Ida
-                                  </div>
-                                  {voosInfo.ida.map((v: any, idx: number) => (
-                                     <div key={`ida-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex flex-col">
-                                           <span className="text-lg font-bold text-slate-900">{formatHora(v.saida_hora)}</span>
-                                           <span className="text-xs text-slate-500">{v.aeroporto_saida || v.origem}</span>
-                                        </div>
-                                        <div className="flex flex-col items-center px-4">
-                                           <span className="text-xs text-slate-400">Directo</span>
-                                           <div className="w-16 h-px bg-slate-300 my-1 relative">
-                                              <Plane className="w-3 h-3 text-slate-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90" />
-                                           </div>
-                                        </div>
-                                        <div className="flex flex-col text-right">
-                                           <span className="text-lg font-bold text-slate-900">{formatHora(v.chegada_hora)}</span>
-                                           <span className="text-xs text-slate-500">{v.aeroporto_chegada || v.destino}</span>
-                                        </div>
-                                     </div>
-                                  ))}
-                               </div>
-                            )}
+          {/* Coluna Voo / Info - Apenas se for Pacote */}
+          {labels.transportSection && (
+            <div className="space-y-8">
+               {transporte === 'Aéreo' && (
+                  <div>
+                     <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <Plane className="w-5 h-5 text-orange-500" /> Información de Vuelos
+                     </h3>
+                     <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                        {!voosInfo && (<div className="text-sm text-slate-500 italic">Cargando horarios...</div>)}
+                        {voosInfo && (
+                           <div className="space-y-6">
+                              <div className="flex items-center justify-between">
+                                 <span className="text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-full">{saida} ⇄ {packageData.location.split(',')[0]}</span>
+                              </div>
+                              
+                              {/* Ida */}
+                              {voosInfo.ida.length > 0 && (
+                                 <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                       <span className="w-2 h-2 bg-green-500 rounded-full"></span> Ida
+                                    </div>
+                                    {voosInfo.ida.map((v: any, idx: number) => (
+                                       <div key={`ida-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                          <div className="flex flex-col">
+                                             <span className="text-lg font-bold text-slate-900">{formatHora(v.saida_hora)}</span>
+                                             <span className="text-xs text-slate-500">{v.aeroporto_saida || v.origem}</span>
+                                          </div>
+                                          <div className="flex flex-col items-center px-4">
+                                             <span className="text-xs text-slate-400">Directo</span>
+                                             <div className="w-16 h-px bg-slate-300 my-1 relative">
+                                                <Plane className="w-3 h-3 text-slate-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90" />
+                                             </div>
+                                          </div>
+                                          <div className="flex flex-col text-right">
+                                             <span className="text-lg font-bold text-slate-900">{formatHora(v.chegada_hora)}</span>
+                                             <span className="text-xs text-slate-500">{v.aeroporto_chegada || v.destino}</span>
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              )}
 
-                            {/* Volta */}
-                            {voosInfo.volta.length > 0 && (
-                               <div className="space-y-3">
-                                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                     <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Vuelta
-                                  </div>
-                                  {voosInfo.volta.map((v: any, idx: number) => (
-                                     <div key={`volta-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex flex-col">
-                                           <span className="text-lg font-bold text-slate-900">{formatHora(v.saida_hora)}</span>
-                                           <span className="text-xs text-slate-500">{v.aeroporto_saida || v.origem}</span>
-                                        </div>
-                                        <div className="flex flex-col items-center px-4">
-                                           <span className="text-xs text-slate-400">Directo</span>
-                                           <div className="w-16 h-px bg-slate-300 my-1 relative">
-                                              <Plane className="w-3 h-3 text-slate-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90" />
-                                           </div>
-                                        </div>
-                                        <div className="flex flex-col text-right">
-                                           <span className="text-lg font-bold text-slate-900">{formatHora(v.chegada_hora)}</span>
-                                           <span className="text-xs text-slate-500">{v.aeroporto_chegada || v.destino}</span>
-                                        </div>
-                                     </div>
-                                  ))}
-                               </div>
-                            )}
-                         </div>
-                      )}
-                   </div>
-                   
-                   {voosInfo?.bagagem && (
-                      <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-4 flex gap-3">
-                         <div className="bg-amber-100 p-2 rounded-full h-fit"><span className="text-lg">🧳</span></div>
-                         <div>
-                            <p className="text-sm font-bold text-amber-900">Equipaje Incluido</p>
-                            <ul className="mt-1 text-xs text-amber-800 space-y-1">
-                               <li>• Carry-on + artículo personal: hasta {voosInfo.bagagem.carry ?? '-'} kg</li>
-                               <li>• Maleta despachada: hasta {voosInfo.bagagem.despachada ?? '-'} kg</li>
-                            </ul>
-                         </div>
-                      </div>
-                   )}
-                </div>
-             )}
+                              {/* Volta */}
+                              {voosInfo.volta.length > 0 && (
+                                 <div className="space-y-3">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                       <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Vuelta
+                                    </div>
+                                    {voosInfo.volta.map((v: any, idx: number) => (
+                                       <div key={`volta-${idx}`} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                          <div className="flex flex-col">
+                                             <span className="text-lg font-bold text-slate-900">{formatHora(v.saida_hora)}</span>
+                                             <span className="text-xs text-slate-500">{v.aeroporto_saida || v.origem}</span>
+                                          </div>
+                                          <div className="flex flex-col items-center px-4">
+                                             <span className="text-xs text-slate-400">Directo</span>
+                                             <div className="w-16 h-px bg-slate-300 my-1 relative">
+                                                <Plane className="w-3 h-3 text-slate-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90" />
+                                             </div>
+                                          </div>
+                                          <div className="flex flex-col text-right">
+                                             <span className="text-lg font-bold text-slate-900">{formatHora(v.chegada_hora)}</span>
+                                             <span className="text-xs text-slate-500">{v.aeroporto_chegada || v.destino}</span>
+                                          </div>
+                                       </div>
+                                    ))}
+                                 </div>
+                              )}
+                           </div>
+                        )}
+                     </div>
+                     
+                     {voosInfo?.bagagem && (
+                        <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-4 flex gap-3">
+                           <div className="bg-amber-100 p-2 rounded-full h-fit"><span className="text-lg">🧳</span></div>
+                           <div>
+                              <p className="text-sm font-bold text-amber-900">Equipaje Incluido</p>
+                              <ul className="mt-1 text-xs text-amber-800 space-y-1">
+                                 <li>• Carry-on + artículo personal: hasta {voosInfo.bagagem.carry ?? '-'} kg</li>
+                                 <li>• Maleta despachada: hasta {voosInfo.bagagem.despachada ?? '-'} kg</li>
+                              </ul>
+                           </div>
+                        </div>
+                     )}
+                  </div>
+               )}
 
-             {/* Addons - Visual Premium */}
-             <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                   <Sparkles className="w-5 h-5 text-orange-500" /> Personaliza tu viaje
-                </h3>
-                <div className="grid grid-cols-1 gap-3">
-                   {addons.map((service: any) => {
-                      const isSelected = selectedAddons.includes(service.id);
-                      const IconComponent = getIconComponent(service.icon || 'Sparkles');
-                      return (
-                         <div 
-                           key={service.id} 
-                           onClick={() => onAddonToggle(service.id)} 
-                           className={`group relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${isSelected ? 'border-orange-500 bg-white shadow-[0_4px_20px_rgba(249,115,22,0.15)]' : 'border-slate-100 bg-white hover:border-orange-200 hover:shadow-md'}`}
-                         >
-                            {/* Background de Seleção Animado */}
-                            <div className={`absolute inset-0 bg-orange-50 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-30'}`}></div>
+               {/* Addons - Visual Premium */}
+               <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                     <Sparkles className="w-5 h-5 text-orange-500" /> Personaliza tu viaje
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3">
+                     {addons.map((service: any) => {
+                        const isSelected = selectedAddons.includes(service.id);
+                        const IconComponent = getIconComponent(service.icon || 'Sparkles');
+                        return (
+                           <div 
+                             key={service.id} 
+                             onClick={() => onAddonToggle(service.id)} 
+                             className={`group relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${isSelected ? 'border-orange-500 bg-white shadow-[0_4px_20px_rgba(249,115,22,0.15)]' : 'border-slate-100 bg-white hover:border-orange-200 hover:shadow-md'}`}
+                           >
+                              {/* Background de Seleção Animado */}
+                              <div className={`absolute inset-0 bg-orange-50 transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-30'}`}></div>
 
-                            <div className="relative flex items-center gap-4 z-10">
-                               <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected ? 'bg-orange-500 text-white rotate-3 scale-110 shadow-md' : 'bg-slate-100 text-slate-400 group-hover:bg-orange-100 group-hover:text-orange-500'}`}>
-                                  <IconComponent className="w-6 h-6" strokeWidth={1.5} />
-                               </div>
-                               <div>
-                                  <p className={`font-bold text-base mb-0.5 transition-colors ${isSelected ? 'text-orange-900' : 'text-slate-900'}`}>{service.name}</p>
-                                  <p className="text-xs text-slate-500 max-w-[220px] leading-relaxed">{service.description}</p>
-                               </div>
-                            </div>
-                            
-                            <div className="relative flex flex-col items-end gap-1 z-10">
-                               <div className="text-right">
-                                  <p className={`font-extrabold text-base ${isSelected ? 'text-orange-600' : 'text-slate-900'}`}>USD {service.price}</p>
-                                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">por persona</p>
-                               </div>
-                               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isSelected ? 'bg-orange-500 border-orange-500 scale-100 opacity-100' : 'border-slate-300 bg-transparent scale-90 opacity-50 group-hover:border-orange-300'}`}>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                               </div>
-                            </div>
-                         </div>
-                      )
-                   })}
-                </div>
-             </div>
-          </div>
+                              <div className="relative flex items-center gap-4 z-10">
+                                 <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${isSelected ? 'bg-orange-500 text-white rotate-3 scale-110 shadow-md' : 'bg-slate-100 text-slate-400 group-hover:bg-orange-100 group-hover:text-orange-500'}`}>
+                                    <IconComponent className="w-6 h-6" strokeWidth={1.5} />
+                                 </div>
+                                 <div>
+                                    <p className={`font-bold text-base mb-0.5 transition-colors ${isSelected ? 'text-orange-900' : 'text-slate-900'}`}>{service.name}</p>
+                                    <p className="text-xs text-slate-500 max-w-[220px] leading-relaxed">{service.description}</p>
+                                 </div>
+                              </div>
+                              
+                              <div className="relative flex flex-col items-end gap-1 z-10">
+                                 <div className="text-right">
+                                    <p className={`font-extrabold text-base ${isSelected ? 'text-orange-600' : 'text-slate-900'}`}>USD {service.price}</p>
+                                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">por persona</p>
+                                 </div>
+                                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${isSelected ? 'bg-orange-500 border-orange-500 scale-100 opacity-100' : 'border-slate-300 bg-transparent scale-90 opacity-50 group-hover:border-orange-300'}`}>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                                 </div>
+                              </div>
+                           </div>
+                        )
+                     })}
+                  </div>
+               </div>
+            </div>
+          )}
 
           {/* Coluna Mapa */}
-          <div>
+          <div className={!labels.transportSection ? "lg:col-span-2" : ""}>
              <h3 className="text-xl font-bold text-slate-900 mb-4">Ubicación</h3>
              <div className="bg-slate-100 rounded-3xl h-[400px] w-full relative overflow-hidden border border-slate-200 shadow-inner group">
                 {hospedagemData?.latitude && hospedagemData?.longitude ? (

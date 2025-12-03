@@ -17,14 +17,18 @@ import {
   PlusCircle, 
   Menu,
   ChevronRight,
-  ScrollText
+  ScrollText,
+  BedDouble,
+  Sun
 } from 'lucide-react'
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/analytics', label: 'Analytics & IA', icon: BarChart3 },
   { type: 'divider', label: 'Gestão' },
-  { href: '/admin/disponibilidades', label: 'Disponibilidades', icon: CalendarDays },
+  { href: '/admin/disponibilidades', label: 'Disponibilidades (Pacotes)', icon: CalendarDays },
+  { href: '/admin/hospedagens', label: 'Hospedagens', icon: BedDouble },
+  { href: '/admin/passeios', label: 'Passeios (Em construção)', icon: Sun },
   { href: '/admin/addons', label: 'Adicionais', icon: PlusCircle },
   { href: '/admin/condicoes', label: 'Condiciones', icon: ScrollText },
   { type: 'divider', label: 'Marketing' },

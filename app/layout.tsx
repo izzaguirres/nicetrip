@@ -14,13 +14,15 @@ const figtree = Figtree({
 
 export const metadata: Metadata = {
   title: {
-    default: "Nice Trip - Pacotes de viagem, hospedagens e passeios",
-    template: "%s | Nice Trip"
+    default: "Nice Trip | Paquetes a Brasil - Canasvieiras y Florianópolis",
+    template: "%s | Nice Trip Turismo"
   },
-  description: "Busca inteligente de pacotes (Bus/Aéreo), hospedagens e passeios. Pagamento parcelado, suporte em português e espanhol.",
+  description: "Tu agencia de viajes experta en Brasil. Paquetes turísticos a Canasvieiras, Florianópolis y Bombinhas. Viajes en Bus y Aéreo con salidas desde Argentina. Hoteles, posadas y excursiones. ¡Tu verano 2026 empieza acá!",
   keywords: [
-    "viagem", "pacotes", "florianópolis", "bombinhas", "bus", "aéreo",
-    "hospedagem", "hotel", "passeios", "argentina", "brasil"
+    "paquetes a brasil 2026", "paquetes a canasvieiras", "paquetes a florianopolis", 
+    "viajes a brasil en bus", "turismo joven", "hoteles en canasvieiras", 
+    "alojamiento en florianopolis", "micro a brasil", "aéreos a floripa",
+    "nice trip", "agencia de viajes", "verano 2026"
   ],
   icons: {
     icon: "/images/icon.png",
@@ -29,36 +31,48 @@ export const metadata: Metadata = {
   },
   metadataBase: typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL
     ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
-    : undefined,
+    : new URL('https://nicetrip.com.br'), // Fallback seguro
   alternates: {
     canonical: "/"
   },
   robots: {
     index: true,
-    follow: true
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
   openGraph: {
-    title: "Nice Trip - Pacotes e Hospedagens",
-    description: "Encontre o melhor pacote para suas férias com filtros inteligentes.",
-    type: "website",
-    locale: "es_AR",
-    siteName: "Nice Trip",
+    title: "Paquetes a Brasil 2026 | Canasvieiras y Florianópolis",
+    description: "Encontrá los mejores precios para tu viaje a Brasil. Paquetes en Bus y Aéreo, hoteles y traslados. ¡Pagá en cuotas!",
+    url: 'https://nicetrip.com.br',
+    siteName: 'Nice Trip Turismo',
+    locale: 'es_AR',
+    type: 'website',
     images: [
       {
         url: "/images/og-cover.jpg",
         width: 1200,
         height: 630,
-        alt: "Nice Trip"
+        alt: "Nice Trip - Paquetes a Brasil"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "Nice Trip - Pacotes e Hospedagens",
-    description: "Encontre o melhor pacote para suas férias com filtros inteligentes.",
+    title: "Paquetes a Brasil 2026 | Nice Trip",
+    description: "Tu viaje soñado a Canasvieiras y Florianópolis. Salidas desde Argentina.",
     images: ["/images/og-cover.jpg"]
   },
-  generator: 'v0.dev'
+  verification: {
+    google: 'google-site-verification-code', // Placeholder para o futuro
+  },
+  category: 'travel',
+  generator: 'Nice Trip Platform v3.0'
 }
 
 export default function RootLayout({
@@ -67,7 +81,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="es-AR">
       <head>
         {/* Google Tag Manager */}
         <Script id="gtm-init" strategy="afterInteractive">
