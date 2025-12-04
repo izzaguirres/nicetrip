@@ -218,7 +218,7 @@ export function HotelForm({ initialData, onSuccess, onCancel }: HotelFormProps) 
 
           <div className="grid grid-cols-2 gap-4 items-center">
              <div className="space-y-2">
-              <Label>Valor da Diária (USD)</Label>
+              <Label>Valor da Diária (R$)</Label>
               <Input 
                 type="number" 
                 step="0.01"

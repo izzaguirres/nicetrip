@@ -1,6 +1,7 @@
 import { supabaseServer } from '@/app/supabase-server'
 import { Disponibilidade } from '@/lib/supabase'
-import { insertAuditLog } from '@/lib/supabase-service'
+import { insertAuditLog, clearCache } from '@/lib/supabase-service'
+import { getHotelData } from '@/lib/hotel-data'
 
 export type DisponibilidadeUpsertInput = Partial<Disponibilidade>
 
@@ -29,29 +30,64 @@ export async function listDisponibilidadeLookups() {
 
 export async function getDashboardHotels() {
   const supabase = await supabaseServer()
-  // Busca colunas leves de TODOS os registros para montar os cards (limite seguro de 2000 para performance)
-  const { data, error } = await supabase
+  
+  // 1. Buscar disponibilidades (agrupamento)
+  const { data: dispData, error: dispError } = await supabase
     .from('disponibilidades')
     .select('hotel, destino, transporte, slug, preco_adulto')
-    .limit(2000) 
+    .limit(3000) 
 
-  if (error) throw error
+  if (dispError) throw dispError
+
+  // 2. Buscar metadados de hotéis (imagens, slugs oficiais)
+  const { data: hospData, error: hospError } = await supabase
+    .from('hospedagens')
+    .select('nome, slug, images, destino')
+  
+  // Criar mapa de metadados normalizando nomes para facilitar o match
+  const metadataMap = new Map<string, any>()
+  if (hospData && !hospError) {
+      hospData.forEach(h => {
+          if (h.nome) metadataMap.set(h.nome.toLowerCase().trim(), h)
+      })
+  }
 
   const hotelMap = new Map<string, any>()
   
-  data.forEach(row => {
+  dispData.forEach(row => {
     const key = row.hotel
     if (!key) return
 
+    const normalizedKey = key.toLowerCase().trim()
+    const metadata = metadataMap.get(normalizedKey)
+
     if (!hotelMap.has(key)) {
+      // Prioridade de imagem: 
+      // 1. Imagem do banco (metadata)
+      // 2. Fallback do arquivo estático (getHotelData)
+      // 3. Placeholder
+      let imageSrc = "/placeholder.svg"
+      
+      if (metadata?.images && metadata.images.length > 0) {
+          imageSrc = metadata.images[0]
+      } else {
+          const fallback = getHotelData(key)
+          imageSrc = fallback?.imageFiles?.[0] || "/placeholder.svg"
+          // Tratar StaticImageData se necessário
+          if (typeof imageSrc !== 'string' && (imageSrc as any).src) {
+              imageSrc = (imageSrc as any).src
+          }
+      }
+
       hotelMap.set(key, {
-        hotel: key,
-        destino: row.destino,
+        hotel: key, // Nome como aparece na disponibilidade
+        destino: row.destino || metadata?.destino || "",
         transports: new Set([row.transporte]), 
-        // Slug prioritário: slug > normalização do nome
-        slug: row.slug || key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+        // Slug: Prioriza o do metadata (hospedagens), depois o da disponibilidade, depois gera
+        slug: metadata?.slug || row.slug || key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
         count: 0,
-        minPrice: 999999
+        minPrice: 999999,
+        imageSrc: imageSrc // Nova propriedade com a imagem resolvida
       })
     } else {
       hotelMap.get(key).transports.add(row.transporte)
@@ -86,8 +122,7 @@ export function parseDisponibilidadeCsv(content: string): DisponibilidadeUpsertI
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]
-    // Regex simples para ignorar separadores dentro de aspas (não perfeito, mas funcional para CSV simples)
-    // Se falhar com complexos, usar lib 'papaparse' ou similar seria melhor
+    // Regex simples para ignorar separadores dentro de aspas
     const rawValues = line.split(separator).map(v => v.trim().replace(/^"|"$/g, ''))
     
     if (rawValues.length < headers.length) continue
@@ -116,14 +151,29 @@ export async function upsertDisponibilidade(
   data: DisponibilidadeUpsertInput,
   userId?: string
 ): Promise<void> {
+  // Usa cliente autenticado (cookies/sessão do usuário admin)
   const supabase = await supabaseServer()
   
   // Validar campos obrigatórios básicos
   if (!data.hotel) throw new Error('Campo hotel é obrigatório')
 
   const payload = { ...data }
-  // Remove undefineds para não sobrescrever com null
-  Object.keys(payload).forEach(key => payload[key as keyof typeof payload] === undefined && delete payload[key as keyof typeof payload])
+  
+  // Limpeza rigorosa do payload
+  Object.keys(payload).forEach(key => {
+    // Remove undefined
+    if (payload[key as keyof typeof payload] === undefined) {
+       delete payload[key as keyof typeof payload]
+    }
+    // Remove strings vazias em campos numéricos (previne erro de sintaxe PostgreSQL)
+    if (['preco_adulto', 'capacidade'].includes(key) && payload[key as keyof typeof payload] === '') {
+       delete payload[key as keyof typeof payload]
+    }
+    // Remove campo 'ativo' se ele não existir no schema (PGRST204)
+    if (key === 'ativo') {
+        delete payload[key as keyof typeof payload]
+    }
+  })
 
   // Se não tiver ID, remove do payload para gerar novo
   if (!payload.id) delete payload.id
@@ -134,31 +184,44 @@ export async function upsertDisponibilidade(
     .select()
     .single()
 
-  if (error) throw new Error(`Erro no Supabase: ${error.message}`)
+  if (error) {
+    console.error("❌ Supabase Upsert Error:", JSON.stringify(error, null, 2), payload)
+    // Lança erro descritivo para o client pegar
+    throw new Error(`Erro DB: ${error.message} (${error.code})`)
+  }
+
+  clearCache() // Invalida cache do site público
 
   // Log de auditoria
   if (result) {
-    await insertAuditLog({
-      entity: 'disponibilidade',
-      entityId: result.id,
-      action: payload.id ? 'update' : 'insert',
-      data: result,
-      performedBy: userId || 'system_import'
-    })
+    try {
+      await insertAuditLog({
+        entity: 'disponibilidade',
+        entityId: result.id,
+        action: payload.id ? 'update' : 'insert',
+        data: result,
+        performedBy: userId || 'system_ui'
+      })
+    } catch (auditError) {
+      console.error("Falha não-crítica ao criar log de auditoria:", auditError)
+    }
   }
 }
 
 export async function deleteDisponibilidade(id: string, userId?: string): Promise<void> {
   const supabase = await supabaseServer()
-
   const { error } = await supabase.from('disponibilidades').delete().eq('id', id)
   
-  if (error) throw new Error(error.message)
+  if (error) throw new Error(`Erro ao deletar: ${error.message}`)
 
-  await insertAuditLog({
-    entity: 'disponibilidade',
-    entityId: id,
-    action: 'delete',
-    performedBy: userId || 'system'
-  })
+  clearCache() // Invalida cache do site público
+
+  try {
+    await insertAuditLog({
+      entity: 'disponibilidade',
+      entityId: id,
+      action: 'delete',
+      performedBy: userId || 'system'
+    })
+  } catch (e) { /* ignore */ }
 }

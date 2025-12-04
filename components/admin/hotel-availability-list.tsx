@@ -263,7 +263,7 @@ export function HotelAvailabilityList({ refreshTrigger, selectedHotel }: HotelAv
                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between w-full mt-0.5">
-                                  <span className="text-green-600 font-bold text-sm">USD {item.valor_diaria}</span>
+                                  <span className="text-green-600 font-bold text-sm">R$ {item.valor_diaria}</span>
                                 </div>
                               </Badge>
                             ))}

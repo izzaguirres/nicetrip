@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { insertAuditLog } from './supabase-service'
+import { clearHospedagensCache } from '@/lib/hospedagens-service'
 
-// Usando service role key para operações administrativas se disponível, 
-// caso contrário usa a anon key (assumindo que o usuário logado tem permissões via RLS)
+// Usando service role key para operações administrativas (bypass RLS)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
@@ -121,4 +121,68 @@ export async function deleteHospedagemDiaria(id: string, userId: string) {
     action: 'DELETE',
     performedBy: userId
   })
+}
+
+// --- Metadados de Hotéis (CMS) ---
+
+export interface HotelMetadata {
+  id?: string
+  slug: string
+  nome: string
+  destino: string
+  descricao_completa?: string
+  images?: string[]
+  amenities?: any[]
+  video_url?: string
+  created_at?: string
+}
+
+export async function getHotelBySlug(slug: string) {
+  const { data, error } = await supabaseAdmin
+    .from('hospedagens')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) return null
+  return data as HotelMetadata
+}
+
+export async function getHotelByName(name: string) {
+  const { data, error } = await supabaseAdmin
+    .from('hospedagens')
+    .select('*')
+    .ilike('nome', name)
+    .maybeSingle()
+
+  if (error) return null
+  return data as HotelMetadata
+}
+
+export async function upsertHotelMetadata(hotel: HotelMetadata) {
+  // Prepara payload garantindo arrays
+  const payload = {
+    ...hotel,
+    images: hotel.images || [],
+    amenities: hotel.amenities || []
+  }
+  
+  // Se nao tem ID, tenta buscar por slug
+  if (!payload.id) {
+    const existing = await getHotelBySlug(payload.slug)
+    if (existing?.id) payload.id = existing.id
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('hospedagens')
+    .upsert(payload, { onConflict: 'slug' })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // Limpar cache para refletir alterações no frontend
+  clearHospedagensCache()
+
+  return data as HotelMetadata
 }

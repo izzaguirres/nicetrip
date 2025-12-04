@@ -398,145 +398,288 @@ export default function DetalhesPage() {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
   }
 
-  const formatPriceWithCurrency = (value: number): string => {
-    return `USD ${formatPrice(value)}`;
-  }
+    const formatPriceWithCurrency = (value: number): string => {
 
-  // Share functionality
-  const handleShare = async () => {
-    const shareData = {
-      title: `${packageData.name} - Nice Trip`,
-      text: `¡Mira este increíble paquete en ${destino}! Desde USD ${formatPrice(packageData.price)}`,
-      url: window.location.href
+      return `R$ ${formatPrice(value)}`;
+
     }
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData)
-      } else {
-        await navigator.clipboard.writeText(window.location.href)
-        alert('¡Link copiado al portapapeles!')
+
+  
+
+    // Share functionality
+
+    const handleShare = async () => {
+
+      const shareData = {
+
+        title: `${packageData.name} - Nice Trip`,
+
+        text: `¡Mira este increíble paquete en ${destino}! Desde R$ ${formatPrice(packageData.price)}`,
+
+        url: window.location.href
+
       }
-    } catch (error) {
-      console.log('Error sharing:', error)
+
       try {
-        await navigator.clipboard.writeText(window.location.href)
-        alert('¡Link copiado al portapapeles!')
-      } catch (clipboardError) { }
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+
+          await navigator.share(shareData)
+
+        } else {
+
+          await navigator.clipboard.writeText(window.location.href)
+
+          alert('¡Link copiado al portapapeles!')
+
+        }
+
+      } catch (error) {
+
+        console.log('Error sharing:', error)
+
+        try {
+
+          await navigator.clipboard.writeText(window.location.href)
+
+          alert('¡Link copiado al portapapeles!')
+
+        } catch (clipboardError) { }
+
+      }
+
     }
-  }
-  
-  const diasNoites = { dias: noitesCalculadas, noites: noitesCalculadas }
-  
-  // Mobile state for touch
-  const [touchStart, setTouchStart] = useState(0)
-  const [touchEnd, setTouchEnd] = useState(0)
 
-  return (
-    <div className="min-h-screen bg-white">
-      <Header />
-      
-      {/* Hero Section */}
-      <div className="pt-24 lg:pt-28 pb-12 lg:pb-8">
-        <div className="container mx-auto px-4 lg:px-[70px]">
-          {/* Back & Share Buttons */}
-          <div className="relative flex items-center justify-between mb-8">
-            <button 
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-base font-medium text-gray-900 hover:text-[#EE7215] transition-colors duration-200 group"
-            >
-              <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
-              <span>Volver</span>
-            </button>
-            <button 
-                onClick={handleShare}
-                className="text-gray-700 hover:text-orange-500 transition-colors"
+    
+
+    const diasNoites = { dias: noitesCalculadas, noites: noitesCalculadas }
+
+    
+
+    // Mobile state for touch
+
+    const [touchStart, setTouchStart] = useState(0)
+
+    const [touchEnd, setTouchEnd] = useState(0)
+
+  
+
+    return (
+
+      <div className="min-h-screen bg-white">
+
+        <Header />
+
+        
+
+        {/* Hero Section */}
+
+        <div className="pt-24 lg:pt-28 pb-12 lg:pb-8">
+
+          <div className="container mx-auto px-4 lg:px-[70px]">
+
+            {/* Back & Share Buttons */}
+
+            <div className="relative flex items-center justify-between mb-8">
+
+              <button 
+
+                onClick={() => router.back()}
+
+                className="flex items-center gap-2 text-base font-medium text-gray-900 hover:text-[#EE7215] transition-colors duration-200 group"
+
               >
-                <Share className="w-5 h-5" />
+
+                <ChevronLeft className="w-5 h-5 group-hover:translate-x-[-2px] transition-transform duration-200" />
+
+                <span>Volver</span>
+
               </button>
-          </div>
 
-          {/* Photo Gallery */}
-          <FadeIn>
-            <PackageGallery images={packageData.images} />
-          </FadeIn>
+              <button 
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Details */}
-            <FadeIn delay={0.2} className="lg:col-span-2 space-y-8">
-               <PackageInfo
-                packageData={packageData}
-                diasNoites={diasNoites}
-                hospedagemData={hospedagemData}
-                packageDescription={packageDescription}
-                packageConditions={packageConditions}
-                transporte={transporte}
-                saida={saida}
-                voosInfo={null}
-                addons={[]}
-                selectedAddons={[]}
-                onAddonToggle={() => {}}
-                context="hotel"
-              />
-            </FadeIn>
+                  onClick={handleShare}
 
-            {/* Right Column - Booking Card */}
-            <FadeIn delay={0.4} className="lg:col-span-1">
-               <BookingCardHospedagem
-                basePrice={precoTotalReal}
-                destino={destino}
-                dataViagem={new Date(checkin || Date.now())}
-                diasNoites={diasNoites}
-                checkin={checkin}
-                checkout={checkout}
-                quartosIndividuais={quartosIndividuais}
-                valorDiaria={valorDiaria}
-                precoTotalReal={precoTotalReal}
-                formatPriceWithCurrency={formatPriceWithCurrency}
-                onBook={() => sendHospedagemWhatsapp('detalhes-hospedagem')}
-                itemTitle={displayName}
-                determinarTipoQuarto={(quarto) => searchParams.get('quarto_tipo') || determinarTipoQuarto(quarto)}
-              />
-            </FadeIn>
-          </div>
-        </div>
-      </div>
+                  className="text-gray-700 hover:text-orange-500 transition-colors"
 
-      {/* Mobile Fixed Overlay */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40 shadow-lg">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex-1">
-            <div className="text-sm font-light text-gray-600">Precio total</div>
-            <div className="text-lg font-bold text-gray-900">USD {formatPrice(precoTotalReal)}</div>
-            <div className="text-xs font-light text-gray-600">
-              {temMultiplosQuartos 
-                ? `${adultos} Adultos, ${totalCriancas} Niños en ${quartos} cuartos`
-                : formatarOcupacaoQuarto(quartosIndividuais[0])
-              }
+                >
+
+                  <Share className="w-5 h-5" />
+
+                </button>
+
             </div>
+
+  
+
+            {/* Photo Gallery */}
+
+            <FadeIn>
+
+              <PackageGallery images={packageData.images} />
+
+            </FadeIn>
+
+  
+
+            {/* Main Content */}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+              {/* Left Column - Details */}
+
+              <FadeIn delay={0.2} className="lg:col-span-2 space-y-8">
+
+                 <PackageInfo
+
+                  packageData={packageData}
+
+                  diasNoites={diasNoites}
+
+                  hospedagemData={hospedagemData}
+
+                  packageDescription={packageDescription}
+
+                  packageConditions={packageConditions}
+
+                  transporte={transporte}
+
+                  saida={saida}
+
+                  voosInfo={null}
+
+                  addons={[]}
+
+                  selectedAddons={[]}
+
+                  onAddonToggle={() => {}}
+
+                  context="hotel"
+
+                />
+
+              </FadeIn>
+
+  
+
+              {/* Right Column - Booking Card */}
+
+              <FadeIn delay={0.4} className="lg:col-span-1">
+
+                 <BookingCardHospedagem
+
+                  basePrice={precoTotalReal}
+
+                  destino={destino}
+
+                  dataViagem={new Date(checkin || Date.now())}
+
+                  diasNoites={diasNoites}
+
+                  checkin={checkin}
+
+                  checkout={checkout}
+
+                  quartosIndividuais={quartosIndividuais}
+
+                  valorDiaria={valorDiaria}
+
+                  precoTotalReal={precoTotalReal}
+
+                  formatPriceWithCurrency={formatPriceWithCurrency}
+
+                  onBook={() => sendHospedagemWhatsapp('detalhes-hospedagem')}
+
+                  itemTitle={displayName}
+
+                  determinarTipoQuarto={(quarto) => searchParams.get('quarto_tipo') || determinarTipoQuarto(quarto)}
+
+                />
+
+              </FadeIn>
+
+            </div>
+
           </div>
-          <div className="flex flex-col items-center">
-            <a
-              onClick={(e) => {
-                e.preventDefault()
-                sendHospedagemWhatsapp('detalhes-hospedagem-mobile')
-              }}
-              href="#"
-              className="relative bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1"
-            >
-              {/* Shine Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
-              
-              <span className="relative flex items-center justify-center gap-2 text-sm">
-                <span className="font-bold tracking-wide">Reservar</span>
-              </span>
-            </a>
-            <p className="text-xs font-light text-gray-600">No se cobrará aún</p>
-          </div>
+
         </div>
+
+  
+
+        {/* Mobile Fixed Overlay */}
+
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-40 shadow-lg">
+
+          <div className="flex items-center justify-between mb-2">
+
+            <div className="flex-1">
+
+              <div className="text-sm font-light text-gray-600">Precio total</div>
+
+              <div className="text-lg font-bold text-gray-900">R$ {formatPrice(precoTotalReal)}</div>
+
+              <div className="text-xs font-light text-gray-600">
+
+                {temMultiplosQuartos 
+
+                  ? `${adultos} Adultos, ${totalCriancas} Niños en ${quartos} cuartos`
+
+                  : formatarOcupacaoQuarto(quartosIndividuais[0])
+
+                }
+
+              </div>
+
+            </div>
+
+            <div className="flex flex-col items-center">
+
+              <a
+
+                onClick={(e) => {
+
+                  e.preventDefault()
+
+                  sendHospedagemWhatsapp('detalhes-hospedagem-mobile')
+
+                }}
+
+                href="#"
+
+                className="relative bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-2.5 px-6 rounded-xl shadow-[0_6px_20px_rgba(238,114,21,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] transform-gpu overflow-hidden group/btn mb-1"
+
+              >
+
+                {/* Shine Effect */}
+
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 ease-out"></div>
+
+                
+
+                <span className="relative flex items-center justify-center gap-2 text-sm">
+
+                  <span className="font-bold tracking-wide">Reservar</span>
+
+                </span>
+
+              </a>
+
+              <p className="text-xs font-light text-gray-600">No se cobrará aún</p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+  
+
+        <Footer />
+
       </div>
 
-      <Footer />
-    </div>
-  )
-}
+    )
+
+  }
+
+  

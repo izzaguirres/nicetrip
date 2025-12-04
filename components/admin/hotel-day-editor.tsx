@@ -164,7 +164,7 @@ export function HotelDayEditor({
           <div className="grid grid-cols-12 gap-2 font-medium text-sm text-muted-foreground mb-2 px-2">
             <div className="col-span-4">Tipo de Quarto</div>
             <div className="col-span-2">Capacidade</div>
-            <div className="col-span-3">Valor (USD)</div>
+            <div className="col-span-3">Valor (R$)</div>
             <div className="col-span-2 text-center">Ativo</div>
             <div className="col-span-1"></div>
           </div>

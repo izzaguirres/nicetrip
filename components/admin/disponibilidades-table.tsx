@@ -15,6 +15,7 @@ export interface DashboardHotel {
   slug: string
   count: number
   minPrice: number
+  imageSrc?: string | any
 }
 
 interface DisponibilidadesTableProps {
@@ -54,9 +55,16 @@ export function DisponibilidadesTable({
       {/* Grid de Cards Limpos */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {hotels.map((hotel) => {
-          // Buscar imagem (usando helper de frontend como fallback)
-          const hotelData = getHotelData(hotel.hotel)
-          const imageSrc = hotelData?.imageFiles?.[0] || "/placeholder.svg"
+          // Buscar imagem (usando campo do banco ou helper de frontend como fallback)
+          let imageSrc = hotel.imageSrc
+          
+          if (!imageSrc) {
+             const hotelData = getHotelData(hotel.hotel)
+             imageSrc = hotelData?.imageFiles?.[0]
+          }
+          
+          // Fallback final
+          if (!imageSrc) imageSrc = "/placeholder.svg"
 
           return (
           <Link 

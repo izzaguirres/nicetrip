@@ -1573,7 +1573,9 @@ export default function ResultadosPage() {
                                 )}
                                 
                                 <div className="flex items-baseline gap-1">
-                                   <span className="text-xs font-bold text-gray-400 mb-1 self-start mt-1">USD</span>
+                                   <span className="text-xs font-bold text-gray-400 mb-1 self-start mt-1">
+                                      {activeTab === 'habitaciones' ? 'R$' : 'USD'}
+                                   </span>
                                    <span className="text-4xl font-extrabold text-slate-900 tracking-tighter leading-none">
                                       {activeTab === 'habitaciones'
                                          ? Math.round(displayPrice).toLocaleString('pt-BR')
