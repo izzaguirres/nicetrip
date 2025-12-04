@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ScrollText,
   BedDouble,
-  Sun
+  Sun,
+  MapPin
 } from 'lucide-react'
 
 const navItems = [
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/admin/hospedagens', label: 'Hospedagens', icon: BedDouble },
   { href: '/admin/passeios', label: 'Passeios (Em construção)', icon: Sun },
   { href: '/admin/addons', label: 'Adicionais', icon: PlusCircle },
+  { href: '/admin/locais-saida', label: 'Locais de Saída', icon: MapPin },
   { href: '/admin/condicoes', label: 'Condiciones', icon: ScrollText },
   { type: 'divider', label: 'Marketing' },
   { href: '/admin/promotions', label: 'Promoções', icon: Sparkles },

@@ -457,6 +457,7 @@ export async function fetchCidadesSaida(transporte?: string): Promise<any[]> {
     let query = supabase
       .from('cidades_saida')
       .select('*')
+      .eq('ativo', true)
       .order('cidade')
     
     if (transporte) {
