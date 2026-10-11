@@ -1,4 +1,25 @@
-# Nice Trip - Site de Reservas de Viagens
+# Nice Trip — implementação legada
+
+Este repositório preserva a implementação anterior do site da **Nice Trip**, que deu origem à evolução do Tripnator. O desenvolvimento atual de Admin, Site e Plataforma acontece no monorepo privado [`izzaguirres/tripnator`](https://github.com/izzaguirres/tripnator), acessível aos colaboradores autorizados.
+
+## Acessos atuais
+
+- **Site da Nice Trip no Tripnator:** [abrir a vitrine atual](https://tripnator-site.vercel.app/?tenantSlug=nice-trip).
+- **Admin atual:** [tripnator-admin.vercel.app](https://tripnator-admin.vercel.app).
+- **Produto Tripnator:** [tripnator.vercel.app](https://tripnator.vercel.app).
+- **Endereço da implementação legada:** [nicetrip.vercel.app](https://nicetrip.vercel.app).
+
+## Papel deste repositório
+
+- Referência histórica e de migração da implementação original.
+- Regras, documentação e código abaixo pertencem a esta versão; não descrevem automaticamente o Tripnator atual.
+- O código e o histórico foram preservados. A identificação como legado não desativa o endereço antigo nem arquiva o repositório no GitHub.
+
+A organização de nome, links e documentação foi revisada em **11/10/2026**. Não houve migração de dados nem alteração das regras de cotação nesta revisão.
+
+## Documentação original
+
+> O conteúdo a seguir foi preservado como referência da versão legada. Menções a “últimas alterações” e instruções de setup/publicação pertencem a essa implementação.
 
 Este é o repositório para o site da Nice Trip, uma plataforma moderna para busca e reserva de pacotes de viagem e hospedagens, construída com Next.js, TypeScript e Supabase.
 

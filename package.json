@@ -1,5 +1,11 @@
 {
-  "name": "my-v0-project",
+  "name": "nice-trip-legacy",
+  "description": "Implementação legada da Nice Trip; desenvolvimento atual no monorepo Tripnator.",
+  "homepage": "https://tripnator-site.vercel.app/?tenantSlug=nice-trip",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/izzaguirres/nicetrip.git"
+  },
   "version": "0.1.0",
   "private": true,
   "scripts": {
